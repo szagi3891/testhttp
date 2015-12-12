@@ -141,13 +141,16 @@ fn main() {
 							
 							Some(mut stream) => {
 								
+								println!("strumień : {:?}", &token);
 								
 								thread::spawn(move || {
 									// some work here
 									
 																	//5 sekund
 									thread::sleep(Duration::new(5, 0));
-										
+									
+									println!("strumień zapisuję : {:?}", &token);
+									
 									let response = std::fmt::format(format_args!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem"));
 								
         							stream.try_write(response.as_bytes()).unwrap();	
@@ -156,7 +159,7 @@ fn main() {
 								
 							}
 							None => {
-								println!("Brak strumienia pod tym hashem");
+								println!("Brak strumienia pod tym hashem: {:?}", &token);
 							}
 						}
 						return;
@@ -224,7 +227,7 @@ fn main() {
 	
 	
 	// Start handling events
-	event_loop.run(&mut MyHandler{server: server, hash: HashMap::new(), count:2}).unwrap();
+	event_loop.run(&mut MyHandler{server: server, hash: HashMap::new(), count:1}).unwrap();
 
 	println!("po starcie");
 }
