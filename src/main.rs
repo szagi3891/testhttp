@@ -41,11 +41,31 @@ use mio::{Token, EventLoop, EventSet, PollOpt, Handler, TryRead, TryWrite};
 use mio::tcp::{TcpListener, TcpStream};
 use std::collections::HashMap;
 
+use std::thread;
+use std::time::Duration;
+
 extern crate mio;
 
+/*
+	keep alive
+	kompresja
+	
+	utworzenie soketu nasłuchującego
+
+	4 nowe event loopy
+		nowy event lopp z pożyczeniem tego soketu
+
+	wysyłają kanałem informację o requestach do przetworzenia
+		request :
+			request		- request - do obsłużenia
+			time		- czas zapytania
+			kanał zwrotny - na który zostanie przesłana odpowiedź do przesłania
+*/
 
 fn main() {
 
+	//token generator
+	//kanałem można pobierać nowe tokeny
 	
 	let mut event_loop = EventLoop::new().unwrap();
 	
@@ -114,9 +134,40 @@ fn main() {
 				}
 				_ => {
 					
+					if events.is_writable() {
+						
+						match self.hash.remove(&token) {
+							
+							Some(mut stream) => {
+								
+								println!("strumień : {:?}", &token);
+								
+								thread::spawn(move || {
+									// some work here
+									
+																	//5 sekund
+									thread::sleep(Duration::new(5, 0));
+									
+									println!("strumień zapisuję : {:?}", &token);
+									
+									let response = std::fmt::format(format_args!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem"));
+								
+        							stream.try_write(response.as_bytes()).unwrap();	
+								});
+								
+								
+							}
+							None => {
+								println!("Brak strumienia pod tym hashem: {:?}", &token);
+							}
+						}
+						return;
+					}
+					
+					/*
 					match self.hash.get_mut(&token) {
 						
-						Some(Strem) => {
+						Some(stream) => {
 							
 							if events.is_readable() {
 								
@@ -129,7 +180,7 @@ fn main() {
 								//let mut buf: String = String::new();
 								
 								//match Strem.recv_from(buf) {
-								match Strem.try_read(&mut buf) {
+								match stream.try_read(&mut buf) {
 								//match Strem.read(&mut buf) {
 									
 									Ok(Some(size)) => {
@@ -153,20 +204,16 @@ fn main() {
 								
 								//fn write(&mut self, buf: &[u8]) -> Result<usize>
 								
-								let response = std::fmt::format(format_args!("HTTP/1.1 200 Ok\r\nUpgrade: websocket\r\n\r\nCześć czołem"));
-        						Strem.try_write(response.as_bytes()).unwrap();	
+								let response = std::fmt::format(format_args!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: application/xhtml+xml; charset=utf-8\r\n\r\nCześć czołem"));
+								
+        						stream.try_write(response.as_bytes()).unwrap();	
 							}
-							
-							/*
-								trzeba się przełączać jawnie w drugi tryb
-								self.interest.remove(EventSet::readable());
-                        		self.interest.insert(EventSet::writable());
-							*/
 						}
 						None => {
 							println!("brak strumienia");
 						}
 					}
+					*/
 				}
 			}
 			
@@ -179,7 +226,7 @@ fn main() {
 	
 	
 	// Start handling events
-	event_loop.run(&mut MyHandler{server: server, hash: HashMap::new(), count:2}).unwrap();
+	event_loop.run(&mut MyHandler{server: server, hash: HashMap::new(), count:1}).unwrap();
 
 	println!("po starcie");
 }
