@@ -1,10 +1,12 @@
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, TryRead, TryWrite};
 use mio::tcp::{TcpListener, TcpStream};
+//use mio::util::Slab;
 use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
 
 extern crate mio;
+extern crate httparse;
 
 /*
 	keep alive
@@ -47,9 +49,6 @@ impl TokenGen {
     https://github.com/seanmonstar/httparse
 */
 
-struct Connection {
-    
-}
 
 //to co przeczytaliśmy trafia do bufora
 //parser przetwarzaa
@@ -78,11 +77,60 @@ if hint.is_hup() {
 */
 
 
+///&mut i32 to &'a mut i32, they’re the same
+
+
+enum ConnectionMode {
+    ForUserData,            //oczekiwanie na dane od użytkownika
+    ForServerData,          //oczekiwanie na dane z odpowiedzią od serwera
+}
+
+/*
+    przychodza dane z nowego połączenia
+    tworzymy bufor w który są wkładane te dane, następnie przekazujemy bufor dalej do tablicy połączenia
+*/
+struct Connection<'a> {
+    
+    mode    : ConnectionMode,
+    headers : &'a [httparse::Header<'a>],
+    parser  : httparse::Request<'a, 'a>,
+    //buf     : str,
+    
+    /*
+    parse - nowe dane
+        na wyjściu otrzmujemy opcję z obiektem requestu
+    writeResponse   - zapisywanie w strumień odpowiedzi
+        zjadanie obiektu który był przekazany dalej
+    
+    
+    http://seanmonstar.com/
+        info o bezstanowości httparse
+        
+    https://github.com/hyperium/hyper/blob/master/src/buffer.rs
+        sprawdzić jak hyper sobie radzi z parsowaniem danych ...
+    */
+}
+
+
+
+
+/*
+impl Connection {
+    
+    fn new() -> Connection {
+        let mut headers = [httparse::EMPTY_HEADER; 256];
+        let mut req = httparse::Request::new(&mut headers);
+    }  
+}
+*/
+
+
 // Define a handler to process the events
 struct MyHandler {
     token    : Token,
     server   : TcpListener,
     hash     : HashMap<Token, TcpStream>,
+    //hash     : Slab<TcpStream>,
     tokens   : TokenGen
 }
 
@@ -107,7 +155,8 @@ impl MyHandler {
         event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
 
         let mut inst = MyHandler{token: token, server: server, hash: HashMap::new(), tokens:tokens};
-
+        //let mut inst = MyHandler{token: token, server: server, hash: Slab::new(1024 * 10), tokens:tokens};
+        
         // Start handling events
         event_loop.run(&mut inst).unwrap();
 
@@ -127,10 +176,6 @@ impl Handler for MyHandler {
 
             println!("serwer się zgłosił");
             
-            // Accept and drop the socket immediately, this will close
-            // the socket and notify the client of the EOF.
-            //let _ = server.accept();
-
             match self.server.accept() {
 
                 Ok(Some((stream, addr))) => {
@@ -138,7 +183,6 @@ impl Handler for MyHandler {
                     let tok = self.tokens.get();
                     
                     event_loop.register(&stream, tok, EventSet::all(), PollOpt::edge());
-                    //EventSet::readable(), EventSet::writable()
 
                     self.hash.insert(tok, stream);
 
@@ -157,9 +201,9 @@ impl Handler for MyHandler {
             }
 
         } else {
-
+            
             if events.is_writable() {
-
+                
                 match self.hash.remove(&token) {
 
                     Some(mut stream) => {
