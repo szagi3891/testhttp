@@ -6,7 +6,11 @@ use std::thread;
 use std::time::Duration;
 
 extern crate mio;
-extern crate httparse;
+//extern crate httparse;
+extern crate http_muncher;
+
+use http_muncher::{Parser, ParserHandler};
+
 
 /*
 	keep alive
@@ -46,13 +50,11 @@ impl TokenGen {
     80
     443 - serwer z dekodowaniem certyfikatu -> a potem na http2
     
-    https://github.com/seanmonstar/httparse		- bezstanowy parser
+                            https://github.com/seanmonstar/httparse		- bezstanowy parser
+    
 	https://github.com/nbaksalyar/rust-streaming-http-parser	- nakładka na joyent parser
-	
-
-	https://github.com/nbaksalyar/rust-chat/blob/part-1/src/main.rs
-		-> dobry parser - http matcher
 */
+
 
 
 //to co przeczytaliśmy trafia do bufora
@@ -89,21 +91,51 @@ if hint.is_hup() {
 ///&mut i32 to &'a mut i32, they’re the same
 
 
+
+
+struct HttpParser {
+    current_key: Option<String>,
+    headers: HashMap<String, String>,
+}
+
+impl ParserHandler for HttpParser {
+    
+    fn on_header_field(&mut self, s: &[u8]) -> bool {
+        self.current_key = Some(std::str::from_utf8(s).unwrap().to_string());
+        true
+    }
+
+    fn on_header_value(&mut self, s: &[u8]) -> bool {
+        self.headers.insert(self.current_key.clone().unwrap(),
+                    std::str::from_utf8(s).unwrap().to_string());
+        true
+    }
+
+    fn on_headers_complete(&mut self) -> bool {
+        false
+    }
+}
+
+
+#[derive(PartialEq)]
 enum ConnectionMode {
     ForUserData,            //oczekiwanie na dane od użytkownika
     ForServerData,          //oczekiwanie na dane z odpowiedzią od serwera
 }
 
 /*
+impl std::cmp::PartialEq for ConnectionMode {
+}
+*/
+
+/*
     przychodza dane z nowego połączenia
     tworzymy bufor w który są wkładane te dane, następnie przekazujemy bufor dalej do tablicy połączenia
 */
-struct Connection<'a> {
-    
-    mode    : ConnectionMode,
-    headers : &'a [httparse::Header<'a>],
-    parser  : httparse::Request<'a, 'a>,
-    //buf     : str,
+struct Connection {
+    mode       : ConnectionMode,
+    http_parser: Parser<HttpParser>,
+    stream     : TcpStream,
     
     /*
     parse - nowe dane
@@ -117,43 +149,87 @@ struct Connection<'a> {
         
     https://github.com/hyperium/hyper/blob/master/src/buffer.rs
         sprawdzić jak hyper sobie radzi z parsowaniem danych ...
+        
+    https://github.com/nbaksalyar/rust-chat/blob/part-1/src/main.rs#L2
+        dobrze zaimplementowane mio
     */
 }
 
 
-
-
-/*
 impl Connection {
     
-    fn new() -> Connection {
-        let mut headers = [httparse::EMPTY_HEADER; 256];
-        let mut req = httparse::Request::new(&mut headers);
-    }  
+    fn new(stream: TcpStream) -> Connection {
+        
+        let http_parser_inst = HttpParser {
+            current_key: None,
+            headers: HashMap::new(),
+        };
+        
+        Connection {
+            mode       : ConnectionMode::ForUserData,
+            http_parser: Parser::request(http_parser_inst),
+            stream     : stream,
+        }
+    }
+    
+    fn ready(& mut self, events: EventSet) {
+        
+        if events.is_writable() {
+            
+            if (self.mode == ConnectionMode::ForServerData) {
+                self.run_writable();
+            }
+            
+        } else if events.is_readable() {
+            
+            if (self.mode == ConnectionMode::ForUserData) {
+                self.run_readable();
+            }
+        
+        } else {
+            panic!("{}", "nieznane wydarzenie");
+        }
+    }
+    
+        
+    fn run_writable(& mut self) {
+        
+        println!("zapisuję strumień");
+        
+        //println!("strumień : {:?}", &self.token);
+        //println!("strumień zapisuję : {:?}", &self.token);
+        
+        let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem");
+        
+        self.stream.try_write(response.as_bytes()).unwrap();	
+    }
+    
+    fn run_readable(& mut self) {
+        
+    }
+    
+    //fn parse() {
+    //}
 }
-*/
+
 
 
 // Define a handler to process the events
 struct MyHandler {
     token    : Token,
     server   : TcpListener,
-    hash     : HashMap<Token, TcpStream>,
-    //hash     : Slab<TcpStream>,
+    hash     : HashMap<Token, Connection>,
     tokens   : TokenGen
 }
 
 
 impl MyHandler {
-
-    //fn new(ip: &'static str) -> MyHandler {
-    //fn new(ip: &str) -> MyHandler {
+    
     fn new(ip: &String) -> MyHandler {
 
         let mut tokens = TokenGen::new();
 
         let mut event_loop = EventLoop::new().unwrap();
-
 
         let addr = ip.parse().unwrap();
 
@@ -166,7 +242,7 @@ impl MyHandler {
         let mut inst = MyHandler{token: token, server: server, hash: HashMap::new(), tokens:tokens};
         //let mut inst = MyHandler{token: token, server: server, hash: Slab::new(1024 * 10), tokens:tokens};
         
-        // Start handling events
+        
         event_loop.run(&mut inst).unwrap();
 
         inst
@@ -190,10 +266,11 @@ impl Handler for MyHandler {
                 Ok(Some((stream, addr))) => {
 
                     let tok = self.tokens.get();
+                    let mut connection = Connection::new(stream);
                     
-                    event_loop.register(&stream, tok, EventSet::all(), PollOpt::edge());
+                    event_loop.register(&connection.stream, tok, EventSet::all(), PollOpt::edge());
 
-                    self.hash.insert(tok, stream);
+                    self.hash.insert(tok, connection);
 
                     println!("nowe połączenie : {}", addr);
                 }
@@ -211,35 +288,41 @@ impl Handler for MyHandler {
 
         } else {
             
-            if events.is_writable() {
-                
-                match self.hash.remove(&token) {
+            //match self.hash.remove(&token) {
+            //get
+            
+            match self.hash.get_mut(&token) {
 
-                    Some(mut stream) => {
+                Some(mut connection) => {
+                    connection.ready(events);
+                }
+                None => {
+                    println!("Brak strumienia pod tym hashem: {:?}", &token);
+                }
+            }
+        }
+    }
+}
 
-                        println!("strumień : {:?}", &token);
 
-                        thread::spawn(move || {
+
+fn main() {
+    	
+    println!("Hello, world! - 3");
+	
+    MyHandler::new(&"127.0.0.1:13265".to_string());
+	
+	println!("po starcie");
+}
+
+
+/*                        thread::spawn(move || {
                             // some work here
 
                                                             //5 sekund
                             thread::sleep(Duration::new(5, 0));
-
-                            println!("strumień zapisuję : {:?}", &token);
-
-                            let response = std::fmt::format(format_args!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem"));
-
-                            stream.try_write(response.as_bytes()).unwrap();	
-                        });
-
-
-                    }
-                    None => {
-                        println!("Brak strumienia pod tym hashem: {:?}", &token);
-                    }
-                }
-                return;
-            }
+*/
+//                        });
 
             /*
             match self.hash.get_mut(&token) {
@@ -291,20 +374,3 @@ impl Handler for MyHandler {
                 }
             }
             */
-        }
-
-        //println!("w ready");
-    }
-}
-
-
-
-fn main() {
-    	
-    println!("Hello, world! - 3");
-	
-    MyHandler::new(&"127.0.0.1:13265".to_string());
-	
-	println!("po starcie");
-}
-
