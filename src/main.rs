@@ -46,7 +46,9 @@ impl TokenGen {
     80
     443 - serwer z dekodowaniem certyfikatu -> a potem na http2
     
-    https://github.com/seanmonstar/httparse
+    https://github.com/seanmonstar/httparse		- bezstanowy parser
+	https://github.com/nbaksalyar/rust-streaming-http-parser	- nakładka na joyent parser
+
 */
 
 
@@ -71,6 +73,10 @@ https://github.com/carllerche/mio-examples/blob/master/ping_pong/src/main.rs
 https://github.com/carllerche/mio/blob/master/test/test_close_on_drop.rs
 
 https://github.com/carllerche/mio/blob/master/src/handler.rs
+
+https://nbaksalyar.github.io/2015/07/10/writing-chat-in-rust.html
+https://github.com/nbaksalyar/rust-chat/blob/part-1/src/main.rs
+
 
 if hint.is_hup() {
     się rozłączył
