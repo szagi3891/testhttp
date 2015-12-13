@@ -48,7 +48,10 @@ impl TokenGen {
     
     https://github.com/seanmonstar/httparse		- bezstanowy parser
 	https://github.com/nbaksalyar/rust-streaming-http-parser	- nakładka na joyent parser
+	
 
+	https://github.com/nbaksalyar/rust-chat/blob/part-1/src/main.rs
+		-> dobry parser - http matcher
 */
 
 
