@@ -1,46 +1,6 @@
-/*
-extern crate mio;
-
-use mio::{EventLoop, io, buf};
-
-fn main() {
-    start().assert("The event loop could not be started");
-}
-
-fn start() -> MioResult<EventLoop> {
-    // Create a new event loop. This can fail if the underlying OS cannot
-    // provide a selector.
-    let event_loop = try!(EventLoop::new());
-
-    // Create a two-way pipe.
-    let (mut reader, mut writer) = try!(io::pipe());
-
-    // the second parameter here is a 64-bit, copyable value that will be sent
-    // to the Handler when there is activity on `reader`
-    try!(event_loop.register(&reader, 1u64));
-
-    // kick things off by writing to the writer side of the pipe
-    try!(writer.write(buf::wrap("hello".as_bytes())));
-
-    event_loop.run(MyHandler)
-}
-
-struct MyHandler;
-
-impl Handler for MyHandler {
-    fn readable(&mut self, _loop: &mut EventLoop, token: u64) {
-        println!("The pipe is readable: {}", token);
-    }
-}
-*/
-
-
-
-//use mio::*;
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, TryRead, TryWrite};
 use mio::tcp::{TcpListener, TcpStream};
 use std::collections::HashMap;
-
 use std::thread;
 use std::time::Duration;
 
@@ -62,171 +22,236 @@ extern crate mio;
 			kanał zwrotny - na który zostanie przesłana odpowiedź do przesłania
 */
 
-fn main() {
+struct TokenGen {
+    count : usize
+}
 
-	//token generator
-	//kanałem można pobierać nowe tokeny
-	
-	let mut event_loop = EventLoop::new().unwrap();
-	
-	
-	const SERVER: Token = Token(0);
-	
-	let addr = "127.0.0.1:13265".parse().unwrap();
-	
-	let server = TcpListener::bind(&addr).unwrap();
-	
-	
-	event_loop.register(&server, SERVER, EventSet::readable(), PollOpt::edge()).unwrap();
-	
-	
-	
-	// Define a handler to process the events
-	struct MyHandler {
-		server   : TcpListener,
-		hash     : HashMap<Token, TcpStream>,
-		count    : usize,
-	}
-	
-	impl Handler for MyHandler {
-		
-		type Timeout = ();
-		type Message = ();
-		
-		fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
-			
-			match token {
-				
-				SERVER => {
-					
-					println!("serwer się zgłosił");
-					
-					// Accept and drop the socket immediately, this will close
-					// the socket and notify the client of the EOF.
-					//let _ = server.accept();
-					
-					match self.server.accept() {
-						
-						Ok(Some((stream, addr))) => {
-							
-							let tok = Token(self.count);
-							
-							self.count = self.count + 1;
-							
-							event_loop.register(&stream, tok, EventSet::all(), PollOpt::edge());
-							//EventSet::readable(), EventSet::writable()
-							
-							self.hash.insert(tok, stream);
-							
-							println!("nowe połączenie : {}", addr);
-						}
-						
-						Ok(None) => {
-							
-							println!("brak nowego połączenia");
-						}
-						
-						Err(e) => {
-							
-							println!("coś poszło nie tak jak trzeba {}", e);
-						}
-					}
-				}
-				_ => {
-					
-					if events.is_writable() {
-						
-						match self.hash.remove(&token) {
-							
-							Some(mut stream) => {
-								
-								println!("strumień : {:?}", &token);
-								
-								thread::spawn(move || {
-									// some work here
-									
-																	//5 sekund
-									thread::sleep(Duration::new(5, 0));
-									
-									println!("strumień zapisuję : {:?}", &token);
-									
-									let response = std::fmt::format(format_args!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem"));
-								
-        							stream.try_write(response.as_bytes()).unwrap();	
-								});
-								
-								
-							}
-							None => {
-								println!("Brak strumienia pod tym hashem: {:?}", &token);
-							}
-						}
-						return;
-					}
-					
-					/*
-					match self.hash.get_mut(&token) {
-						
-						Some(stream) => {
-							
-							if events.is_readable() {
-								
-								println!("czytam");
-								
-								
-								let mut buf = [0u8; 2048];
-								
-								//let mut buf = ByteBuf::mut_with_capacity(2048);
-								//let mut buf: String = String::new();
-								
-								//match Strem.recv_from(buf) {
-								match stream.try_read(&mut buf) {
-								//match Strem.read(&mut buf) {
-									
-									Ok(Some(size)) => {
-										
-										println!("odczytano : {}", size);
-										
-									}
-									Ok(None) => {
-										println!("brak danych");
-									}
-									
-									Err(err) => {
-										println!("błąd czytania ze strumienia {:?}", err);
-									}
-								}
-							}
-							
-							if events.is_writable() {
-								
-								println!("piszę");
-								
-								//fn write(&mut self, buf: &[u8]) -> Result<usize>
-								
-								let response = std::fmt::format(format_args!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: application/xhtml+xml; charset=utf-8\r\n\r\nCześć czołem"));
-								
-        						stream.try_write(response.as_bytes()).unwrap();	
-							}
-						}
-						None => {
-							println!("brak strumienia");
-						}
-					}
-					*/
-				}
-			}
-			
-			//println!("w ready");
-		}
-	}
-	
-	
+impl TokenGen {
+    fn new() -> TokenGen {
+        TokenGen{count : 0}
+    }
+    
+    fn get(&mut self) -> Token {
+        
+        let curr = self.count;
+        self.count = self.count + 1;
+        
+        Token(curr)
+    }
+}
+
+/*
+    80
+    443 - serwer z dekodowaniem certyfikatu -> a potem na http2
+    
+    https://github.com/seanmonstar/httparse
+*/
+
+struct Connection {
+    
+}
+
+//to co przeczytaliśmy trafia do bufora
+//parser przetwarzaa
+//jeśli otrzymaliśmy prawidłową wartość requestu, to zamknij czytanie i otwórz wysyłanie
+//obiekt requestu wyślij kanałem na zewnętrzny świat
+
+    //zewnętrzny świat, obiet requestu
+        //ma token, ma kanał którym możemy się skomunikować z powrotem
+    //gdy wyślemy nowe dane odpowiedzi na ten obiekt, to obiekt musi zjeść sam siebie (tylko raz można wysłać odpowiedź)
+
+//jeśli mamy keep alive, to utrzymujemy połączenie i czekamy na nowe dane
+//lub jesli klient się rozłączył to wyrzucamy obiekt połączenia
+
+
+//wykorzystać Slab<Connection> do trzymania puli połączeń
+
+
+/*
+https://github.com/carllerche/mio-examples/blob/master/ping_pong/src/main.rs
+https://github.com/carllerche/mio/blob/master/test/test_close_on_drop.rs
+
+https://github.com/carllerche/mio/blob/master/src/handler.rs
+
+if hint.is_hup() {
+    się rozłączył
+*/
+
+
+// Define a handler to process the events
+struct MyHandler {
+    token    : Token,
+    server   : TcpListener,
+    hash     : HashMap<Token, TcpStream>,
+    tokens   : TokenGen
+}
+
+
+impl MyHandler {
+
+    //fn new(ip: &'static str) -> MyHandler {
+    //fn new(ip: &str) -> MyHandler {
+    fn new(ip: &String) -> MyHandler {
+
+        let mut tokens = TokenGen::new();
+
+        let mut event_loop = EventLoop::new().unwrap();
+
+
+        let addr = ip.parse().unwrap();
+
+        let server = TcpListener::bind(&addr).unwrap();
+
+        let token = tokens.get();
+
+        event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
+
+        let mut inst = MyHandler{token: token, server: server, hash: HashMap::new(), tokens:tokens};
+
+        // Start handling events
+        event_loop.run(&mut inst).unwrap();
+
+        inst
+    }
+
+}
+
+impl Handler for MyHandler {
+
+    type Timeout = ();
+    type Message = ();
+
+    fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
+        
+        if token == self.token {
+
+            println!("serwer się zgłosił");
+            
+            // Accept and drop the socket immediately, this will close
+            // the socket and notify the client of the EOF.
+            //let _ = server.accept();
+
+            match self.server.accept() {
+
+                Ok(Some((stream, addr))) => {
+
+                    let tok = self.tokens.get();
+                    
+                    event_loop.register(&stream, tok, EventSet::all(), PollOpt::edge());
+                    //EventSet::readable(), EventSet::writable()
+
+                    self.hash.insert(tok, stream);
+
+                    println!("nowe połączenie : {}", addr);
+                }
+
+                Ok(None) => {
+
+                    println!("brak nowego połączenia");
+                }
+
+                Err(e) => {
+
+                    println!("coś poszło nie tak jak trzeba {}", e);
+                }
+            }
+
+        } else {
+
+            if events.is_writable() {
+
+                match self.hash.remove(&token) {
+
+                    Some(mut stream) => {
+
+                        println!("strumień : {:?}", &token);
+
+                        thread::spawn(move || {
+                            // some work here
+
+                                                            //5 sekund
+                            thread::sleep(Duration::new(5, 0));
+
+                            println!("strumień zapisuję : {:?}", &token);
+
+                            let response = std::fmt::format(format_args!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem"));
+
+                            stream.try_write(response.as_bytes()).unwrap();	
+                        });
+
+
+                    }
+                    None => {
+                        println!("Brak strumienia pod tym hashem: {:?}", &token);
+                    }
+                }
+                return;
+            }
+
+            /*
+            match self.hash.get_mut(&token) {
+
+                Some(stream) => {
+
+                    if events.is_readable() {
+
+                        println!("czytam");
+
+
+                        let mut buf = [0u8; 2048];
+
+                        //let mut buf = ByteBuf::mut_with_capacity(2048);
+                        //let mut buf: String = String::new();
+
+                        //match Strem.recv_from(buf) {
+                        match stream.try_read(&mut buf) {
+                        //match Strem.read(&mut buf) {
+
+                            Ok(Some(size)) => {
+
+                                println!("odczytano : {}", size);
+
+                            }
+                            Ok(None) => {
+                                println!("brak danych");
+                            }
+
+                            Err(err) => {
+                                println!("błąd czytania ze strumienia {:?}", err);
+                            }
+                        }
+                    }
+
+                    if events.is_writable() {
+
+                        println!("piszę");
+
+                        //fn write(&mut self, buf: &[u8]) -> Result<usize>
+
+                        let response = std::fmt::format(format_args!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: application/xhtml+xml; charset=utf-8\r\n\r\nCześć czołem"));
+
+                        stream.try_write(response.as_bytes()).unwrap();	
+                    }
+                }
+                None => {
+                    println!("brak strumienia");
+                }
+            }
+            */
+        }
+
+        //println!("w ready");
+    }
+}
+
+
+
+fn main() {
+    	
     println!("Hello, world! - 3");
 	
+    MyHandler::new(&"127.0.0.1:13265".to_string());
 	
-	// Start handling events
-	event_loop.run(&mut MyHandler{server: server, hash: HashMap::new(), count:1}).unwrap();
-
 	println!("po starcie");
 }
+
