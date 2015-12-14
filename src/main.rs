@@ -10,6 +10,8 @@ extern crate http_muncher;
 
 use http_muncher::{Parser, ParserHandler};
 
+mod token_gen;
+use token_gen::TokenGen;
 
 /*
 	keep alive
@@ -26,24 +28,6 @@ use http_muncher::{Parser, ParserHandler};
 			time		- czas zapytania
 			kanał zwrotny - na który zostanie przesłana odpowiedź do przesłania
 */
-
-struct TokenGen {
-    count : usize
-}
-
-impl TokenGen {
-    fn new() -> TokenGen {
-        TokenGen{count : 0}
-    }
-    
-    fn get(&mut self) -> Token {
-        
-        let curr = self.count;
-        self.count = self.count + 1;
-        
-        Token(curr)
-    }
-}
 
 /*
     80
@@ -124,6 +108,20 @@ enum ConnectionMode {
 }
 
 
+/*
+struct request {
+    //parser
+    //metody dostępowe
+}*/
+
+
+enum ConnectionTransform {
+    None,
+    Close,
+    //Request()
+}
+
+
 struct Connection {
     mode       : ConnectionMode,
     stream     : TcpStream,
@@ -176,17 +174,15 @@ impl Connection {
         Parser::request(http_parser_inst)
     }
     
-    fn ready(& mut self, events: EventSet) -> bool {
+    fn ready(& mut self, events: EventSet) -> ConnectionTransform {
         
         if events.is_writable() {
             
-            self.run_writable();
-            false
+            self.run_writable()
         
         } else if events.is_readable() {
             
-            self.run_readable();
-            false
+            self.run_readable()
             
         } else {
         
@@ -195,12 +191,13 @@ impl Connection {
     }
     
         
-    fn run_writable(& mut self) {
+    fn run_writable(& mut self) -> ConnectionTransform {
         
         
         match *(&self.mode) {
             
             ConnectionMode::WaitinhForDataServer => {
+                ConnectionTransform::None
             }
             
             ConnectionMode::DataToSendUser(ref str)  => {
@@ -215,23 +212,28 @@ impl Connection {
                 self.stream.try_write(response.as_bytes()).unwrap();
                 
                 //jeśli udany zapis, to zmień stan na oczekiwanie danych od użytkownika lub zamknij to połączenie
+                
+                ConnectionTransform::None
             }
             
             _ => {
                 //ignoruję inne stany
+                ConnectionTransform::None
             }
         }
     }
     
-    fn run_readable(& mut self) {
+    fn run_readable(& mut self) -> ConnectionTransform {
         
         match *(&mut self.mode) {
             
             ConnectionMode::WaitinhForDataUser(ref mut parser) => {
                 
+                ConnectionTransform::None
             }
             
             _ => {
+                ConnectionTransform::None
             }
         }
         
@@ -337,7 +339,14 @@ impl Handler for MyHandler {
                     false
                 }
             };
+            
+            /*
+                jeśli tryb czekania na dane od użytkownika, wejdź w tryb -> czytaj i czekaj na rozłączenie
+                jeśli request, przechodź w -> tryb czekania tylko na zamknięcie
+                jeśli dane do użytkownika, przejdź w -> tryb pisania lub czekaj na zamkniecie
                 
+                dodatkowo inne tryby uwzględnić
+            */
                                             //gdy trzeba to zamykamy połączenie
             if closeConn == true {
                 
