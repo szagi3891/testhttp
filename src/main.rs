@@ -1,17 +1,48 @@
+extern crate mio;
+extern crate http_muncher;
+
+
+//mod server;
+
+
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, TryRead, TryWrite};
 use mio::tcp::{TcpListener, TcpStream};
 //use mio::util::Slab;
+
 use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
 
-extern crate mio;
-extern crate http_muncher;
 
 use http_muncher::{Parser, ParserHandler};
 
-mod token_gen;
-use token_gen::TokenGen;
+//mod token_gen;
+//use token_gen::TokenGen;
+
+
+
+
+pub struct TokenGen {
+    count : usize
+}
+
+impl TokenGen {
+    
+    pub fn new() -> TokenGen {
+        TokenGen{count : 0}
+    }
+    
+    pub fn get(&mut self) -> Token {
+        
+        let curr = self.count;
+        self.count = self.count + 1;
+        
+        Token(curr)
+    }
+}
+
+
+
 
 /*
 	keep alive
@@ -259,7 +290,7 @@ impl Connection {
 
 
 // Define a handler to process the events
-struct MyHandler {
+pub struct MyHandler {
     token    : Token,
     server   : TcpListener,
     hash     : HashMap<Token, Connection>,
@@ -390,14 +421,31 @@ impl Handler for MyHandler {
 
 
 
+
+
+
 fn main() {
     	
     println!("Hello, world! - 127.0.0.1:13265");
 	
-    MyHandler::new(&"127.0.0.1:13265".to_string());
+    //server::MyHandler::new(&"127.0.0.1:13265".to_string());
 	
+    MyHandler::new(&"127.0.0.1:13265".to_string());
+    
 	println!("po starcie");
 }
+
+
+//use deeply::nested::function as other_function;
+// This is equivalent to `use deeply::nested::function as function
+
+//use super::function as root_function;
+
+//use self::cool::function as my_cool_function;
+// ===
+//use cool::function as root_cool_function;
+
+
 
 
 /*                        thread::spawn(move || {
