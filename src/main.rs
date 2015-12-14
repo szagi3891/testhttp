@@ -6,7 +6,6 @@ use std::thread;
 use std::time::Duration;
 
 extern crate mio;
-//extern crate httparse;
 extern crate http_muncher;
 
 use http_muncher::{Parser, ParserHandler};
@@ -117,24 +116,16 @@ impl ParserHandler for HttpParser {
 }
 
 
-#[derive(PartialEq)]
+
 enum ConnectionMode {
-    ForUserData,            //oczekiwanie na dane od użytkownika
-    ForServerData,          //oczekiwanie na dane z odpowiedzią od serwera
+    WaitinhForDataUser(Parser<HttpParser>),     //oczekiwanie na dane od użytkownika
+    WaitinhForDataServer,                       //oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
+    DataToSendUser(String),                     //siedzą dane gotowe do wysłania dla użytkownika
 }
 
-/*
-impl std::cmp::PartialEq for ConnectionMode {
-}
-*/
 
-/*
-    przychodza dane z nowego połączenia
-    tworzymy bufor w który są wkładane te dane, następnie przekazujemy bufor dalej do tablicy połączenia
-*/
 struct Connection {
     mode       : ConnectionMode,
-    http_parser: Parser<HttpParser>,
     stream     : TcpStream,
     
     /*
@@ -156,37 +147,49 @@ struct Connection {
 }
 
 
+/*
+struct ConnectionResult {
+}
+    nic
+    zamknij socket
+    obiekt requestu
+*/
+
+
 impl Connection {
     
     fn new(stream: TcpStream) -> Connection {
+        
+        Connection {
+            mode   : ConnectionMode::WaitinhForDataUser(Connection::new_parser()),
+            stream : stream,
+        }
+    }
+    
+    fn new_parser() -> Parser<HttpParser> {
         
         let http_parser_inst = HttpParser {
             current_key: None,
             headers: HashMap::new(),
         };
         
-        Connection {
-            mode       : ConnectionMode::ForUserData,
-            http_parser: Parser::request(http_parser_inst),
-            stream     : stream,
-        }
+        Parser::request(http_parser_inst)
     }
     
-    fn ready(& mut self, events: EventSet) {
+    fn ready(& mut self, events: EventSet) -> bool {
         
         if events.is_writable() {
             
-            if (self.mode == ConnectionMode::ForServerData) {
-                self.run_writable();
-            }
-            
+            self.run_writable();
+            false
+        
         } else if events.is_readable() {
             
-            if (self.mode == ConnectionMode::ForUserData) {
-                self.run_readable();
-            }
-        
+            self.run_readable();
+            false
+            
         } else {
+        
             panic!("{}", "nieznane wydarzenie");
         }
     }
@@ -194,18 +197,51 @@ impl Connection {
         
     fn run_writable(& mut self) {
         
-        println!("zapisuję strumień");
         
-        //println!("strumień : {:?}", &self.token);
-        //println!("strumień zapisuję : {:?}", &self.token);
-        
-        let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem");
-        
-        self.stream.try_write(response.as_bytes()).unwrap();	
+        match *(&self.mode) {
+            
+            ConnectionMode::WaitinhForDataServer => {
+            }
+            
+            ConnectionMode::DataToSendUser(ref str)  => {
+                
+                println!("zapisuję strumień");
+
+                //println!("strumień : {:?}", &self.token);
+                //println!("strumień zapisuję : {:?}", &self.token);
+
+                let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem");
+                
+                self.stream.try_write(response.as_bytes()).unwrap();
+                
+                //jeśli udany zapis, to zmień stan na oczekiwanie danych od użytkownika lub zamknij to połączenie
+            }
+            
+            _ => {
+                //ignoruję inne stany
+            }
+        }
     }
     
     fn run_readable(& mut self) {
         
+        match *(&mut self.mode) {
+            
+            ConnectionMode::WaitinhForDataUser(ref mut parser) => {
+                
+            }
+            
+            _ => {
+            }
+        }
+        
+        /*
+        if self.mode == ConnectionMode::ForUserData {
+            
+            //parsuj
+            //gdy się sparsujesz, to przełącz się z trybem
+        }
+        */
     }
     
     //fn parse() {
@@ -288,17 +324,26 @@ impl Handler for MyHandler {
 
         } else {
             
-            //match self.hash.remove(&token) {
             //get
             
-            match self.hash.get_mut(&token) {
+            let closeConn = match self.hash.get_mut(&token) {
 
                 Some(mut connection) => {
-                    connection.ready(events);
+                    
+                    connection.ready(events)
                 }
                 None => {
                     println!("Brak strumienia pod tym hashem: {:?}", &token);
+                    false
                 }
+            };
+                
+                                            //gdy trzeba to zamykamy połączenie
+            if closeConn == true {
+                
+                let _ = self.hash.remove(&token);
+                
+                //zmienna ulgegnie samozniszczeniu
             }
         }
     }
@@ -308,7 +353,7 @@ impl Handler for MyHandler {
 
 fn main() {
     	
-    println!("Hello, world! - 3");
+    println!("Hello, world! - 127.0.0.1:13265");
 	
     MyHandler::new(&"127.0.0.1:13265".to_string());
 	
