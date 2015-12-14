@@ -102,9 +102,14 @@ impl ParserHandler for HttpParser {
 
 
 enum ConnectionMode {
-    WaitinhForDataUser(Parser<HttpParser>),     //oczekiwanie na dane od użytkownika
-    WaitinhForDataServer,                       //oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
-    DataToSendUser(String),                     //siedzą dane gotowe do wysłania dla użytkownika
+    
+    WaitinhForDataUser(Parser<HttpParser>),         //oczekiwanie na dane od użytkownika
+    
+    WaitinhForDataServer(bool),                     //oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
+                                                    //bool - oznacza czy był ustawiony keep alivee
+    
+    DataToSendUser(bool, String),                   //siedzą dane gotowe do wysłania dla użytkownika
+                                                    //bool - oznacza czy był ustawiony keep alivee
 }
 
 
@@ -196,11 +201,11 @@ impl Connection {
         
         match *(&self.mode) {
             
-            ConnectionMode::WaitinhForDataServer => {
+            ConnectionMode::WaitinhForDataServer(keep_alive) => {
                 ConnectionTransform::None
             }
             
-            ConnectionMode::DataToSendUser(ref str)  => {
+            ConnectionMode::DataToSendUser(keep_alive, ref str)  => {
                 
                 println!("zapisuję strumień");
 
@@ -336,7 +341,7 @@ impl Handler for MyHandler {
                 }
                 None => {
                     println!("Brak strumienia pod tym hashem: {:?}", &token);
-                    false
+                    ConnectionTransform::None
                 }
             };
             
@@ -347,12 +352,14 @@ impl Handler for MyHandler {
                 
                 dodatkowo inne tryby uwzględnić
             */
-                                            //gdy trzeba to zamykamy połączenie
-            if closeConn == true {
+            
+            match closeConn {
+                ConnectionTransform::None => {
+                }
                 
-                let _ = self.hash.remove(&token);
-                
-                //zmienna ulgegnie samozniszczeniu
+                ConnectionTransform::Close => {
+                    let _ = self.hash.remove(&token);
+                }
             }
         }
     }
