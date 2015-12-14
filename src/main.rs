@@ -123,7 +123,8 @@ struct request {
 enum ConnectionTransform {
     None,
     Close,
-    //Request()
+    Write,
+    Read,
 }
 
 
@@ -208,7 +209,7 @@ impl Connection {
             ConnectionMode::DataToSendUser(keep_alive, ref str)  => {
                 
                 println!("zapisuję strumień");
-
+                
                 //println!("strumień : {:?}", &self.token);
                 //println!("strumień zapisuję : {:?}", &self.token);
 
@@ -291,78 +292,100 @@ impl MyHandler {
         inst
     }
 
+
+    fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
+        
+        println!("serwer się zgłosił");
+
+        match self.server.accept() {
+
+            Ok(Some((stream, addr))) => {
+
+                let tok = self.tokens.get();
+                let mut connection = Connection::new(stream);
+
+                event_loop.register(&connection.stream, tok, EventSet::all(), PollOpt::edge());
+
+                self.hash.insert(tok, connection);
+
+                println!("nowe połączenie : {}", addr);
+            }
+
+            Ok(None) => {
+
+                println!("brak nowego połączenia");
+            }
+
+            Err(e) => {
+
+                println!("coś poszło nie tak jak trzeba {}", e);
+            }
+        }
+    }
+    
+    fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
+        
+        //get
+
+        let closeConn = match self.hash.get_mut(&token) {
+
+            Some(mut connection) => {
+
+                connection.ready(events)
+            }
+            None => {
+                println!("Brak strumienia pod tym hashem: {:?}", &token);
+                ConnectionTransform::None
+            }
+        };
+
+        /*
+            jeśli tryb czekania na dane od użytkownika, wejdź w tryb -> czytaj i czekaj na rozłączenie
+            jeśli request, przechodź w -> tryb czekania tylko na zamknięcie
+            jeśli dane do użytkownika, przejdź w -> tryb pisania lub czekaj na zamkniecie
+
+            dodatkowo inne tryby uwzględnić
+        */
+
+        match closeConn {
+            ConnectionTransform::None => {
+            }
+
+            ConnectionTransform::Write => {
+                //przestawienie w tryb czytania z socketu
+            }
+
+            ConnectionTransform::Read => {
+
+                //przestawienie w tryb pisania do soketu
+            }
+
+            ConnectionTransform::Close => {
+                let _ = self.hash.remove(&token);
+            }
+        }
+    }
 }
+
 
 impl Handler for MyHandler {
 
     type Timeout = ();
     type Message = ();
-
+    
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
         
         if token == self.token {
-
-            println!("serwer się zgłosił");
             
-            match self.server.accept() {
-
-                Ok(Some((stream, addr))) => {
-
-                    let tok = self.tokens.get();
-                    let mut connection = Connection::new(stream);
-                    
-                    event_loop.register(&connection.stream, tok, EventSet::all(), PollOpt::edge());
-
-                    self.hash.insert(tok, connection);
-
-                    println!("nowe połączenie : {}", addr);
-                }
-
-                Ok(None) => {
-
-                    println!("brak nowego połączenia");
-                }
-
-                Err(e) => {
-
-                    println!("coś poszło nie tak jak trzeba {}", e);
-                }
-            }
+            self.new_connection(event_loop, token, events);
 
         } else {
-            
-            //get
-            
-            let closeConn = match self.hash.get_mut(&token) {
-
-                Some(mut connection) => {
-                    
-                    connection.ready(events)
-                }
-                None => {
-                    println!("Brak strumienia pod tym hashem: {:?}", &token);
-                    ConnectionTransform::None
-                }
-            };
-            
-            /*
-                jeśli tryb czekania na dane od użytkownika, wejdź w tryb -> czytaj i czekaj na rozłączenie
-                jeśli request, przechodź w -> tryb czekania tylko na zamknięcie
-                jeśli dane do użytkownika, przejdź w -> tryb pisania lub czekaj na zamkniecie
-                
-                dodatkowo inne tryby uwzględnić
-            */
-            
-            match closeConn {
-                ConnectionTransform::None => {
-                }
-                
-                ConnectionTransform::Close => {
-                    let _ = self.hash.remove(&token);
-                }
-            }
+            self.socket_ready(event_loop, token, events);
         }
     }
+    
+    
+    
 }
 
 
