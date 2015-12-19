@@ -21,6 +21,10 @@ mod api1 {
             println!("get pobudka");
             
             job_box();
+            
+            //let res = job_box();
+            
+            //println!("zwrot1 {}", res);
         });
     }
 }
@@ -41,11 +45,21 @@ mod api2 {
             println!("get2 pobudka");
             
             job_box();
+            
+            /*
+            let res = job_box();
+            
+            println!("zwrot2 {}", res);
+            */
         });
     }
 }
 
 pub fn test() {
+    
+    
+    //TODO - przetestować co się stanie gdy spróbujemy uzyskać dostęp do zasobu chronionego mutexem który
+    //w momencie próby jest zablokoway
     
     
     println!("test z modułu async");
@@ -76,34 +90,41 @@ pub fn test() {
     let result_copy = result.clone();
     
     
-    api1::get(move ||{
+    api1::get(move || {
+        
+        
+        println!("wykonuję callbacka 1");
         
         
         match result_copy.write() {
             Ok(mut res) => {
                 res.result1 = Some(111);
+                //true
             }
             Err(err) => {
                 panic!("dasdas {}", err);
+                //false
             }
-        }
-        
-        println!("wykonuję callbacka 1");
+        };
     });
     
     
-    api2::get(move ||{
+    api2::get(move || {
+        
+        
+        println!("wykonuję callbacka 2");
+        
         
         match result.write() {
             Ok(mut res) => {
                 res.result2 = Some(2222);
+                //true
             }
             Err(err) => {
                 panic!("dasdas {}", err);
+                //false
             }
-        }
-        
-        println!("wykonuję callbacka 2");
+        };
     });
     
     
