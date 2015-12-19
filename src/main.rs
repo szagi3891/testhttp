@@ -1,11 +1,11 @@
 
+/*
 extern crate mio;
 extern crate http_muncher;
 
 mod token_gen;
 mod connection;
 mod server;
-
 
 
 fn main() {
@@ -18,6 +18,17 @@ fn main() {
     
 	println!("po starcie");
 }
+*/
+
+mod async;
+
+fn main() {
+    
+    println!("test asyunchroniczności");
+    
+    async::test();
+}
+
 
 
 //use deeply::nested::function as other_function;
