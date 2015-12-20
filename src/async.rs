@@ -12,7 +12,7 @@ mod api1 {
     
     pub fn get<F>(job: F) where F: FnOnce() + Send + 'static {
         
-        let job_box = Box::new(move || job());
+        //let job_box = Box::new(move || job());
         
         thread::spawn(move || {
             
@@ -20,8 +20,9 @@ mod api1 {
             thread::sleep(Duration::new(2, 0));
             println!("get pobudka");
             
-            job_box();
-            
+            //job_box();
+            job();
+			
             //let res = job_box();
             
             //println!("zwrot1 {}", res);
@@ -34,9 +35,9 @@ mod api2 {
     use std::thread;
     use std::time::Duration;
     
-    pub fn get<F>(job: F) where F: FnOnce() + Send + 'static {
+    pub fn get<F>(id: i32, job: F) where F: FnOnce() + Send + 'static {
         
-        let job_box = Box::new(move || job());
+        //let job_box = Box::new(move || job());
         
         thread::spawn(move || {
             
@@ -44,7 +45,8 @@ mod api2 {
             thread::sleep(Duration::new(3, 0));
             println!("get2 pobudka");
             
-            job_box();
+            //job_box();
+			job();
             
             /*
             let res = job_box();
@@ -89,7 +91,8 @@ pub fn test() {
     
     let result_copy = result.clone();
     
-    
+    //TODO - spróbować pozbyć się mutex-a na rzecz sekcji unsafe
+	
     api1::get(move || {
         
         
@@ -109,7 +112,7 @@ pub fn test() {
     });
     
     
-    api2::get(move || {
+    api2::get(1000, move || {
         
         
         println!("wykonuję callbacka 2");
