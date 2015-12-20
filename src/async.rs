@@ -5,14 +5,10 @@ use std::time::Duration;
 
 mod api1 {
     
-    //triat
-    //fn get_from_db(id i32, ob) {
     use std::thread;
     use std::time::Duration;
     
-    pub fn get<F>(job: F) where F: FnOnce() + Send + 'static {
-        
-        //let job_box = Box::new(move || job());
+    pub fn get<F>(id: i32, job: F) where F: FnOnce(i32) + Send + 'static {
         
         thread::spawn(move || {
             
@@ -20,12 +16,7 @@ mod api1 {
             thread::sleep(Duration::new(2, 0));
             println!("get pobudka");
             
-            //job_box();
-            job();
-			
-            //let res = job_box();
-            
-            //println!("zwrot1 {}", res);
+            job(id+ 777);
         });
     }
 }
@@ -35,9 +26,7 @@ mod api2 {
     use std::thread;
     use std::time::Duration;
     
-    pub fn get<F>(id: i32, job: F) where F: FnOnce() + Send + 'static {
-        
-        //let job_box = Box::new(move || job());
+    pub fn get<F>(id: i32, job: F) where F: FnOnce(i32) + Send + 'static {
         
         thread::spawn(move || {
             
@@ -45,25 +34,21 @@ mod api2 {
             thread::sleep(Duration::new(3, 0));
             println!("get2 pobudka");
             
-            //job_box();
-			job();
-            
-            /*
-            let res = job_box();
-            
-            println!("zwrot2 {}", res);
-            */
+			job(id*4);
         });
     }
 }
 
-pub fn test() {
-    
-    
     //TODO - przetestować co się stanie gdy spróbujemy uzyskać dostęp do zasobu chronionego mutexem który
     //w momencie próby jest zablokoway
     
-    
+
+
+//TODO - spróbować pozbyć się mutex-a na rzecz sekcji unsafe
+
+
+pub fn test() {
+        
     println!("test z modułu async");
     
     
@@ -85,57 +70,48 @@ pub fn test() {
             println!("zbiorcze dane {:?} {:?}", self.result1, self.result2);
         }
     }
-    
-    //let result = Arc::new(Mutex::new(Result::new()));
+	
     let result = Arc::new(RwLock::new(Result::new()));
     
     let result_copy = result.clone();
     
-    //TODO - spróbować pozbyć się mutex-a na rzecz sekcji unsafe
-	
-    api1::get(move || {
-        
+    api1::get(50, move |res_data:i32| {
         
         println!("wykonuję callbacka 1");
         
-        
         match result_copy.write() {
             Ok(mut res) => {
-                res.result1 = Some(111);
-                //true
+                res.result1 = Some(res_data);
             }
             Err(err) => {
                 panic!("dasdas {}", err);
-                //false
             }
         };
     });
     
-    
-    api2::get(1000, move || {
-        
+    api2::get(1000, move |res_data: i32| {
         
         println!("wykonuję callbacka 2");
         
-        
         match result.write() {
             Ok(mut res) => {
-                res.result2 = Some(2222);
-                //true
+                res.result2 = Some(res_data);
             }
             Err(err) => {
                 panic!("dasdas {}", err);
-                //false
             }
         };
     });
-    
     
     println!("main, śpij");
     thread::sleep(Duration::new(5, 0));
     println!("main, pobudka");
 }
-    
+
+
+	//let job_box = Box::new(move || job());
+        
+
     /*
     pub fn execute<F>(&self, job: F)
         where F : FnOnce() + Send + 'static
