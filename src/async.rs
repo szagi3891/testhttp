@@ -39,13 +39,6 @@ mod api2 {
     }
 }
 
-    //TODO - przetestować co się stanie gdy spróbujemy uzyskać dostęp do zasobu chronionego mutexem który
-    //w momencie próby jest zablokoway
-    
-
-
-//TODO - spróbować pozbyć się mutex-a na rzecz sekcji unsafe
-
 
 pub fn test() {
         
@@ -79,28 +72,14 @@ pub fn test() {
         
         println!("wykonuję callbacka 1");
         
-        match result_copy.write() {
-            Ok(mut res) => {
-                res.result1 = Some(res_data);
-            }
-            Err(err) => {
-                panic!("dasdas {}", err);
-            }
-        };
+		result_copy.write().unwrap().result1 = Some(res_data);
     });
     
     api2::get(1000, move |res_data: i32| {
         
         println!("wykonuję callbacka 2");
         
-        match result.write() {
-            Ok(mut res) => {
-                res.result2 = Some(res_data);
-            }
-            Err(err) => {
-                panic!("dasdas {}", err);
-            }
-        };
+		result.write().unwrap().result2 = Some(res_data);
     });
     
     println!("main, śpij");
