@@ -1,3 +1,4 @@
+#![feature(unboxed_closures)]
 
 /*
 extern crate mio;
@@ -19,6 +20,10 @@ fn main() {
 	println!("po starcie");
 }
 */
+
+mod api1;
+mod api2;
+mod api3;
 
 mod async;
 
