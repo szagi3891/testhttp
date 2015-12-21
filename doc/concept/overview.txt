@@ -1,0 +1,16 @@
+
+
+spur {
+
+	gear	(koło zębate, eventloop)
+
+	rack	(workers channel) {
+
+		nut (workers: api1, api2, api3)
+	}
+
+	hopper  (backend: file, database)
+
+}
+
+
