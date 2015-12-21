@@ -8,6 +8,12 @@ use std::mem::replace as mem_replace;
 use api1;
 use api2;
 
+/*
+ https://doc.rust-lang.org/std/cell/struct.RefCell.html
+ https://doc.rust-lang.org/std/cell/
+
+*/
+
 pub fn get<F>(id: i32, job: F) where F: Fn(i32) + Send + 'static + Sync {
 
     //let job_box = Box::new(move |jobid: i32| job(jobid));
