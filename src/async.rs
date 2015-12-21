@@ -9,7 +9,7 @@ pub fn test() {
     
     api3::get(50, move |res:i32| {
 		
-		println!("zbiorcza odpowiedź {}", res);
+		println!("{} zbiorcza odpowiedź {}", thread::current().name().unwrap(), res);
 	});
 	
     println!("main, śpij");

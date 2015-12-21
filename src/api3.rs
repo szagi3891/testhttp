@@ -28,18 +28,11 @@ pub fn get<F>(id: i32, job: F) where F: Fn(i32) + Send + 'static + Sync {
     impl Drop for ResultKK {
 
         fn drop(&mut self) {
-            
+        
             let job = mem_replace(&mut self.job, None);
 
-            (&job.unwrap()).clone()(100000 * self.result1.unwrap() + self.result2.unwrap());
+            job.unwrap()(100000 * self.result1.unwrap() + self.result2.unwrap());
             
-            /*match self.job {
-                Some(ref mut job) => {
-                    self.job = None;
-                },
-                None => {}
-            }*/
-            //println!("zbiorcze dane {:?} {:?}", self.result1, self.result2);
         }
     }
 
@@ -51,14 +44,14 @@ pub fn get<F>(id: i32, job: F) where F: Fn(i32) + Send + 'static + Sync {
 
     api1::get(50, move |res_data:i32| {
 
-        println!("wykonuję callbacka 1");
+        println!("{} wykonuję callbacka 1", thread::current().name().unwrap());
 
         result_copy.write().unwrap().result1 = Some(res_data);
     });
 
     api2::get(1000, move |res_data: i32| {
 
-        println!("wykonuję callbacka 2");
+        println!("{} wykonuję callbacka 2", thread::current().name().unwrap());
 
         result.write().unwrap().result2 = Some(res_data);
     });
