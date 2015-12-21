@@ -1,35 +1,44 @@
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
+use std::mem::replace as mem_replace;
 
 //use api1::get;
 
 use api1;
 use api2;
 
-pub fn get<F>(id: i32, job: F) where F: FnOnce(i32) + Send + 'static + Sync {
+pub fn get<F>(id: i32, job: F) where F: Fn(i32) + Send + 'static + Sync {
 
     //let job_box = Box::new(move |jobid: i32| job(jobid));
-    let job_box = Box::new(move |jobid: i32| job(jobid));
+    let job_box = Box::new(job);
 
-    struct Result {
-        job     : Box<FnOnce(i32) + Send + 'static + Sync>,
+    struct ResultKK {
+        job     : Option<Box<Fn(i32) + Send + 'static + Sync>>,
         result1 : Option<i32>,
         result2 : Option<i32>,
     }
 
-    impl Drop for Result {
+    impl Drop for ResultKK {
 
         fn drop(&mut self) {
+            
+            let job = mem_replace(&mut self.job, None);
 
-            //let job = self.job;
-            self.job.call_once((100000 * self.result1.unwrap() + self.result2.unwrap(),));
+            (&job.unwrap()).clone()(100000 * self.result1.unwrap() + self.result2.unwrap());
+            
+            /*match self.job {
+                Some(ref mut job) => {
+                    self.job = None;
+                },
+                None => {}
+            }*/
             //println!("zbiorcze dane {:?} {:?}", self.result1, self.result2);
         }
     }
 
     //let result = Arc::new(RwLock::new(Result::new()));
-    let result = Result{job: job_box, result1: None, result2: None};
+    let result = ResultKK{job: Some(job_box), result1: None, result2: None};
     let result = Arc::new(RwLock::new(result));
 
     let result_copy = result.clone();

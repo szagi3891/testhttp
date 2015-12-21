@@ -18,6 +18,28 @@ pub fn test() {
 }
 
 
+/*
+3:19:59 < szaman> http://is.gd/fEjcyO - how to invoke 'job'  in the drop implementation ? is that possible at all?
+13:20:49 ! edoput [edoput@moz-8js.ari.40.151.IP] has joined #rust-beginners
+13:24:04 ! Eber [Eber@moz-nal.l32.80.177.IP] has left #rust-beginners []
+13:24:06 ! huguex [huguex@moz-njg.qpn.252.103.IP] has joined #rust-beginners
+13:24:11 < bur_sangjun> szaman: I'm not fully understanding what you're trying to achieve
+13:26:04 < szaman> bur_sangjun: while dropping JobResult, I want to run 'job' closure
+13:30:01 ! DroidLogician [Austin@moz-9lhp5e.ca.charter.com] has quit [Quit: Leaving]
+13:30:46 ! Andris_zbx [andris@moz-9cq.e6i.110.87.IP] has joined #rust-beginners
+13:33:10 < bur_sangjun> szaman: Ah, your problem is then that FnOnce requires ownership, 
+13:33:19 < bur_sangjun> szaman: Swithc it out for FnMut which doesn't, and it will work
+13:33:48 < bur_sangjun> http://is.gd/S8EdId
+13:35:09 < bur_sangjun> szaman: Note: Fn will also work here, as you don't actually need any mutation that would be provided by FnMut
+13:35:16 < bur_sangjun> szaman: So your problem is you are marking the closure as FnOnce
+13:36:13 ! mcint [mcint@moz-6hr3c9.swbr.surewest.net] has quit [Quit: hibernating...]
+13:36:28 < bur_sangjun> basically, in order to call an FnOnce closure, you need to own it, in order to call an Fn closure, you need a reference to it, and in order to call an FnMut closure, you need a borrow of it
+13:37:34 < szaman> thanks! i'll check it
+13:38:59 < bur_sangjun> szaman: The rough type signatures are `FnOnce::call_once(self, args: Args) -> Output`, `Fn::call(&self, args: Args) -> Output` and `FnMut::call_mut(&mut self, args: Args) -> Output`
+
+*/
+
+
 	//let job_box = Box::new(move || job());
         
 
