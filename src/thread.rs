@@ -1,7 +1,7 @@
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 use std::time::Duration;
-    
+use chan_signal::{Signal, notify};
 
 struct watch {
     name : String,
@@ -65,32 +65,85 @@ pub fn test() {
     
     //od razu poeksperymentować z łapaniem sygnału ctrl+c - który posłuży do łagodnego wyjścia z programu
     
-    
+	//http://burntsushi.net/rustdoc/chan/macro.chan_select!.html
+	
+	let signal = notify(&[Signal::INT, Signal::TERM]);
+	
+	
     loop {
-        match rx.recv() {
-            
-            Ok(thread_id) => {
-                
-                if thread_id == "watek_pierwszy".to_string() {
-                    
-                    run_worker1("watek_pierwszy".to_string(), tx.clone());
-                    
-                } else if thread_id == "watek_drugi".to_string() {
-                    
-                    run_worker2("watek_drugi".to_string(), tx.clone());
-                    
-                } else {
-                    
-                    panic!("nieprawidłowy identyfikator wątka");
-                }
-                
-                //println!("otrzymałem informację że umarł wątek: {:?}", rx.recv());
-            }
-            
-            Err(err) => {
-                panic!("panik w przechwytywaniu z kanału {:?}");
-            }
-        }
+		
+		chan_select! {
+			
+			sign = signal.recv() -> {
+				
+				println!("otrzymałem jakiś sygnał {:?}", sign);
+			},
+			
+			message = rx.recv() -> {
+				
+				match message {
+					
+					Ok(thread_id) => {
+
+						if thread_id == "watek_pierwszy".to_string() {
+
+							run_worker1("watek_pierwszy".to_string(), tx.clone());
+
+						} else if thread_id == "watek_drugi".to_string() {
+
+							run_worker2("watek_drugi".to_string(), tx.clone());
+
+						} else {
+
+							panic!("nieprawidłowy identyfikator wątka");
+						}
+
+						//println!("otrzymałem informację że umarł wątek: {:?}", rx.recv());
+					}
+
+					Err(err) => {
+						panic!("panik w przechwytywaniu z kanału {:?}");
+					}
+				}
+			}
+		}
+		/*
+		select! {
+			
+			sign = signal.recv() => {
+				
+				println!("otrzymałem jakiś sygnał {:?}", sign);
+			},
+			
+			message = rx.recv() => {
+				
+				match message {
+					
+					Ok(thread_id) => {
+
+						if thread_id == "watek_pierwszy".to_string() {
+
+							run_worker1("watek_pierwszy".to_string(), tx.clone());
+
+						} else if thread_id == "watek_drugi".to_string() {
+
+							run_worker2("watek_drugi".to_string(), tx.clone());
+
+						} else {
+
+							panic!("nieprawidłowy identyfikator wątka");
+						}
+
+						//println!("otrzymałem informację że umarł wątek: {:?}", rx.recv());
+					}
+
+					Err(err) => {
+						panic!("panik w przechwytywaniu z kanału {:?}");
+					}
+				}
+			}
+		}
+		*/
     }
     
 }

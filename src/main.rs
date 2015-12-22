@@ -1,5 +1,3 @@
-#![feature(unboxed_closures)]
-
 /*
 extern crate mio;
 extern crate http_muncher;
@@ -38,6 +36,7 @@ fn main() {
 }
 */
 
+extern crate chan_signal;
 
 mod thread;
 
@@ -49,6 +48,9 @@ fn main() {
 
 }
 
+
+	
+	
 
 //use deeply::nested::function as other_function;
 // This is equivalent to `use deeply::nested::function as function
