@@ -11,10 +11,10 @@ impl TokenGen {
     }
 
     pub fn get(&mut self) -> Token {
-
         let curr = self.count;
         self.count = self.count + 1;
 
         Token(curr)
     }
+
 }

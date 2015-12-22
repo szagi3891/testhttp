@@ -1,4 +1,4 @@
-//mod server;
+//mod gear;
 
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, TryRead, TryWrite};
 use mio::tcp::{TcpListener, TcpStream};
@@ -73,7 +73,7 @@ if hint.is_hup() {
 */
 
 
-///&mut i32 to &'a mut i32, they<92>re the same
+// &mut i32 to &'a mut i32, they're the same
 
 
 
@@ -111,17 +111,16 @@ impl MyHandler {
         event_loop.run(&mut inst).unwrap();
 
         inst
+
     }
 
 
     fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
 
-        println!("serwer si<ea> zg<b3>osi<b3>");
+        println!("serwer się zgłosił");
 
         match self.server.accept() {
-
             Ok(Some((stream, addr))) => {
-
                 let tok = self.tokens.get();
                 let mut connection = Connection::new(stream);
 
@@ -129,19 +128,18 @@ impl MyHandler {
 
                 self.hash.insert(tok, connection);
 
-                println!("nowe po<b3><b9>czenie : {}", addr);
+                println!("nowe połączenie z {}", addr);
             }
 
             Ok(None) => {
-
-                println!("brak nowego po<b3><b9>czenia");
+                println!("brak nowego połączenia");
             }
 
             Err(e) => {
-
-                println!("co<9c> posz<b3>o nie tak jak trzeba {}", e);
+                println!("coś poszło nie tak jak trzeba: {}", e);
             }
         }
+
     }
 
     fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
@@ -149,7 +147,6 @@ impl MyHandler {
         //get
 
         let closeConn = match self.hash.get_mut(&token) {
-
             Some(mut connection) => {
 
                 connection.ready(events)
@@ -161,11 +158,11 @@ impl MyHandler {
         };
 
         /*
-            je<9c>li tryb czekania na dane od u<bf>ytkownika, wejd<9f> w tryb -> czytaj i czekaj na roz<b3><b9>czenie
-            je<9c>li request, przechod<9f> w -> tryb czekania tylko na zamkni<ea>cie
-            je<9c>li dane do u<bf>ytkownika, przejd<9f> w -> tryb pisania lub czekaj na zamkniecie
+            jeśli tryb czekania na dane od użytkownika, wejdź w tryb -> czytaj i czekaj na rozłączenie
+            jeśli request, przechodź w -> tryb czekania tylko na zamknięcie
+            jeśli dane do użytkownika, przejdź w -> tryb pisania lub czekaj na zamknięcie
 
-            dodatkowo inne tryby uwzgl<ea>dni<e6>
+            dodatkowo inne tryby uwzględnić
         */
 
         match closeConn {
@@ -177,7 +174,6 @@ impl MyHandler {
             }
 
             ConnectionTransform::Read => {
-
                 //przestawienie w tryb pisania do soketu
             }
 
@@ -185,7 +181,9 @@ impl MyHandler {
                 let _ = self.hash.remove(&token);
             }
         }
+
     }
+
 }
 
 
