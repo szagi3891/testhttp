@@ -21,6 +21,8 @@ fn main() {
 }
 */
 
+
+/*
 mod api1;
 mod api2;
 mod api3;
@@ -34,7 +36,18 @@ fn main() {
     async::test();
 
 }
+*/
 
+
+mod thread;
+
+fn main() {
+    
+    println!("test panic-a w wątkach");
+    
+    thread::test();
+
+}
 
 
 //use deeply::nested::function as other_function;
