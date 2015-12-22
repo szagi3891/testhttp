@@ -32,6 +32,7 @@ fn main() {
     println!("test asyunchroniczności");
     
     async::test();
+
 }
 
 

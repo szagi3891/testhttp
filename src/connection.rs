@@ -19,27 +19,30 @@ impl ParserHandler for HttpParser {
     }
 
     fn on_header_value(&mut self, s: &[u8]) -> bool {
-        self.headers.insert(self.current_key.clone().unwrap(),
-                    str::from_utf8(s).unwrap().to_string());
+        self.headers.insert(
+            self.current_key.clone().unwrap(),
+            str::from_utf8(s).unwrap().to_string()
+        );
         true
     }
 
     fn on_headers_complete(&mut self) -> bool {
         false
     }
+
 }
 
 
 
 enum ConnectionMode {
 
-    WaitinhForDataUser(Parser<HttpParser>),         //oczekiwanie na dane od użytkownika
+    WaitingForDataUser(Parser<HttpParser>),         // oczekiwanie na dane od użytkownika
 
-    WaitinhForDataServer(bool),                     //oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
-                                                    //bool - oznacza czy był ustawiony keep alivee
+    WaitingForDataServer(bool),                     // oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
+                                                    // bool - oznacza czy był ustawiony keep alivee
 
-    DataToSendUser(bool, String),                   //siedzą dane gotowe do wysłania dla użytkownika
-                                                    //bool - oznacza czy był ustawiony keep alivee
+    DataToSendUser(bool, String),                   // siedzą dane gotowe do wysłania dla użytkownika
+                                                    // bool - oznacza czy był ustawiony keep alivee
 }
 
 
@@ -95,7 +98,7 @@ impl Connection {
     pub fn new(stream: TcpStream) -> Connection {
 
         Connection {
-            mode   : ConnectionMode::WaitinhForDataUser(Connection::new_parser()),
+            mode   : ConnectionMode::WaitingForDataUser(Connection::new_parser()),
             stream : stream,
         }
     }
@@ -129,10 +132,9 @@ impl Connection {
 
     fn run_writable(& mut self) -> ConnectionTransform {
 
-
         match *(&self.mode) {
 
-            ConnectionMode::WaitinhForDataServer(keep_alive) => {
+            ConnectionMode::WaitingForDataServer(keep_alive) => {
                 ConnectionTransform::None
             }
 
@@ -163,7 +165,7 @@ impl Connection {
 
         match *(&mut self.mode) {
 
-            ConnectionMode::WaitinhForDataUser(ref mut parser) => {
+            ConnectionMode::WaitingForDataUser(ref mut parser) => {
 
                 ConnectionTransform::None
             }
