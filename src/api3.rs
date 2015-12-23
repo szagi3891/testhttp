@@ -9,8 +9,18 @@ use api1;
 use api2;
 
 /*
+
+	do sprawdzenia pod kątem wyeliminowania mutex-a
+
  https://doc.rust-lang.org/std/cell/struct.RefCell.html
  https://doc.rust-lang.org/std/cell/
+
+https://doc.rust-lang.org/std/sync/atomic/struct.AtomicPtr.html
+
+
+potem trzeba utworzyć z tego makro:
+https://doc.rust-lang.org/book/macros.html
+
 */
 
 pub fn get<F>(id: i32, job: F) where F: Fn(i32) + Send + 'static + Sync {

@@ -63,7 +63,7 @@ pub enum ConnectionTransform {
 
 pub struct Connection {
     mode       : ConnectionMode,
-    pub stream     : TcpStream,
+    pub stream : TcpStream,
 
     /*
     parse - nowe dane
@@ -84,15 +84,6 @@ pub struct Connection {
 }
 
 
-/*
-struct ConnectionResult {
-}
-    nic
-    zamknij socket
-    obiekt requestu
-*/
-
-
 impl Connection {
 
     pub fn new(stream: TcpStream) -> Connection {
@@ -104,87 +95,97 @@ impl Connection {
     }
 
     fn new_parser() -> Parser<HttpParser> {
-
+		/*
         let http_parser_inst = HttpParser {
             current_key: None,
             headers: HashMap::new(),
         };
-
+		
         Parser::request(http_parser_inst)
+		*/
+			
+		Parser::request(HttpParser {
+            current_key: None,
+            headers: HashMap::new(),
+        })
     }
 
     pub fn ready(& mut self, events: EventSet) -> ConnectionTransform {
-
-        if events.is_writable() {
-
-            self.run_writable()
-
-        } else if events.is_readable() {
-
-            self.run_readable()
-
-        } else {
-
-            panic!("{}", "nieznane wydarzenie");
-        }
-    }
-
-
-    fn run_writable(& mut self) -> ConnectionTransform {
-
+		
         match *(&self.mode) {
+			
+            ConnectionMode::WaitingForDataUser(ref parser) => {
+				
+				if events.is_readable() {
+					
+					println!("trzeba spróbować przeczytać coś z socketu");
+					
+					
+					let mut buf = [0u8; 2048];
+						
+					match self.stream.try_read(&mut buf) {
+						
+						Ok(Some(size)) => {
+							println!("odczytano : {}", size);
+						}
+						
+						Ok(None) => {
+							println!("brak danych");
+						}
 
+						Err(err) => {
+							println!("błąd czytania ze strumienia {:?}", err);
+						}
+					}
+					
+					//czytaj, odczytane dane przekaż do parsera
+					//jeśli otrzymalismy poprawny obiekt requestu to :
+						// przełącz stan tego obiektu połączenia, na oczekiwanie na dane z serwera
+						// wyślij kanałem odpowiednią informację o requescie
+						// zwróć informację na zewnątrz tej funkcji że nic się nie dzieje z tym połaczeniem
+					
+					
+					//parse(&mut self, data: &[u8]) -> usize
+					//jeśli usize jest > 0 to znaczy że się udało parsowanie
+					
+					/*
+So really, 'allocation-free' means, make any allocations you want beforehand, and then give me a slice. (Hyper creates a stack array of [Header; 100], for instance).
+
+					https://github.com/seanmonstar/httparse
+					
+									httpparse w hyper
+					https://github.com/hyperium/hyper/blob/master/src/http/h1.rs
+					*/
+				}
+				
+				//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
+				
+                ConnectionTransform::None
+            }
+			
             ConnectionMode::WaitingForDataServer(keep_alive) => {
                 ConnectionTransform::None
             }
-
+			
             ConnectionMode::DataToSendUser(keep_alive, ref str)  => {
+				
+				if events.is_writable() {
 
-                println!("zapisuję strumień");
+					println!("zapisuję strumień");
 
-                //println!("strumień : {:?}", &self.token);
-                //println!("strumień zapisuję : {:?}", &self.token);
+					//println!("strumień : {:?}", &self.token);
+					//println!("strumień zapisuję : {:?}", &self.token);
 
-                let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem");
+					let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem");
 
-                self.stream.try_write(response.as_bytes()).unwrap();
+					self.stream.try_write(response.as_bytes()).unwrap();
 
-                //jeśli udany zapis, to zmień stan na oczekiwanie danych od użytkownika lub zamknij to połączenie
-
-                ConnectionTransform::None
-            }
-
-            _ => {
-                //ignoruję inne stany
-                ConnectionTransform::None
+					//jeśli udany zapis, to zmień stan na oczekiwanie danych od użytkownika lub zamknij to połączenie
+				}
+				
+				ConnectionTransform::None
             }
         }
     }
-
-    fn run_readable(& mut self) -> ConnectionTransform {
-
-        match *(&mut self.mode) {
-
-            ConnectionMode::WaitingForDataUser(ref mut parser) => {
-
-                ConnectionTransform::None
-            }
-
-            _ => {
-                ConnectionTransform::None
-            }
-        }
-
-        /*
-        if self.mode == ConnectionMode::ForUserData {
-
-            //parsuj
-            //gdy się sparsujesz, to przełącz się z trybem
-        }
-        */
-    }
-
-    //fn parse() {
-    //}
 }
 

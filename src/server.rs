@@ -9,8 +9,152 @@ use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
 
+use std::sync::mpsc::{channel, Sender, Receiver};
+
 use connection::{Connection, ConnectionTransform};
 use token_gen::TokenGen;
+
+
+
+// Define a handler to process the events
+pub struct MyHandler {
+    token    : Token,
+    server   : TcpListener,
+    hash     : HashMap<Token, Connection>,
+    tokens   : TokenGen,
+	send     : Sender<String>,
+}
+
+
+impl MyHandler {
+
+    pub fn new(ip: &String) -> Receiver<String> {
+
+        let mut tokens = TokenGen::new();
+
+        let mut event_loop = EventLoop::new().unwrap();
+
+        let addr = ip.parse().unwrap();
+
+        let server = TcpListener::bind(&addr).unwrap();
+
+        let token = tokens.get();
+
+        event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
+		
+		let (tx, rx) = channel();
+		
+        let mut inst = MyHandler{
+			token  : token,
+			server : server,
+			hash   : HashMap::new(),
+			tokens : tokens,
+			send   : tx,
+		};
+		
+        //let mut inst = MyHandler{token: token, server: server, hash: Slab::new(1024 * 10), tokens:tokens};
+		
+		thread::spawn(move || {
+			
+        	event_loop.run(&mut inst).unwrap();
+		});
+		
+		rx
+    }
+	
+
+    fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
+
+        println!("serwer się zgłosił");
+
+        match self.server.accept() {
+			
+            Ok(Some((stream, addr))) => {
+				
+                let tok = self.tokens.get();
+                let mut connection = Connection::new(stream);
+
+                event_loop.register(&connection.stream, tok, EventSet::all(), PollOpt::edge());
+				
+                self.hash.insert(tok, connection);
+
+                println!("nowe połączenie z {}", addr);
+            }
+
+            Ok(None) => {
+                println!("brak nowego połączenia");
+            }
+
+            Err(e) => {
+                println!("coś poszło nie tak jak trzeba: {}", e);
+            }
+        }
+
+    }
+
+    fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
+
+        //get
+
+        let close_conn = match self.hash.get_mut(&token) {
+            Some(mut connection) => {
+
+                connection.ready(events)
+            }
+            None => {
+                println!("Brak strumienia pod tym hashem: {:?}", &token);
+                ConnectionTransform::None
+            }
+        };
+
+        /*
+            jeśli tryb czekania na dane od użytkownika, wejdź w tryb -> czytaj i czekaj na rozłączenie
+            jeśli request, przechodź w -> tryb czekania tylko na zamknięcie
+            jeśli dane do użytkownika, przejdź w -> tryb pisania lub czekaj na zamknięcie
+
+            dodatkowo inne tryby uwzględnić
+        */
+
+        match close_conn {
+            ConnectionTransform::None => {
+            }
+
+            ConnectionTransform::Write => {
+                //przestawienie w tryb czytania z socketu
+            }
+
+            ConnectionTransform::Read => {
+                //przestawienie w tryb pisania do soketu
+            }
+
+            ConnectionTransform::Close => {
+                let _ = self.hash.remove(&token);
+            }
+        }
+
+    }
+
+}
+
+
+impl Handler for MyHandler {
+
+    type Timeout = ();
+    type Message = ();
+
+    fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
+
+        if token == self.token {
+
+            self.new_connection(event_loop, token, events);
+
+        } else {
+            self.socket_ready(event_loop, token, events);
+        }
+    }
+}
+
+
 
 //use connect::
 
@@ -76,130 +220,3 @@ if hint.is_hup() {
 // &mut i32 to &'a mut i32, they're the same
 
 
-
-
-
-// Define a handler to process the events
-pub struct MyHandler {
-    token    : Token,
-    server   : TcpListener,
-    hash     : HashMap<Token, Connection>,
-    tokens   : TokenGen
-}
-
-
-impl MyHandler {
-
-    pub fn new(ip: &String) -> MyHandler {
-
-        let mut tokens = TokenGen::new();
-
-        let mut event_loop = EventLoop::new().unwrap();
-
-        let addr = ip.parse().unwrap();
-
-        let server = TcpListener::bind(&addr).unwrap();
-
-        let token = tokens.get();
-
-        event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
-
-        let mut inst = MyHandler{token: token, server: server, hash: HashMap::new(), tokens:tokens};
-        //let mut inst = MyHandler{token: token, server: server, hash: Slab::new(1024 * 10), tokens:tokens};
-
-
-        event_loop.run(&mut inst).unwrap();
-
-        inst
-
-    }
-
-
-    fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
-
-        println!("serwer się zgłosił");
-
-        match self.server.accept() {
-            Ok(Some((stream, addr))) => {
-                let tok = self.tokens.get();
-                let mut connection = Connection::new(stream);
-
-                event_loop.register(&connection.stream, tok, EventSet::all(), PollOpt::edge());
-
-                self.hash.insert(tok, connection);
-
-                println!("nowe połączenie z {}", addr);
-            }
-
-            Ok(None) => {
-                println!("brak nowego połączenia");
-            }
-
-            Err(e) => {
-                println!("coś poszło nie tak jak trzeba: {}", e);
-            }
-        }
-
-    }
-
-    fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
-
-        //get
-
-        let closeConn = match self.hash.get_mut(&token) {
-            Some(mut connection) => {
-
-                connection.ready(events)
-            }
-            None => {
-                println!("Brak strumienia pod tym hashem: {:?}", &token);
-                ConnectionTransform::None
-            }
-        };
-
-        /*
-            jeśli tryb czekania na dane od użytkownika, wejdź w tryb -> czytaj i czekaj na rozłączenie
-            jeśli request, przechodź w -> tryb czekania tylko na zamknięcie
-            jeśli dane do użytkownika, przejdź w -> tryb pisania lub czekaj na zamknięcie
-
-            dodatkowo inne tryby uwzględnić
-        */
-
-        match closeConn {
-            ConnectionTransform::None => {
-            }
-
-            ConnectionTransform::Write => {
-                //przestawienie w tryb czytania z socketu
-            }
-
-            ConnectionTransform::Read => {
-                //przestawienie w tryb pisania do soketu
-            }
-
-            ConnectionTransform::Close => {
-                let _ = self.hash.remove(&token);
-            }
-        }
-
-    }
-
-}
-
-
-impl Handler for MyHandler {
-
-    type Timeout = ();
-    type Message = ();
-
-    fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
-
-        if token == self.token {
-
-            self.new_connection(event_loop, token, events);
-
-        } else {
-            self.socket_ready(event_loop, token, events);
-        }
-    }
-}

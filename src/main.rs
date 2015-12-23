@@ -1,8 +1,15 @@
 #![feature(mpsc_select)]
 
-/*
+
 extern crate mio;
 extern crate http_muncher;
+extern crate simple_signal;
+
+
+use std::sync::mpsc::{channel, Sender};
+use std::thread;
+use std::time::Duration;
+use simple_signal::{Signals, Signal};
 
 mod token_gen;
 mod connection;
@@ -13,13 +20,39 @@ fn main() {
     	
     println!("Hello, world! - 127.0.0.1:13265");
 	
-    //server::MyHandler::new(&"127.0.0.1:13265".to_string());
 	
-    server::MyHandler::new(&"127.0.0.1:13265".to_string());
+    let new_conn_chan = server::MyHandler::new(&"127.0.0.1:13265".to_string());
     
-	println!("po starcie");
+	
+	let (ctrl_c_tx, ctrl_c_rx) = channel();
+	
+	Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
+    
+        println!("złapałem ctrl+c");
+        
+        ctrl_c_tx.send(()); 
+    });
+	
+	
+	
+	loop {
+        
+		select! {
+			
+			_ = ctrl_c_rx.recv() => {
+				
+				println!("rozpoczynam procedurę wyłączania komponentów serwerowych");
+				return;
+			},
+			
+			conn = new_conn_chan.recv() => {
+				
+				println!("odebrano nowe połączenie do obsłużenia");
+			}
+		}
+	}
 }
-*/
+
 
 
 /*
@@ -38,12 +71,8 @@ fn main() {
 }
 */
 
-//#[macro_use]
 
-//extern crate chan;
-//extern crate chan_signal;
-
-//extern crate ctrlc;
+/*
 extern crate simple_signal;
 
 mod thread;
@@ -55,7 +84,7 @@ fn main() {
     thread::test();
 
 }
-
+*/
 
 	
 	
@@ -91,11 +120,7 @@ fn main() {
 
 
                         let mut buf = [0u8; 2048];
-
-                        //let mut buf = ByteBuf::mut_with_capacity(2048);
-                        //let mut buf: String = String::new();
-
-                        //match Strem.recv_from(buf) {
+						
                         match stream.try_read(&mut buf) {
                         //match Strem.read(&mut buf) {
 
