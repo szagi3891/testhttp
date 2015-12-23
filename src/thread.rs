@@ -55,6 +55,7 @@ fn run_worker2(name: String, tx: Sender<String>) {
 
 
 pub fn test() {
+	
     
     let (tx, rx) = channel();
     
@@ -62,21 +63,29 @@ pub fn test() {
     
     run_worker2("watek_drugi".to_string(), tx.clone());
     
+	
     
     //od razu poeksperymentować z łapaniem sygnału ctrl+c - który posłuży do łagodnego wyjścia z programu
     
 	//http://burntsushi.net/rustdoc/chan/macro.chan_select!.html
 	
-	let signal = notify(&[Signal::INT, Signal::TERM]);
+	let signal = notify(&[Signal::INT]);	//, Signal::TERM
 	
+	/*
+	let sign = signal.recv();
+	println!("otrzymałem jakiś sygnał {:?}", sign);
+	return;
+	*/
 	
     loop {
+		
 		
 		chan_select! {
 			
 			sign = signal.recv() -> {
 				
 				println!("otrzymałem jakiś sygnał {:?}", sign);
+				return;
 			},
 			
 			message = rx.recv() -> {
@@ -105,8 +114,9 @@ pub fn test() {
 						panic!("panik w przechwytywaniu z kanału {:?}");
 					}
 				}
-			}
-		}
+			},
+		};
+		
 		/*
 		select! {
 			
