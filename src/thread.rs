@@ -1,7 +1,10 @@
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 use std::time::Duration;
-use chan_signal::{Signal, notify};
+use simple_signal::{Signals, Signal};
+//use std::sync::atomic::{AtomicBool, Ordering};
+//use std::sync::Arc;
+
 
 struct watch {
     name : String,
@@ -64,65 +67,34 @@ pub fn test() {
     run_worker2("watek_drugi".to_string(), tx.clone());
     
 	
+    let (sidntx, sidnrx) = channel();
     
-    //od razu poeksperymentować z łapaniem sygnału ctrl+c - który posłuży do łagodnego wyjścia z programu
+    //let running = Arc::new(AtomicBool::new(true));
+    //let r = running.clone();
     
-	//http://burntsushi.net/rustdoc/chan/macro.chan_select!.html
-	
-	let signal = notify(&[Signal::INT]);	//, Signal::TERM
-	
-	/*
-	let sign = signal.recv();
-	println!("otrzymałem jakiś sygnał {:?}", sign);
-	return;
-	*/
-	
+    //CtrlC::set_handler(move || {    
+        //r.store(false, Ordering::SeqCst);
+    
+    Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
+    
+        println!("złapałem ctrl+c");
+        
+        sidntx.send(()); 
+    });
+    
+    
     loop {
-		
-		
-		chan_select! {
-			
-			sign = signal.recv() -> {
-				
-				println!("otrzymałem jakiś sygnał {:?}", sign);
-				return;
-			},
-			
-			message = rx.recv() -> {
-				
-				match message {
-					
-					Ok(thread_id) => {
-
-						if thread_id == "watek_pierwszy".to_string() {
-
-							run_worker1("watek_pierwszy".to_string(), tx.clone());
-
-						} else if thread_id == "watek_drugi".to_string() {
-
-							run_worker2("watek_drugi".to_string(), tx.clone());
-
-						} else {
-
-							panic!("nieprawidłowy identyfikator wątka");
-						}
-
-						//println!("otrzymałem informację że umarł wątek: {:?}", rx.recv());
-					}
-
-					Err(err) => {
-						panic!("panik w przechwytywaniu z kanału {:?}");
-					}
-				}
-			},
-		};
-		
-		/*
+        
 		select! {
 			
-			sign = signal.recv() => {
+			sign = sidnrx.recv() => {
 				
 				println!("otrzymałem jakiś sygnał {:?}", sign);
+                println!("rozpoczynam procedurę wyjścia");
+                thread::sleep(Duration::new(3, 0));
+                println!("bye");
+                
+                return;
 			},
 			
 			message = rx.recv() => {
@@ -153,7 +125,7 @@ pub fn test() {
 				}
 			}
 		}
-		*/
+		
     }
     
 }

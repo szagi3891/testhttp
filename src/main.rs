@@ -1,3 +1,5 @@
+#![feature(mpsc_select)]
+
 /*
 extern crate mio;
 extern crate http_muncher;
@@ -36,10 +38,13 @@ fn main() {
 }
 */
 
-#[macro_use]
+//#[macro_use]
 
-extern crate chan;
-extern crate chan_signal;
+//extern crate chan;
+//extern crate chan_signal;
+
+//extern crate ctrlc;
+extern crate simple_signal;
 
 mod thread;
 
