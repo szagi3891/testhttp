@@ -156,6 +156,34 @@ So really, 'allocation-free' means, make any allocations you want beforehand, an
 									httpparse w hyper
 					https://github.com/hyperium/hyper/blob/master/src/http/h1.rs
 					*/
+					
+					
+					/*
+					fn read(stream : &mut TcpStream, total : usize) -> Option<Vec<u8>>
+					{
+						let mut buffer = Vec::with_capacity(total);
+						let mut done   = 0;
+
+						unsafe { 
+							buffer.set_len(total)
+						}
+
+						while done < total {
+
+							if let Ok(count) = stream.read(&mut buffer[done..total]) {
+								done += count;    
+							} else {
+								break;
+							}   
+						}
+
+						if done == total {
+							Some(buffer)
+						} else {
+							None
+						}   
+					}
+					*/
 				}
 				
 				//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
