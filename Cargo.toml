@@ -5,6 +5,6 @@ authors = ["grzegorz"]
 
 [dependencies]
 mio = "0.5.0"
-#httparse = "1.1.0"
-http-muncher = "0.2.2"
 simple-signal = "1.0.4"
+httparse = "1.1.0"
+

@@ -2,8 +2,8 @@
 
 
 extern crate mio;
-extern crate http_muncher;
 extern crate simple_signal;
+extern crate httparse;
 
 
 use std::sync::mpsc::{channel, Sender};

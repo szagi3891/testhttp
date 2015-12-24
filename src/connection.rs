@@ -3,9 +3,9 @@ use mio::tcp::{TcpListener, TcpStream};
 //use mio::util::Slab;
 use std::str;
 use std::collections::HashMap;
-use http_muncher::{Parser, ParserHandler};
 
 
+/*
 struct HttpParser {
     current_key: Option<String>,
     headers: HashMap<String, String>,
@@ -30,14 +30,16 @@ impl ParserHandler for HttpParser {
         false
     }
 
-}
+}*/
 
 
 
 enum ConnectionMode {
 
-    WaitingForDataUser(Parser<HttpParser>),         // oczekiwanie na dane od użytkownika
+    //WaitingForDataUser(Parser<HttpParser>),         // oczekiwanie na dane od użytkownika
 
+    WaitingForDataUser([u8; 2048], usize),
+    
     WaitingForDataServer(bool),                     // oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
                                                     // bool - oznacza czy był ustawiony keep alivee
 
@@ -89,55 +91,52 @@ impl Connection {
     pub fn new(stream: TcpStream) -> Connection {
 
         Connection {
-            mode   : ConnectionMode::WaitingForDataUser(Connection::new_parser()),
+            mode   : ConnectionMode::WaitingForDataUser([0u8; 2048], 0),
             stream : stream,
         }
     }
-
-    fn new_parser() -> Parser<HttpParser> {
-		/*
-        let http_parser_inst = HttpParser {
-            current_key: None,
-            headers: HashMap::new(),
-        };
-		
-        Parser::request(http_parser_inst)
-		*/
-			
-		Parser::request(HttpParser {
-            current_key: None,
-            headers: HashMap::new(),
-        })
-    }
-
-    pub fn ready(& mut self, events: EventSet) -> ConnectionTransform {
+    
+    pub fn ready(&mut self, events: EventSet) -> ConnectionTransform {
 		
         match *(&self.mode) {
 			
-            ConnectionMode::WaitingForDataUser(ref parser) => {
+            ConnectionMode::WaitingForDataUser(ref mut buf, ref mut done) => {
 				
 				if events.is_readable() {
 					
 					println!("trzeba spróbować przeczytać coś z socketu");
 					
-					
-					let mut buf = [0u8; 2048];
-						
-					match self.stream.try_read(&mut buf) {
+                    
+					let total = buf.len();
+                    
+					match self.stream.try_read(&mut buf[(*done)..total]) {
 						
 						Ok(Some(size)) => {
+                            
+                            *done = *done + size;
+                            
 							println!("odczytano : {}", size);
+                            
+                            
+                    
+                            //uruchom parser
+                                //jeśli się udało sparsować, to git
+
+                            //jeśli osiągneliśmy całkowity rozmiar bufora a mimo to nie udało się sparsować danych
+                                //to rzuć błędem że nieprawidłowe zapytanie
 						}
 						
 						Ok(None) => {
 							println!("brak danych");
 						}
-
+                        
 						Err(err) => {
 							println!("błąd czytania ze strumienia {:?}", err);
 						}
 					}
 					
+                    
+                    
 					//czytaj, odczytane dane przekaż do parsera
 					//jeśli otrzymalismy poprawny obiekt requestu to :
 						// przełącz stan tego obiektu połączenia, na oczekiwanie na dane z serwera
