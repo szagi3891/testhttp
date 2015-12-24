@@ -5,38 +5,8 @@ use std::str;
 use std::collections::HashMap;
 
 
-/*
-struct HttpParser {
-    current_key: Option<String>,
-    headers: HashMap<String, String>,
-}
-
-impl ParserHandler for HttpParser {
-
-    fn on_header_field(&mut self, s: &[u8]) -> bool {
-        self.current_key = Some(str::from_utf8(s).unwrap().to_string());
-        true
-    }
-
-    fn on_header_value(&mut self, s: &[u8]) -> bool {
-        self.headers.insert(
-            self.current_key.clone().unwrap(),
-            str::from_utf8(s).unwrap().to_string()
-        );
-        true
-    }
-
-    fn on_headers_complete(&mut self) -> bool {
-        false
-    }
-
-}*/
-
-
 
 enum ConnectionMode {
-
-    //WaitingForDataUser(Parser<HttpParser>),         // oczekiwanie na dane od użytkownika
 
     WaitingForDataUser([u8; 2048], usize),
     
@@ -46,7 +16,6 @@ enum ConnectionMode {
     DataToSendUser(bool, String),                   // siedzą dane gotowe do wysłania dla użytkownika
                                                     // bool - oznacza czy był ustawiony keep alivee
 }
-
 
 /*
 struct request {
@@ -98,9 +67,9 @@ impl Connection {
     
     pub fn ready(&mut self, events: EventSet) -> ConnectionTransform {
 		
-        match *(&self.mode) {
+        let (new_mode, connection_transform) = match &mut self.mode {
 			
-            ConnectionMode::WaitingForDataUser(ref mut buf, ref mut done) => {
+            ConnectionMode::WaitingForDataUser(&mut buf, &mut done) => {
 				
 				if events.is_readable() {
 					
@@ -109,16 +78,18 @@ impl Connection {
                     
 					let total = buf.len();
                     
-					match self.stream.try_read(&mut buf[(*done)..total]) {
+                    println!("total w pozycji {}", &done);
+                    
+					match self.stream.try_read(&mut buf[done..total]) {
 						
 						Ok(Some(size)) => {
                             
-                            *done = *done + size;
+                            done = done + size;
                             
 							println!("odczytano : {}", size);
                             
                             
-                    
+                            
                             //uruchom parser
                                 //jeśli się udało sparsować, to git
 
@@ -187,14 +158,17 @@ So really, 'allocation-free' means, make any allocations you want beforehand, an
 				
 				//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 				
-                ConnectionTransform::None
+                //zapisanie nowego stanu
+                (ConnectionMode::WaitingForDataUser(buf, done), ConnectionTransform::None)
+                            
             }
 			
             ConnectionMode::WaitingForDataServer(keep_alive) => {
-                ConnectionTransform::None
+                
+                (ConnectionMode::WaitingForDataServer(keep_alive), ConnectionTransform::None)
             }
 			
-            ConnectionMode::DataToSendUser(keep_alive, ref str)  => {
+            ConnectionMode::DataToSendUser(keep_alive, str)  => {
 				
 				if events.is_writable() {
 
@@ -210,9 +184,13 @@ So really, 'allocation-free' means, make any allocations you want beforehand, an
 					//jeśli udany zapis, to zmień stan na oczekiwanie danych od użytkownika lub zamknij to połączenie
 				}
 				
-				ConnectionTransform::None
+				(ConnectionMode::DataToSendUser(keep_alive, str), ConnectionTransform::None)
             }
-        }
+        };
+        
+        self.mode = new_mode;
+        
+        connection_transform
     }
 }
 
