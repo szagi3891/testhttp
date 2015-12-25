@@ -14,7 +14,6 @@ use connection::Connection;
 use token_gen::TokenGen;
 
 
-
 // Define a handler to process the events
 pub struct MyHandler {
     token    : Token,
@@ -62,7 +61,7 @@ impl MyHandler {
     }
 	
 
-    fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
+    fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>, events: EventSet) {
 
         println!("serwer się zgłosił");
 
@@ -70,18 +69,18 @@ impl MyHandler {
 			
             Ok(Some((stream, addr))) => {
 				
-				println!("nowe połączenie {}", addr);
-				
                 let tok = self.tokens.get();
 				
-				event_loop.register(&stream, tok, EventSet::all(), PollOpt::edge());
 				
-                let mut connection = Connection::new(stream);
+				println!("nowe połączenie {} {:?}", addr, &tok);
 				
-                
+				
+				//TODO - new może zwracać clousera - który po uruchomieniu dopiero zwróci właściwy obiekt połączenia
+				
+                let mut connection = Connection::new(stream).set_options(true, event_loop, tok.clone());;
+				
                 self.hash.insert(tok, connection);
-
-                println!("nowe połączenie z {}", addr);
+				
             }
 
             Ok(None) => {
@@ -91,22 +90,35 @@ impl MyHandler {
             Err(e) => {
                 println!("coś poszło nie tak jak trzeba: {}", e);
             }
-        }
+        };
+		
+		println!("długość hasmapy po przetworzeniu new connection {}", self.hash.len());
 
     }
 
     fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
 
+		
         //get
 
         match self.hash.remove(&token) {
 			
             Some(connection) => {
 				
-                let new_connetion = connection.ready(events);
+                let (new_connetion, is_close) = connection.ready(events, token.clone());
+				
+				let new_connetion = new_connetion.set_options(false, event_loop, token.clone());
+				
+				if is_close {
+					
+					println!("zerwer zamyka połączenie !!!!!!!!!!!!!!");
+					return;
+				}
 				
 				
-				//new_connetion.set_mode_rw();
+				//TODO - ready może zwracać clousera - który po uruchomieniu dopiero zwróci właściwy obiekt połączenia
+				
+				//.set_events(event_loop, token);
 				
 				self.hash.insert(token.clone(), new_connetion);
             }
@@ -116,43 +128,10 @@ impl MyHandler {
                 println!("Brak strumienia pod tym hashem: {:?}", &token);
             }
         };
-
-        /*
-            jeśli tryb czekania na dane od użytkownika, wejdź w tryb -> czytaj i czekaj na rozłączenie
-            jeśli request, przechodź w -> tryb czekania tylko na zamknięcie
-            jeśli dane do użytkownika, przejdź w -> tryb pisania lub czekaj na zamknięcie
-
-            dodatkowo inne tryby uwzględnić
-        */
 		
-		/*
-        match close_conn {
-			
-            ConnectionTransform::None => {	
-				return;
-            }
-			
-			/*
-			ConnectionTransform::Continue => {
-				self.socket_ready(event_loop, token, events)
-			}
-			*/
-			
-            ConnectionTransform::Write => {
-                //przestawienie w tryb czytania z socketu
-				
-            }
-
-            ConnectionTransform::Read => {
-                //przestawienie w tryb pisania do soketu
-            }
-
-            ConnectionTransform::Close => {
-                let _ = self.hash.remove(&token);
-				println!("zamykam połaczenie");
-            }
-        }
-		*/
+		
+		println!("długość hasmapy po przetworzeniu ready {}", self.hash.len());
+		
     }
 
 }
@@ -167,7 +146,7 @@ impl Handler for MyHandler {
 
         if token == self.token {
 
-            self.new_connection(event_loop, token, events);
+            self.new_connection(event_loop, events);
 
         } else {
             self.socket_ready(event_loop, token, events);

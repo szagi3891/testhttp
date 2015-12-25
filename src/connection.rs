@@ -2,6 +2,7 @@ use mio::{Token, EventLoop, EventSet, PollOpt, Handler, TryRead, TryWrite};
 use mio::tcp::{TcpListener, TcpStream};
 use std::str;
 use std::collections::HashMap;
+use server::MyHandler;
 use httparse;
 
 
@@ -82,20 +83,115 @@ impl Connection {
         Connection(stream, false, ConnectionMode::WaitingForDataUser([0u8; 2048], 0))
     }
     
-	pub fn ready(mut self, events: EventSet) -> Connection {
+	
+	pub fn set_options(mut self, is_new: bool, event_loop: &mut EventLoop<MyHandler>, token: Token) -> Connection {
 		
-		let new_connection = self.transform_connection(events);
+		//(&stream, EventSet::all(), PollOpt::edge())
 		
-		//trzeba ustawić odpowiedni tryb
+		let base_event = EventSet::error() | EventSet::hup();
+		let pool_opt   = PollOpt::edge() | PollOpt::oneshot();
+		//let pool_opt   = PollOpt::level();
 		
-		new_connection
+		/*
+		let set_event = |stream, token, event, pool_opt|{
+			
+			if is_new {
+				event_loop.register  (stream, token, event, pool_opt);
+			} else {
+				event_loop.reregister(stream, token, event, pool_opt);
+			}
+		};
+		*/
+			
+		match self {
+			
+			Connection(stream, keep_alive, ConnectionMode::WaitingForDataUser(buf, done)) => {
+				
+				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! ustawiam tryb : 1");
+				
+				//set_event(&stream, token, base_event | EventSet::readable(), pool_opt);
+				
+				
+				if is_new {
+					event_loop.register  (&stream, token, base_event | EventSet::readable(), pool_opt);
+				} else {
+					event_loop.reregister(&stream, token, base_event | EventSet::readable(), pool_opt);
+				}
+				
+				
+				Connection(stream, keep_alive, ConnectionMode::WaitingForDataUser(buf, done))
+			}
+			
+			Connection(stream, keep_alive, ConnectionMode::WaitingForDataServer) => {
+				
+				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! ustawiam tryb : 2");
+				//set_event(&stream, token, base_event, pool_opt);
+				
+				
+				if is_new {
+					event_loop.register  (&stream, token, base_event, pool_opt);
+				} else {
+					event_loop.reregister(&stream, token, base_event, pool_opt);
+				}
+				
+				Connection(stream, keep_alive, ConnectionMode::WaitingForDataServer)
+			}
+			
+			Connection(stream, keep_alive, ConnectionMode::DataToSendUser(str, done)) => {
+				
+				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! ustawiam tryb : 3");
+				//set_event(&stream, token, base_event | EventSet::writable(), pool_opt);
+				
+				
+				if is_new {
+					event_loop.register  (&stream, token, base_event | EventSet::writable(), pool_opt);
+				} else {
+					event_loop.reregister(&stream, token, base_event | EventSet::writable(), pool_opt);
+				}
+				
+				Connection(stream, keep_alive, ConnectionMode::DataToSendUser(str, done))
+		   	}
+			
+		    Connection(stream, keep_alive, ConnectionMode::Close) => {
+				
+				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! ustawiam tryb : 4");
+				//set_event(&stream, token, base_event, pool_opt);
+				
+				
+				if is_new {
+					event_loop.register  (&stream, token, EventSet::none(), pool_opt);
+				} else {
+					event_loop.reregister(&stream, token, EventSet::none(), pool_opt);
+				}
+				
+				Connection(stream, keep_alive, ConnectionMode::Close)
+			}
+		}
 	}
-
-    fn transform_connection(mut self, events: EventSet) -> Connection {
+	/*
+	EventSet::readable()
+	EventSet::writable()
+	EventSet::error()
+	EventSet::hup()
+	*/
+	
+	//| PollOpt::oneshot()
+	
+	
+    pub fn ready(mut self, events: EventSet, tok: Token) -> (Connection, bool) {
+		
+		if events.is_hup() {
+			println!("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT {}", tok.as_usize());
+			return (Connection(self.0, self.1, ConnectionMode::Close), true);
+		}
+		
+		if events.is_error() {
+			println!("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT 2");
+		}
 		
         match self {
 			
-            Connection(mut stream, mut kepp_alive, ConnectionMode::WaitingForDataUser(mut buf, mut done)) => {
+            Connection(mut stream, mut keep_alive, ConnectionMode::WaitingForDataUser(mut buf, mut done)) => {
 				
 				if events.is_readable() {
 					
@@ -142,7 +238,7 @@ impl Connection {
 										}
 										
 										//TODO - testowa odpowiedź
-										return Connection(stream, kepp_alive, ConnectionMode::DataToSendUser(resp_vec, 0));
+										return (Connection(stream, keep_alive, ConnectionMode::DataToSendUser(resp_vec, 0)), false);
 									}
 
 									Ok(httparse::Status::Partial) => {
@@ -189,20 +285,22 @@ impl Connection {
 						// wyślij kanałem odpowiednią informację o requescie
 						// zwróć informację na zewnątrz tej funkcji że nic się nie dzieje z tym połaczeniem
 					
+					return (Connection(stream, keep_alive, ConnectionMode::WaitingForDataUser(buf, done)), false);
 				}
 				
 				//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 				
-                Connection(stream, kepp_alive, ConnectionMode::WaitingForDataUser(buf, done))
-                            
+                println!("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY");
+				
+                (Connection(stream, keep_alive, ConnectionMode::WaitingForDataUser(buf, done)), false)
             }
 			
-            Connection(stream, mut kepp_alive, ConnectionMode::WaitingForDataServer) => {
+            Connection(stream, mut keep_alive, ConnectionMode::WaitingForDataServer) => {
                 
-                Connection(stream, kepp_alive, ConnectionMode::WaitingForDataServer)
+                (Connection(stream, keep_alive, ConnectionMode::WaitingForDataServer), false)
             }
 			
-            Connection(mut stream, mut kepp_alive, ConnectionMode::DataToSendUser(mut str, mut done))  => {
+            Connection(mut stream, mut keep_alive, ConnectionMode::DataToSendUser(mut str, mut done))  => {
 				
 				if events.is_writable() {
 					
@@ -217,7 +315,7 @@ impl Connection {
 																//send all data to browser
 								if done == str.len() {
 									/*
-									if kepp_alive == true {
+									if keep_alive == true {
 										
 										//keep connection
 										//TODO
@@ -226,7 +324,7 @@ impl Connection {
 										*/
 											//close connection
 										
-										return Connection(stream, kepp_alive, ConnectionMode::Close);
+										return (Connection(stream, keep_alive, ConnectionMode::Close), true);
 									//}
 								} else {
 									println!("XXXXXXXXX");
@@ -246,13 +344,13 @@ impl Connection {
 					}
 				}
 				
-				Connection(stream, kepp_alive, ConnectionMode::DataToSendUser(str, done))
+				(Connection(stream, keep_alive, ConnectionMode::DataToSendUser(str, done)), false)
             },
 			
 			
-			Connection(mut stream, mut kepp_alive, ConnectionMode::Close)  => {
+			Connection(mut stream, mut keep_alive, ConnectionMode::Close)  => {
 				
-				Connection(stream, kepp_alive, ConnectionMode::Close)
+				(Connection(stream, keep_alive, ConnectionMode::Close), false)
 			}
         }
     }
