@@ -3,18 +3,22 @@ use mio::tcp::{TcpListener, TcpStream};
 //use mio::util::Slab;
 use std::str;
 use std::collections::HashMap;
-
+use httparse;
 
 
 enum ConnectionMode {
-
-    WaitingForDataUser([u8; 2048], usize),
+	
+    //WaitingForDataUser([u8; 2048], usize),
+	WaitingForDataUser([u8; 2048], usize),
     
-    WaitingForDataServer(bool),                     // oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
+    WaitingForDataServer(bool),
+													// oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
                                                     // bool - oznacza czy był ustawiony keep alivee
 
-    DataToSendUser(bool, String),                   // siedzą dane gotowe do wysłania dla użytkownika
+    DataToSendUser(bool, String),
+													// siedzą dane gotowe do wysłania dla użytkownika
                                                     // bool - oznacza czy był ustawiony keep alivee
+													// String - dane do wysłania
 }
 
 /*
@@ -31,11 +35,17 @@ pub enum ConnectionTransform {
     Read,
 }
 
+											//do zastanowienia czy nie dorzucić keep allive na poziomie całej struktury conneciton
+											//świeże połączenie startowałoby z keep alive na false
+pub struct Connection (TcpStream, ConnectionMode);
 
+	
+/*	
 pub struct Connection {
     mode       : ConnectionMode,
     pub stream : TcpStream,
-
+}
+*/
     /*
     parse - nowe dane
         na wyjściu otrzmujemy opcję z obiektem requestu
@@ -52,49 +62,89 @@ pub struct Connection {
     https://github.com/nbaksalyar/rust-chat/blob/part-1/src/main.rs#L2
         dobrze zaimplementowane mio
     */
-}
 
 
 impl Connection {
 
     pub fn new(stream: TcpStream) -> Connection {
-
-        Connection {
-            mode   : ConnectionMode::WaitingForDataUser([0u8; 2048], 0),
-            stream : stream,
-        }
+	
+        Connection(stream, ConnectionMode::WaitingForDataUser([0u8; 2048], 0))
+	
+		//Connection(stream, ConnectionMode::WaitingForDataUser(Vec::with_capacity(2048), 0))
     }
     
-    pub fn ready(&mut self, events: EventSet) -> ConnectionTransform {
+    pub fn ready(mut self, events: EventSet) -> (Connection, ConnectionTransform) {
 		
-        let (new_mode, connection_transform) = match &mut self.mode {
+        match self {
 			
-            ConnectionMode::WaitingForDataUser(&mut buf, &mut done) => {
+            Connection(mut stream, ConnectionMode::WaitingForDataUser(mut buf, mut done)) => {
 				
 				if events.is_readable() {
-					
-					println!("trzeba spróbować przeczytać coś z socketu");
 					
                     
 					let total = buf.len();
                     
                     println!("total w pozycji {}", &done);
                     
-					match self.stream.try_read(&mut buf[done..total]) {
+					match stream.try_read(&mut buf[done..total]) {
 						
 						Ok(Some(size)) => {
                             
-                            done = done + size;
-                            
-							println!("odczytano : {}", size);
-                            
-                            
-                            
-                            //uruchom parser
-                                //jeśli się udało sparsować, to git
+							if size > 0 {
+								
+								done = done + size;
 
-                            //jeśli osiągneliśmy całkowity rozmiar bufora a mimo to nie udało się sparsować danych
-                                //to rzuć błędem że nieprawidłowe zapytanie
+								println!("odczytano : {}", size);
+
+
+								let mut headers = [httparse::EMPTY_HEADER; 100];
+								let mut req     = httparse::Request::new(&mut headers);
+
+								match req.parse(&buf) {
+
+									Ok(httparse::Status::Complete(size_parse)) => {
+										
+										println!("ok parsowanie");
+										
+										println!("method : {:?}", req.method);
+										println!("path : {:?}", req.path);
+										println!("version : {:?}", req.version);
+										println!("headers : {:?}", req.headers);
+									}
+
+									Ok(httparse::Status::Partial) => {
+										//częściowe parsowanie
+									}
+
+									Err(err) => {
+
+										match err {
+											httparse::Error::HeaderName => {
+												println!("header name");
+											}
+											_ => {
+												println!("błąd parsowania {:?}", err);
+											}
+										}
+
+										/*
+										HeaderName,
+										HeaderValue,
+										NewLine,
+										Status,
+										Token,
+										TooManyHeaders,
+										Version,
+										*/
+									}
+								}
+
+								//uruchom parser
+									//jeśli się udało sparsować, to git
+
+								//jeśli osiągneliśmy całkowity rozmiar bufora a mimo to nie udało się sparsować danych
+									//to rzuć błędem że nieprawidłowe zapytanie
+							}
 						}
 						
 						Ok(None) => {
@@ -106,8 +156,8 @@ impl Connection {
 						}
 					}
 					
-                    
-                    
+					
+					
 					//czytaj, odczytane dane przekaż do parsera
 					//jeśli otrzymalismy poprawny obiekt requestu to :
 						// przełącz stan tego obiektu połączenia, na oczekiwanie na dane z serwera
@@ -159,16 +209,16 @@ So really, 'allocation-free' means, make any allocations you want beforehand, an
 				//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 				
                 //zapisanie nowego stanu
-                (ConnectionMode::WaitingForDataUser(buf, done), ConnectionTransform::None)
+                (Connection(stream, ConnectionMode::WaitingForDataUser(buf, done)), ConnectionTransform::None)
                             
             }
 			
-            ConnectionMode::WaitingForDataServer(keep_alive) => {
+            Connection(stream, ConnectionMode::WaitingForDataServer(keep_alive)) => {
                 
-                (ConnectionMode::WaitingForDataServer(keep_alive), ConnectionTransform::None)
+                (Connection(stream, ConnectionMode::WaitingForDataServer(keep_alive)), ConnectionTransform::None)
             }
 			
-            ConnectionMode::DataToSendUser(keep_alive, str)  => {
+            Connection(mut stream, ConnectionMode::DataToSendUser(keep_alive, str))  => {
 				
 				if events.is_writable() {
 
@@ -179,18 +229,14 @@ So really, 'allocation-free' means, make any allocations you want beforehand, an
 
 					let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem");
 
-					self.stream.try_write(response.as_bytes()).unwrap();
+					stream.try_write(response.as_bytes()).unwrap();
 
 					//jeśli udany zapis, to zmień stan na oczekiwanie danych od użytkownika lub zamknij to połączenie
 				}
 				
-				(ConnectionMode::DataToSendUser(keep_alive, str), ConnectionTransform::None)
+				(Connection(stream, ConnectionMode::DataToSendUser(keep_alive, str)), ConnectionTransform::None)
             }
-        };
-        
-        self.mode = new_mode;
-        
-        connection_transform
+        }
     }
 }
 

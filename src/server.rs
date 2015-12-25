@@ -72,10 +72,12 @@ impl MyHandler {
             Ok(Some((stream, addr))) => {
 				
                 let tok = self.tokens.get();
+				
+				event_loop.register(&stream, tok, EventSet::all(), PollOpt::edge());
+				
                 let mut connection = Connection::new(stream);
 
-                event_loop.register(&connection.stream, tok, EventSet::all(), PollOpt::edge());
-				
+                
                 self.hash.insert(tok, connection);
 
                 println!("nowe połączenie z {}", addr);
@@ -96,10 +98,12 @@ impl MyHandler {
 
         //get
 
-        let close_conn = match self.hash.get_mut(&token) {
-            Some(mut connection) => {
+        let close_conn = match self.hash.remove(&token) {
+            Some(connection) => {
 
-                connection.ready(events)
+                let (new_connetion, transform) = connection.ready(events);
+				self.hash.insert(token, new_connetion);
+				transform
             }
             None => {
                 println!("Brak strumienia pod tym hashem: {:?}", &token);
