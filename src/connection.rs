@@ -61,12 +61,9 @@ fn read(stream : &mut TcpStream, total : usize) -> Option<Vec<u8>>
 
 enum ConnectionMode {
 	
-    //WaitingForDataUser([u8; 2048], usize),
 	WaitingForDataUser([u8; 2048], usize),
-    
 													//oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
     WaitingForDataServer,
-
 													//siedzą dane gotowe do wysłania dla użytkownika
     DataToSendUser(Vec<u8>, usize),
 	
@@ -81,19 +78,15 @@ pub enum ConnectionTransform {
     Read,
 }
 
+								//socket, keep alive, current mode
 pub struct Connection (TcpStream, bool, ConnectionMode);
 
-								//0 - socket
-								//1 - keep alive
-								//2 - current mode
 
 impl Connection {
 
     pub fn new(stream: TcpStream) -> Connection {
 	
         Connection(stream, false, ConnectionMode::WaitingForDataUser([0u8; 2048], 0))
-	
-		//Connection(stream, ConnectionMode::WaitingForDataUser(Vec::with_capacity(2048), 0))
     }
     
     pub fn ready(mut self, events: EventSet) -> (Connection, ConnectionTransform) {
@@ -246,12 +239,6 @@ impl Connection {
 							println!("błąd zapisywania do strumienia {:?}", err);
 						}
 					}
-					
-					//jeśli udany zapis, to zmień stan na oczekiwanie danych od użytkownika lub zamknij to połączenie
-					
-					//TODO - jeśli już wysłano wszystkie dane z odpowiedzą
-						//jeśli jest keep alive nie zachowaj połaczenie
-						//jeśli keep alive false, zamknij połączenie
 				}
 				
 				(Connection(stream, kepp_alive, ConnectionMode::DataToSendUser(str, done)), ConnectionTransform::None)
