@@ -70,13 +70,6 @@ enum ConnectionMode {
 	Close,
 }
 
-pub enum ConnectionTransform {
-    None,
-	Continue,
-    Close,
-    Write,
-    Read,
-}
 
 								//socket, keep alive, current mode
 pub struct Connection (TcpStream, bool, ConnectionMode);
@@ -89,7 +82,16 @@ impl Connection {
         Connection(stream, false, ConnectionMode::WaitingForDataUser([0u8; 2048], 0))
     }
     
-    pub fn ready(mut self, events: EventSet) -> (Connection, ConnectionTransform) {
+	pub fn ready(mut self, events: EventSet) -> Connection {
+		
+		let new_connection = self.transform_connection(events);
+		
+		//trzeba ustawić odpowiedni tryb
+		
+		new_connection
+	}
+
+    fn transform_connection(mut self, events: EventSet) -> Connection {
 		
         match self {
 			
@@ -140,7 +142,7 @@ impl Connection {
 										}
 										
 										//TODO - testowa odpowiedź
-										return (Connection(stream, kepp_alive, ConnectionMode::DataToSendUser(resp_vec, 0)), ConnectionTransform::Continue);
+										return Connection(stream, kepp_alive, ConnectionMode::DataToSendUser(resp_vec, 0));
 									}
 
 									Ok(httparse::Status::Partial) => {
@@ -191,13 +193,13 @@ impl Connection {
 				
 				//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 				
-                (Connection(stream, kepp_alive, ConnectionMode::WaitingForDataUser(buf, done)), ConnectionTransform::None)
+                Connection(stream, kepp_alive, ConnectionMode::WaitingForDataUser(buf, done))
                             
             }
 			
             Connection(stream, mut kepp_alive, ConnectionMode::WaitingForDataServer) => {
                 
-                (Connection(stream, kepp_alive, ConnectionMode::WaitingForDataServer), ConnectionTransform::None)
+                Connection(stream, kepp_alive, ConnectionMode::WaitingForDataServer)
             }
 			
             Connection(mut stream, mut kepp_alive, ConnectionMode::DataToSendUser(mut str, mut done))  => {
@@ -214,17 +216,20 @@ impl Connection {
 								
 																//send all data to browser
 								if done == str.len() {
-									
+									/*
 									if kepp_alive == true {
 										
 										//keep connection
 										//TODO
 										
 									} else {
+										*/
 											//close connection
 										
-										return (Connection(stream, kepp_alive, ConnectionMode::Close), ConnectionTransform::Close)
-									}
+										return Connection(stream, kepp_alive, ConnectionMode::Close);
+									//}
+								} else {
+									println!("XXXXXXXXX");
 								}
 							}
 						}
@@ -241,13 +246,13 @@ impl Connection {
 					}
 				}
 				
-				(Connection(stream, kepp_alive, ConnectionMode::DataToSendUser(str, done)), ConnectionTransform::None)
+				Connection(stream, kepp_alive, ConnectionMode::DataToSendUser(str, done))
             },
 			
 			
 			Connection(mut stream, mut kepp_alive, ConnectionMode::Close)  => {
 				
-				(Connection(stream, kepp_alive, ConnectionMode::Close), ConnectionTransform::None)
+				Connection(stream, kepp_alive, ConnectionMode::Close)
 			}
         }
     }

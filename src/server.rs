@@ -10,7 +10,7 @@ use std::thread;
 
 use std::sync::mpsc::{channel, Sender, Receiver};
 
-use connection::{Connection, ConnectionTransform};
+use connection::Connection;
 use token_gen::TokenGen;
 
 
@@ -70,12 +70,14 @@ impl MyHandler {
 			
             Ok(Some((stream, addr))) => {
 				
+				println!("nowe połączenie {}", addr);
+				
                 let tok = self.tokens.get();
 				
 				event_loop.register(&stream, tok, EventSet::all(), PollOpt::edge());
 				
                 let mut connection = Connection::new(stream);
-
+				
                 
                 self.hash.insert(tok, connection);
 
@@ -97,16 +99,21 @@ impl MyHandler {
 
         //get
 
-        let close_conn = match self.hash.remove(&token) {
+        match self.hash.remove(&token) {
+			
             Some(connection) => {
-
-                let (new_connetion, transform) = connection.ready(events);
+				
+                let new_connetion = connection.ready(events);
+				
+				
+				//new_connetion.set_mode_rw();
+				
 				self.hash.insert(token.clone(), new_connetion);
-				transform
             }
+			
             None => {
+				
                 println!("Brak strumienia pod tym hashem: {:?}", &token);
-                ConnectionTransform::None
             }
         };
 
@@ -117,16 +124,19 @@ impl MyHandler {
 
             dodatkowo inne tryby uwzględnić
         */
-
+		
+		/*
         match close_conn {
 			
             ConnectionTransform::None => {	
 				return;
             }
-
+			
+			/*
 			ConnectionTransform::Continue => {
 				self.socket_ready(event_loop, token, events)
 			}
+			*/
 			
             ConnectionTransform::Write => {
                 //przestawienie w tryb czytania z socketu
@@ -139,9 +149,10 @@ impl MyHandler {
 
             ConnectionTransform::Close => {
                 let _ = self.hash.remove(&token);
+				println!("zamykam połaczenie");
             }
         }
-
+		*/
     }
 
 }
