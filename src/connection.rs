@@ -1,9 +1,62 @@
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, TryRead, TryWrite};
 use mio::tcp::{TcpListener, TcpStream};
-//use mio::util::Slab;
 use std::str;
 use std::collections::HashMap;
 use httparse;
+
+
+/*
+struct request {
+    //parser
+    //metody dostępowe
+}
+
+http://seanmonstar.com/
+	info o bezstanowości httparse
+
+https://github.com/hyperium/hyper/blob/master/src/buffer.rs
+	sprawdzić jak hyper sobie radzi z parsowaniem danych ...
+
+https://github.com/nbaksalyar/rust-chat/blob/part-1/src/main.rs#L2
+	dobrze zaimplementowane mio
+*/
+
+/*
+So really, 'allocation-free' means, make any allocations you want beforehand, and then give me a slice. (Hyper creates a stack array of [Header; 100], for instance).
+
+https://github.com/seanmonstar/httparse
+
+				httpparse w hyper
+https://github.com/hyperium/hyper/blob/master/src/http/h1.rs
+*/
+
+
+/*
+fn read(stream : &mut TcpStream, total : usize) -> Option<Vec<u8>>
+{
+	let mut buffer = Vec::with_capacity(total);
+	let mut done   = 0;
+
+	unsafe { 
+		buffer.set_len(total)
+	}
+
+	while done < total {
+
+		if let Ok(count) = stream.read(&mut buffer[done..total]) {
+			done += count;    
+		} else {
+			break;
+		}   
+	}
+
+	if done == total {
+		Some(buffer)
+	} else {
+		None
+	}   
+}
+*/
 
 
 enum ConnectionMode {
@@ -11,64 +64,34 @@ enum ConnectionMode {
     //WaitingForDataUser([u8; 2048], usize),
 	WaitingForDataUser([u8; 2048], usize),
     
-    WaitingForDataServer(bool),
-													// oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
-                                                    // bool - oznacza czy był ustawiony keep alivee
+													//oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
+    WaitingForDataServer,
 
-    DataToSendUser(bool, String),
-													// siedzą dane gotowe do wysłania dla użytkownika
-                                                    // bool - oznacza czy był ustawiony keep alivee
-													// String - dane do wysłania
+													//siedzą dane gotowe do wysłania dla użytkownika
+    DataToSendUser(Vec<u8>, usize),
+	
+	Close,
 }
-
-/*
-struct request {
-    //parser
-    //metody dostępowe
-}*/
-
 
 pub enum ConnectionTransform {
     None,
+	Continue,
     Close,
     Write,
     Read,
 }
 
-											//do zastanowienia czy nie dorzucić keep allive na poziomie całej struktury conneciton
-											//świeże połączenie startowałoby z keep alive na false
-pub struct Connection (TcpStream, ConnectionMode);
+pub struct Connection (TcpStream, bool, ConnectionMode);
 
-	
-/*	
-pub struct Connection {
-    mode       : ConnectionMode,
-    pub stream : TcpStream,
-}
-*/
-    /*
-    parse - nowe dane
-        na wyjściu otrzmujemy opcję z obiektem requestu
-    writeResponse   - zapisywanie w strumień odpowiedzi
-        zjadanie obiektu który był przekazany dalej
-
-
-    http://seanmonstar.com/
-        info o bezstanowości httparse
-
-    https://github.com/hyperium/hyper/blob/master/src/buffer.rs
-        sprawdzić jak hyper sobie radzi z parsowaniem danych ...
-
-    https://github.com/nbaksalyar/rust-chat/blob/part-1/src/main.rs#L2
-        dobrze zaimplementowane mio
-    */
-
+								//0 - socket
+								//1 - keep alive
+								//2 - current mode
 
 impl Connection {
 
     pub fn new(stream: TcpStream) -> Connection {
 	
-        Connection(stream, ConnectionMode::WaitingForDataUser([0u8; 2048], 0))
+        Connection(stream, false, ConnectionMode::WaitingForDataUser([0u8; 2048], 0))
 	
 		//Connection(stream, ConnectionMode::WaitingForDataUser(Vec::with_capacity(2048), 0))
     }
@@ -77,7 +100,7 @@ impl Connection {
 		
         match self {
 			
-            Connection(mut stream, ConnectionMode::WaitingForDataUser(mut buf, mut done)) => {
+            Connection(mut stream, mut kepp_alive, ConnectionMode::WaitingForDataUser(mut buf, mut done)) => {
 				
 				if events.is_readable() {
 					
@@ -110,6 +133,21 @@ impl Connection {
 										println!("path : {:?}", req.path);
 										println!("version : {:?}", req.version);
 										println!("headers : {:?}", req.headers);
+										
+										//TODO - wyciagnij informację na temat keep alive, trzeba uwzględnić tą wartość
+										
+										
+										//TODO - testowa odpowiedź
+										let response = "HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem";
+										
+										let mut resp_vec: Vec<u8> = Vec::new();
+										
+										for byte in response.as_bytes() {
+											resp_vec.push(byte.clone());
+										}
+										
+										//TODO - testowa odpowiedź
+										return (Connection(stream, kepp_alive, ConnectionMode::DataToSendUser(resp_vec, 0)), ConnectionTransform::Continue);
 									}
 
 									Ok(httparse::Status::Partial) => {
@@ -127,15 +165,7 @@ impl Connection {
 											}
 										}
 
-										/*
-										HeaderName,
-										HeaderValue,
-										NewLine,
-										Status,
-										Token,
-										TooManyHeaders,
-										Version,
-										*/
+										/* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
 									}
 								}
 
@@ -164,78 +194,74 @@ impl Connection {
 						// wyślij kanałem odpowiednią informację o requescie
 						// zwróć informację na zewnątrz tej funkcji że nic się nie dzieje z tym połaczeniem
 					
-					
-					//parse(&mut self, data: &[u8]) -> usize
-					//jeśli usize jest > 0 to znaczy że się udało parsowanie
-					
-					/*
-So really, 'allocation-free' means, make any allocations you want beforehand, and then give me a slice. (Hyper creates a stack array of [Header; 100], for instance).
-
-					https://github.com/seanmonstar/httparse
-					
-									httpparse w hyper
-					https://github.com/hyperium/hyper/blob/master/src/http/h1.rs
-					*/
-					
-					
-					/*
-					fn read(stream : &mut TcpStream, total : usize) -> Option<Vec<u8>>
-					{
-						let mut buffer = Vec::with_capacity(total);
-						let mut done   = 0;
-
-						unsafe { 
-							buffer.set_len(total)
-						}
-
-						while done < total {
-
-							if let Ok(count) = stream.read(&mut buffer[done..total]) {
-								done += count;    
-							} else {
-								break;
-							}   
-						}
-
-						if done == total {
-							Some(buffer)
-						} else {
-							None
-						}   
-					}
-					*/
 				}
 				
 				//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 				
-                //zapisanie nowego stanu
-                (Connection(stream, ConnectionMode::WaitingForDataUser(buf, done)), ConnectionTransform::None)
+                (Connection(stream, kepp_alive, ConnectionMode::WaitingForDataUser(buf, done)), ConnectionTransform::None)
                             
             }
 			
-            Connection(stream, ConnectionMode::WaitingForDataServer(keep_alive)) => {
+            Connection(stream, mut kepp_alive, ConnectionMode::WaitingForDataServer) => {
                 
-                (Connection(stream, ConnectionMode::WaitingForDataServer(keep_alive)), ConnectionTransform::None)
+                (Connection(stream, kepp_alive, ConnectionMode::WaitingForDataServer), ConnectionTransform::None)
             }
 			
-            Connection(mut stream, ConnectionMode::DataToSendUser(keep_alive, str))  => {
+            Connection(mut stream, mut kepp_alive, ConnectionMode::DataToSendUser(mut str, mut done))  => {
 				
 				if events.is_writable() {
-
-					println!("zapisuję strumień");
-
-					//println!("strumień : {:?}", &self.token);
-					//println!("strumień zapisuję : {:?}", &self.token);
-
-					let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nCześć czołem");
-
-					stream.try_write(response.as_bytes()).unwrap();
-
+					
+					match stream.try_write(&str[done..str.len()]) {
+						
+						Ok(Some(size)) => {
+							
+							if size > 0 {
+								
+								done = done + size;
+								
+																//send all data to browser
+								if done == str.len() {
+									
+									if kepp_alive == true {
+										
+										//keep connection
+										//TODO
+										
+									} else {
+											//close connection
+										
+										return (Connection(stream, kepp_alive, ConnectionMode::Close), ConnectionTransform::Close)
+									}
+								}
+							}
+						}
+						
+						Ok(None) => {
+							
+							println!("nic się nie zapisało");
+						}
+						
+						Err(err) => {
+							
+							println!("błąd zapisywania do strumienia {:?}", err);
+						}
+					}
+					
 					//jeśli udany zapis, to zmień stan na oczekiwanie danych od użytkownika lub zamknij to połączenie
+					
+					//TODO - jeśli już wysłano wszystkie dane z odpowiedzą
+						//jeśli jest keep alive nie zachowaj połaczenie
+						//jeśli keep alive false, zamknij połączenie
 				}
 				
-				(Connection(stream, ConnectionMode::DataToSendUser(keep_alive, str)), ConnectionTransform::None)
-            }
+				(Connection(stream, kepp_alive, ConnectionMode::DataToSendUser(str, done)), ConnectionTransform::None)
+            },
+			
+			
+			Connection(mut stream, mut kepp_alive, ConnectionMode::Close)  => {
+				
+				(Connection(stream, kepp_alive, ConnectionMode::Close), ConnectionTransform::None)
+			}
         }
     }
 }

@@ -7,7 +7,6 @@ use std::str;
 use std::collections::HashMap;
 
 use std::thread;
-use std::time::Duration;
 
 use std::sync::mpsc::{channel, Sender, Receiver};
 
@@ -102,7 +101,7 @@ impl MyHandler {
             Some(connection) => {
 
                 let (new_connetion, transform) = connection.ready(events);
-				self.hash.insert(token, new_connetion);
+				self.hash.insert(token.clone(), new_connetion);
 				transform
             }
             None => {
@@ -120,11 +119,18 @@ impl MyHandler {
         */
 
         match close_conn {
-            ConnectionTransform::None => {
+			
+            ConnectionTransform::None => {	
+				return;
             }
 
+			ConnectionTransform::Continue => {
+				self.socket_ready(event_loop, token, events)
+			}
+			
             ConnectionTransform::Write => {
                 //przestawienie w tryb czytania z socketu
+				
             }
 
             ConnectionTransform::Read => {
