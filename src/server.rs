@@ -127,7 +127,7 @@ impl MyHandler {
 				
 				if is_close {
 					
-					println!("server close connection !!!!!!!!!!!!!!\n\n\n");
+					println!("!!!!!!!!!!!!!! server close connection {:?} !!!!!!!!!!!!!!\n\n\n", &token);
 					return;
 				}
 				

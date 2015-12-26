@@ -129,28 +129,29 @@ impl Connection {
 	fn set_events(self, event_loop: &mut EventLoop<MyHandler>, token: Token) -> Connection {
 		
 		let base_event = EventSet::error() | EventSet::hup();
-		//let pool_opt   = PollOpt::edge();	// | PollOpt::oneshot();
-		let pool_opt   = PollOpt::level();
+		//let pool_opt   = PollOpt::edge();	//;
+        let pool_opt   = PollOpt::edge() | PollOpt::oneshot();
+		//let pool_opt   = PollOpt::level();
         
 		match self {
 			
 			Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done)) => {
 				
-                println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! set mode event : 1");
+                println!("----------> set mode : WaitingForDataUser");
                 
                 let event_read = base_event | EventSet::readable();
                 
 				match event {
                     
                     Event::Init => {
-                        println!("register: {:?} {:?}", token, event_read);
+                        println!("----------> register: {:?} {:?}", token, event_read);
                         event_loop.register(&stream, token, event_read, pool_opt).unwrap();
                     }
                     
                     Event::Write => {}
                     
                     _ => {
-                        println!("reregister: {:?} {:?}", token, event_read);
+                        println!("----------> reregister: {:?} {:?}", token, event_read);
                         event_loop.reregister(&stream, token, event_read, pool_opt).unwrap();
                     }
                 }
@@ -160,21 +161,21 @@ impl Connection {
 			
 			Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer) => {
 				
-				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! set mode event : 2");
+				println!("----------> set mode : WaitingForDataServer");
 				
                 let event_none = base_event;
                 
                 match event {
                     
                     Event::Init => {
-                        println!("register: {:?} {:?}", token, event_none);
+                        println!("----------> register: {:?} {:?}", token, event_none);
                         event_loop.register(&stream, token, event_none, pool_opt).unwrap();
                     }
     
                     Event::None => {}
                     
                     _ => {
-                        println!("reregister: {:?} {:?}", token, event_none);
+                        println!("----------> reregister: {:?} {:?}", token, event_none);
                         event_loop.reregister(&stream, token, event_none, pool_opt).unwrap();
                     }
                 }
@@ -184,21 +185,21 @@ impl Connection {
 			
 			Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done)) => {
 				
-				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! set mode event : 3");
+				println!("----------> set mode : DataToSendUser");
 				
                 let event_write = base_event | EventSet::writable();
                 
 				match event {
                     
                     Event::Init => {
-                        println!("register: {:?} {:?}", token, event_write);
+                        println!("----------> register: {:?} {:?}", token, event_write);
                         event_loop.register(&stream, token, event_write, pool_opt).unwrap();
                     }
                     
                     Event::Read => {}
                     
                     _ => {
-                        println!("reregister: {:?} {:?}", token, event_write);
+                        println!("----------> reregister: {:?} {:?}", token, event_write);
                         event_loop.reregister(&stream, token, event_write, pool_opt).unwrap();
                     }
                 }
@@ -208,7 +209,7 @@ impl Connection {
 			
 		    Connection(stream, keep_alive, event, ConnectionMode::Close) => {
 				
-				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! set mode event : 4");
+				println!("----------> set mode : Close");
 				
                 let event_none = base_event;
                 
@@ -217,7 +218,7 @@ impl Connection {
                     Event::Init => {}
                     
                     _ => {
-                        println!("deregister: {:?}", token);
+                        println!("----------> deregister: {:?}", token);
                         event_loop.deregister(&stream).unwrap();
                     }
                 }
