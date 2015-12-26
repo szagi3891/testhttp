@@ -83,7 +83,42 @@ impl Connection {
     }
     
 	
-	pub fn set_options(self, event_loop: &mut EventLoop<MyHandler>, token: Token) -> Connection {
+	
+    pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> (Connection, bool) {
+		
+		if events.is_error() {
+			println!("EVENT ERROR {}", tok.as_usize());
+		}
+		
+		let (new_connection, is_close) = self.transform(events);
+		
+		
+		let new_connection = new_connection.set_events(event_loop, tok);
+		
+		
+		if events.is_hup() {
+			
+			println!("EVENT HUP - prepending - {} {:?}", tok.as_usize(), events);
+			
+			
+			match new_connection {
+				
+				Connection(stream, keep_alive, _) => {
+					
+					println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);
+					
+					return (Connection(stream, keep_alive, ConnectionMode::Close), true);
+				}
+			}
+		}
+		
+		
+		
+		(new_connection, is_close)
+    }
+
+
+	fn set_events(self, event_loop: &mut EventLoop<MyHandler>, token: Token) -> Connection {
 		
 		let base_event = EventSet::error() | EventSet::hup();
 		let pool_opt   = PollOpt::edge();	// | PollOpt::oneshot();
@@ -128,35 +163,6 @@ impl Connection {
 			}
 		}
 	}
-	
-    pub fn ready(self, events: EventSet, tok: Token) -> (Connection, bool) {
-		
-		if events.is_error() {
-			println!("EVENT ERROR {}", tok.as_usize());
-		}
-		
-		let new_connection = self.transform(events);
-		
-		
-		if events.is_hup() {
-			
-			println!("EVENT HUP - prepending - {} {:?}", tok.as_usize(), events);
-			
-			
-			match new_connection {
-				
-				(Connection(stream, keep_alive, _), _) => {
-					
-					println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);
-					
-					return (Connection(stream, keep_alive, ConnectionMode::Close), true);
-				}
-			}
-		}
-		
-		new_connection
-    }
-
 	
 	fn transform(self, events: EventSet) -> (Connection, bool) {
 		

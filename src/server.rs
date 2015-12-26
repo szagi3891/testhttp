@@ -23,6 +23,24 @@ pub struct MyHandler {
 }
 
 
+impl Handler for MyHandler {
+
+    type Timeout = ();
+    type Message = ();
+
+    fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
+
+        if token == self.token {
+
+            self.new_connection(event_loop);
+
+        } else {
+            self.socket_ready(event_loop, token, events);
+        }
+    }
+}
+
+
 impl MyHandler {
 
     pub fn new(ip: &String) -> Receiver<String> {
@@ -99,27 +117,19 @@ impl MyHandler {
 
     fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
 
-		
-        //get
-
         match self.hash.remove(&token) {
 			
             Some(connection) => {
 				
-                let (new_connetion, is_close) = connection.ready(events, token.clone());
+                let (new_connetion, is_close) = connection.ready(events, token.clone(), event_loop);
 				
-				let new_connetion = new_connetion.set_options(event_loop, token.clone());
+				//let new_connetion = new_connetion.set_options(, token.clone());
 				
 				if is_close {
 					
 					println!("server close connection !!!!!!!!!!!!!!\n\n\n");
 					return;
 				}
-				
-				
-				//TODO - ready może zwracać clousera - który po uruchomieniu dopiero zwróci właściwy obiekt połączenia
-				
-				//.set_events(event_loop, token);
 				
 				self.hash.insert(token.clone(), new_connetion);
             }
@@ -137,27 +147,6 @@ impl MyHandler {
 
 }
 
-
-impl Handler for MyHandler {
-
-    type Timeout = ();
-    type Message = ();
-
-    fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
-
-        if token == self.token {
-
-            self.new_connection(event_loop);
-
-        } else {
-            self.socket_ready(event_loop, token, events);
-        }
-    }
-}
-
-
-
-//use connect::
 
 
 /*

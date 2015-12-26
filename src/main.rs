@@ -17,10 +17,9 @@ mod server;
 fn main() {
     
 	
-	//let f = 0 as usize;
-	
 	println!("Hello, world! - 127.0.0.1:13265 - usize max_value: {}" , usize::max_value());
 	//4294967295 -> ffffffff
+	//18446744073709551615
 	
 	
     let new_conn_chan = server::MyHandler::new(&"127.0.0.1:13265".to_string());
@@ -30,7 +29,7 @@ fn main() {
 	
 	Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
     
-        println!("złapałem ctrl+c");
+        println!("catch ctrl+c");
         
         ctrl_c_tx.send(()).unwrap(); 
     });
@@ -43,13 +42,13 @@ fn main() {
 			
 			_ = ctrl_c_rx.recv() => {
 				
-				println!("rozpoczynam procedurę wyłączania komponentów serwerowych");
+				println!("shoutdown");
 				return;
 			},
 			
 			conn = new_conn_chan.recv() => {
 				
-				println!("odebrano nowe połączenie do obsłużenia : {:?}", conn);
+				println!("new connection to handle : {:?}", conn);
 			}
 		}
 	}
