@@ -94,34 +94,49 @@ impl Connection {
 	
     pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> (Connection, bool) {
 		
+        
 		if events.is_error() {
 			println!("EVENT ERROR {}", tok.as_usize());
 		}
 		
-		let (new_connection, is_close) = self.transform(events);
+        
+		let new_connection = self.transform(events);
 		
+        
+        let new_connection = match new_connection {
+
+            Connection(stream, keep_alive, event, mode) => {
+                
+                println!("EVENT HUP - prepending - {} {:?}", tok.as_usize(), events);
+                
+                if events.is_hup() {
+			         
+                    println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);
+                    
+                    Connection(stream, keep_alive, event, ConnectionMode::Close)
+                    
+                } else {
+                    
+                    Connection(stream, keep_alive, event, mode)
+                }
+            }
+        };		
 		
+        
 		let new_connection = new_connection.set_events(event_loop, tok);
 		
+        
+		let is_close = match *&new_connection {
+            
+            Connection(_, _, _, ConnectionMode::Close) => {
+                true
+            }
+            _ => {
+                false
+            }
+        };
 		
-		if events.is_hup() {
-			
-			println!("EVENT HUP - prepending - {} {:?}", tok.as_usize(), events);
-			
-			
-			match new_connection {
-				
-				Connection(stream, keep_alive, event, _) => {
-					
-					println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);
-					
-					return (Connection(stream, keep_alive, event, ConnectionMode::Close), true);
-				}
-			}
-		}
-		
-		
-		
+        
 		(new_connection, is_close)
     }
 
@@ -228,7 +243,10 @@ impl Connection {
 		}
 	}
 	
-	fn transform(self, events: EventSet) -> (Connection, bool) {
+    
+	fn transform(self, events: EventSet) -> Connection {
+		
+        
 		
         match self {
 			
@@ -286,7 +304,7 @@ impl Connection {
 										}
 										
 										//TODO - testowa odpowiedź
-										return (Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(resp_vec, 0)), false);
+										return Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(resp_vec, 0));
 									}
 
 									Ok(httparse::Status::Partial) => {
@@ -333,17 +351,17 @@ impl Connection {
 						// wyślij kanałem odpowiednią informację o requescie
 						// zwróć informację na zewnątrz tej funkcji że nic się nie dzieje z tym połaczeniem
 					
-					return (Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done)), false);
+					return Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done));
 				}
 				
 				//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 				
-                (Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done)), false)
+                Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
             }
 			
             Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer) => {
                 
-                (Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer), false)
+                Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer)
             }
 			
             Connection(mut stream, keep_alive, event, ConnectionMode::DataToSendUser(str, mut done))  => {
@@ -372,7 +390,7 @@ impl Connection {
 										*/
 											//close connection
 										
-										return (Connection(stream, keep_alive, event, ConnectionMode::Close), true);
+										return Connection(stream, keep_alive, event, ConnectionMode::Close);
 									//}
 								} else {
 									//println!("XXXXXXXXX");
@@ -393,13 +411,13 @@ impl Connection {
 					}
 				}
 				
-				(Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done)), false)
+				Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))
             },
 			
 			
 			Connection(stream, keep_alive, event, ConnectionMode::Close)  => {
 				
-				(Connection(stream, keep_alive, event, ConnectionMode::Close), false)
+				Connection(stream, keep_alive, event, ConnectionMode::Close)
 			}
         }
 	}
