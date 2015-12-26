@@ -94,9 +94,9 @@ impl MyHandler {
 				
 				//TODO - new może zwracać clousera - który po uruchomieniu dopiero zwróci właściwy obiekt połączenia
 				
-				event_loop.register(&stream, tok, EventSet::error() | EventSet::hup() | EventSet::readable(), PollOpt::edge()).unwrap();
+				//event_loop.register(&stream, tok, EventSet::error() | EventSet::hup() | EventSet::readable(), PollOpt::edge()).unwrap();
 				
-                let connection = Connection::new(stream);
+                let connection = Connection::new(stream, tok.clone(), event_loop);
 				
                 self.hash.insert(tok, connection);
 				

@@ -70,19 +70,27 @@ enum ConnectionMode {
 	Close,
 }
 
+enum Event {
+    Init,
+    Write,
+    Read,
+    None
+}
 
-								//socket, keep alive, current mode
-pub struct Connection (TcpStream, bool, ConnectionMode);
+								//socket, keep alive, actuall event set, current mode
+pub struct Connection (TcpStream, bool, Event, ConnectionMode);
 
 
 impl Connection {
 
-    pub fn new(stream: TcpStream) -> Connection {
+    pub fn new(stream: TcpStream, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> Connection {
 	
-        Connection(stream, false, ConnectionMode::WaitingForDataUser([0u8; 2048], 0))
+        let conn = Connection(stream, false, Event::Init, ConnectionMode::WaitingForDataUser([0u8; 2048], 0));
+        
+        conn.set_events(event_loop, tok)
     }
     
-	
+    
 	
     pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> (Connection, bool) {
 		
@@ -103,11 +111,11 @@ impl Connection {
 			
 			match new_connection {
 				
-				Connection(stream, keep_alive, _) => {
+				Connection(stream, keep_alive, event, _) => {
 					
 					println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);
 					
-					return (Connection(stream, keep_alive, ConnectionMode::Close), true);
+					return (Connection(stream, keep_alive, event, ConnectionMode::Close), true);
 				}
 			}
 		}
@@ -121,45 +129,100 @@ impl Connection {
 	fn set_events(self, event_loop: &mut EventLoop<MyHandler>, token: Token) -> Connection {
 		
 		let base_event = EventSet::error() | EventSet::hup();
-		let pool_opt   = PollOpt::edge();	// | PollOpt::oneshot();
-		//let pool_opt   = PollOpt::level();
-			
+		//let pool_opt   = PollOpt::edge();	// | PollOpt::oneshot();
+		let pool_opt   = PollOpt::level();
+        
 		match self {
 			
-			Connection(stream, keep_alive, ConnectionMode::WaitingForDataUser(buf, done)) => {
+			Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done)) => {
 				
-				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! set mode event : 1");
-				
-				event_loop.reregister(&stream, token, base_event | EventSet::readable(), pool_opt).unwrap();
-				
-				Connection(stream, keep_alive, ConnectionMode::WaitingForDataUser(buf, done))
+                println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! set mode event : 1");
+                
+                let event_read = base_event | EventSet::readable();
+                
+				match event {
+                    
+                    Event::Init => {
+                        println!("register: {:?} {:?}", token, event_read);
+                        event_loop.register(&stream, token, event_read, pool_opt).unwrap();
+                    }
+                    
+                    Event::Write => {}
+                    
+                    _ => {
+                        println!("reregister: {:?} {:?}", token, event_read);
+                        event_loop.reregister(&stream, token, event_read, pool_opt).unwrap();
+                    }
+                }
+                
+                Connection(stream, keep_alive, Event::Write, ConnectionMode::WaitingForDataUser(buf, done))
 			}
 			
-			Connection(stream, keep_alive, ConnectionMode::WaitingForDataServer) => {
+			Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer) => {
 				
 				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! set mode event : 2");
 				
-				event_loop.reregister(&stream, token, base_event, pool_opt).unwrap();
-				
-				Connection(stream, keep_alive, ConnectionMode::WaitingForDataServer)
+                let event_none = base_event;
+                
+                match event {
+                    
+                    Event::Init => {
+                        println!("register: {:?} {:?}", token, event_none);
+                        event_loop.register(&stream, token, event_none, pool_opt).unwrap();
+                    }
+    
+                    Event::None => {}
+                    
+                    _ => {
+                        println!("reregister: {:?} {:?}", token, event_none);
+                        event_loop.reregister(&stream, token, event_none, pool_opt).unwrap();
+                    }
+                }
+                
+                Connection(stream, keep_alive, Event::None, ConnectionMode::WaitingForDataServer)
 			}
 			
-			Connection(stream, keep_alive, ConnectionMode::DataToSendUser(str, done)) => {
+			Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done)) => {
 				
 				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! set mode event : 3");
 				
-				event_loop.reregister(&stream, token, base_event | EventSet::writable(), pool_opt).unwrap();
-				
-				Connection(stream, keep_alive, ConnectionMode::DataToSendUser(str, done))
+                let event_write = base_event | EventSet::writable();
+                
+				match event {
+                    
+                    Event::Init => {
+                        println!("register: {:?} {:?}", token, event_write);
+                        event_loop.register(&stream, token, event_write, pool_opt).unwrap();
+                    }
+                    
+                    Event::Read => {}
+                    
+                    _ => {
+                        println!("reregister: {:?} {:?}", token, event_write);
+                        event_loop.reregister(&stream, token, event_write, pool_opt).unwrap();
+                    }
+                }
+                
+				Connection(stream, keep_alive, Event::Read, ConnectionMode::DataToSendUser(str, done))
 		   	}
 			
-		    Connection(stream, keep_alive, ConnectionMode::Close) => {
+		    Connection(stream, keep_alive, event, ConnectionMode::Close) => {
 				
 				println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!! set mode event : 4");
 				
-				event_loop.deregister(&stream).unwrap();
-					
-				Connection(stream, keep_alive, ConnectionMode::Close)
+                let event_none = base_event;
+                
+                match event {
+                    
+                    Event::Init => {}
+                    
+                    _ => {
+                        println!("deregister: {:?}", token);
+                        event_loop.deregister(&stream).unwrap();
+                    }
+                }
+                
+				Connection(stream, keep_alive, Event::None, ConnectionMode::Close)
 			}
 		}
 	}
@@ -168,7 +231,7 @@ impl Connection {
 		
         match self {
 			
-            Connection(mut stream, keep_alive, ConnectionMode::WaitingForDataUser(mut buf, mut done)) => {
+            Connection(mut stream, keep_alive, event, ConnectionMode::WaitingForDataUser(mut buf, mut done)) => {
 				
 				if events.is_readable() {
 					
@@ -222,7 +285,7 @@ impl Connection {
 										}
 										
 										//TODO - testowa odpowiedź
-										return (Connection(stream, keep_alive, ConnectionMode::DataToSendUser(resp_vec, 0)), false);
+										return (Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(resp_vec, 0)), false);
 									}
 
 									Ok(httparse::Status::Partial) => {
@@ -269,20 +332,20 @@ impl Connection {
 						// wyślij kanałem odpowiednią informację o requescie
 						// zwróć informację na zewnątrz tej funkcji że nic się nie dzieje z tym połaczeniem
 					
-					return (Connection(stream, keep_alive, ConnectionMode::WaitingForDataUser(buf, done)), false);
+					return (Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done)), false);
 				}
 				
 				//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 				
-                (Connection(stream, keep_alive, ConnectionMode::WaitingForDataUser(buf, done)), false)
+                (Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done)), false)
             }
 			
-            Connection(stream, keep_alive, ConnectionMode::WaitingForDataServer) => {
+            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer) => {
                 
-                (Connection(stream, keep_alive, ConnectionMode::WaitingForDataServer), false)
+                (Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer), false)
             }
 			
-            Connection(mut stream, keep_alive, ConnectionMode::DataToSendUser(str, mut done))  => {
+            Connection(mut stream, keep_alive, event, ConnectionMode::DataToSendUser(str, mut done))  => {
 				
 				if events.is_writable() {
 					
@@ -308,7 +371,7 @@ impl Connection {
 										*/
 											//close connection
 										
-										return (Connection(stream, keep_alive, ConnectionMode::Close), true);
+										return (Connection(stream, keep_alive, event, ConnectionMode::Close), true);
 									//}
 								} else {
 									//println!("XXXXXXXXX");
@@ -329,13 +392,13 @@ impl Connection {
 					}
 				}
 				
-				(Connection(stream, keep_alive, ConnectionMode::DataToSendUser(str, done)), false)
+				(Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done)), false)
             },
 			
 			
-			Connection(stream, keep_alive, ConnectionMode::Close)  => {
+			Connection(stream, keep_alive, event, ConnectionMode::Close)  => {
 				
-				(Connection(stream, keep_alive, ConnectionMode::Close), false)
+				(Connection(stream, keep_alive, event, ConnectionMode::Close), false)
 			}
         }
 	}
