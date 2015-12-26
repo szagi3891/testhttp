@@ -29,7 +29,9 @@ impl Handler for MyHandler {
     type Message = ();
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
-
+        
+        println!(">>>>>>>>>>> {:?} {:?} (is server = {})", token, events, token == self.token);
+        
         if token == self.token {
 
             self.new_connection(event_loop);
@@ -117,6 +119,8 @@ impl MyHandler {
 
     fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
 
+        println!("count hasmapy before socket_ready {}", self.hash.len());
+        
         match self.hash.remove(&token) {
 			
             Some(connection) => {
@@ -127,7 +131,12 @@ impl MyHandler {
 				
 				if is_close {
 					
-					println!("!!!!!!!!!!!!!! server close connection {:?} !!!!!!!!!!!!!!\n\n\n", &token);
+                    //panic!("zamykam");
+                    
+					println!("!!!!!!!!!!!!!! server close connection {:?} !!!!!!!!!!!!!!", &token);
+                    println!("count hasmapy after ready after close {}", self.hash.len());
+                    println!("\n\n\n");
+                    
 					return;
 				}
 				
