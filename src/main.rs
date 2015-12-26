@@ -4,11 +4,9 @@
 extern crate mio;
 extern crate simple_signal;
 extern crate httparse;
+extern crate time;
 
-
-use std::sync::mpsc::{channel, Sender};
-use std::thread;
-use std::time::Duration;
+use std::sync::mpsc::{channel};
 use simple_signal::{Signals, Signal};
 
 mod token_gen;
@@ -17,8 +15,12 @@ mod server;
 
 
 fn main() {
-    	
-    println!("Hello, world! - 127.0.0.1:13265");
+    
+	
+	//let f = 0 as usize;
+	
+	println!("Hello, world! - 127.0.0.1:13265 - usize max_value: {}" , usize::max_value());
+	//4294967295 -> ffffffff
 	
 	
     let new_conn_chan = server::MyHandler::new(&"127.0.0.1:13265".to_string());
@@ -30,7 +32,7 @@ fn main() {
     
         println!("złapałem ctrl+c");
         
-        ctrl_c_tx.send(()); 
+        ctrl_c_tx.send(()).unwrap(); 
     });
 	
 	
@@ -47,10 +49,11 @@ fn main() {
 			
 			conn = new_conn_chan.recv() => {
 				
-				println!("odebrano nowe połączenie do obsłużenia");
+				println!("odebrano nowe połączenie do obsłużenia : {:?}", conn);
 			}
 		}
 	}
+	
 }
 
 

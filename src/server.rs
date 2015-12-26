@@ -1,9 +1,8 @@
 //mod gear;
 
-use mio::{Token, EventLoop, EventSet, PollOpt, Handler, TryRead, TryWrite};
-use mio::tcp::{TcpListener, TcpStream};
+use mio::{Token, EventLoop, EventSet, PollOpt, Handler};
+use mio::tcp::{TcpListener};
 //use mio::util::Slab;
-use std::str;
 use std::collections::HashMap;
 
 use std::thread;
@@ -61,9 +60,9 @@ impl MyHandler {
     }
 	
 
-    fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>, events: EventSet) {
+    fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>) {
 
-        println!("serwer się zgłosił");
+        println!("new connection - prepending");
 
         match self.server.accept() {
 			
@@ -72,27 +71,29 @@ impl MyHandler {
                 let tok = self.tokens.get();
 				
 				
-				println!("nowe połączenie {} {:?}", addr, &tok);
+				println!("new connection ok - {} {:?}", addr, &tok);
 				
 				
 				//TODO - new może zwracać clousera - który po uruchomieniu dopiero zwróci właściwy obiekt połączenia
 				
-                let mut connection = Connection::new(stream).set_options(true, event_loop, tok.clone());;
+				event_loop.register(&stream, tok, EventSet::error() | EventSet::hup() | EventSet::readable(), PollOpt::edge()).unwrap();
+				
+                let connection = Connection::new(stream);
 				
                 self.hash.insert(tok, connection);
 				
             }
 
             Ok(None) => {
-                println!("brak nowego połączenia");
+                println!("no new connection");
             }
 
             Err(e) => {
-                println!("coś poszło nie tak jak trzeba: {}", e);
+                println!("error accept mew connection: {}", e);
             }
         };
 		
-		println!("długość hasmapy po przetworzeniu new connection {}", self.hash.len());
+		println!("hashmap after new connection {}", self.hash.len());
 
     }
 
@@ -107,11 +108,11 @@ impl MyHandler {
 				
                 let (new_connetion, is_close) = connection.ready(events, token.clone());
 				
-				let new_connetion = new_connetion.set_options(false, event_loop, token.clone());
+				let new_connetion = new_connetion.set_options(event_loop, token.clone());
 				
 				if is_close {
 					
-					println!("zerwer zamyka połączenie !!!!!!!!!!!!!!");
+					println!("server close connection !!!!!!!!!!!!!!\n\n\n");
 					return;
 				}
 				
@@ -125,12 +126,12 @@ impl MyHandler {
 			
             None => {
 				
-                println!("Brak strumienia pod tym hashem: {:?}", &token);
+                println!("no socket by token: {:?}", &token);
             }
         };
 		
 		
-		println!("długość hasmapy po przetworzeniu ready {}", self.hash.len());
+		println!("count hasmapy after ready {}", self.hash.len());
 		
     }
 
@@ -146,7 +147,7 @@ impl Handler for MyHandler {
 
         if token == self.token {
 
-            self.new_connection(event_loop, events);
+            self.new_connection(event_loop);
 
         } else {
             self.socket_ready(event_loop, token, events);
