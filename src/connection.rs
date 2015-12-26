@@ -107,8 +107,6 @@ impl Connection {
 
             Connection(stream, keep_alive, event, mode) => {
                 
-                println!("EVENT HUP - prepending - {} {:?}", tok.as_usize(), events);
-                
                 if events.is_hup() {
 			         
                     println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);

@@ -84,35 +84,39 @@ impl MyHandler {
 
         println!("new connection - prepending");
 
-        match self.server.accept() {
-			
-            Ok(Some((stream, addr))) => {
-				
-                let tok = self.tokens.get();
-				
-				
-				println!("new connection ok - {} {:?}", addr, &tok);
-				
-				
-				//TODO - new może zwracać clousera - który po uruchomieniu dopiero zwróci właściwy obiekt połączenia
-				
-				//event_loop.register(&stream, tok, EventSet::error() | EventSet::hup() | EventSet::readable(), PollOpt::edge()).unwrap();
-				
-                let connection = Connection::new(stream, tok.clone(), event_loop);
-				
-                self.hash.insert(tok, connection);
-				
-            }
+        loop {
+            match self.server.accept() {
 
-            Ok(None) => {
-                println!("no new connection");
-            }
+                Ok(Some((stream, addr))) => {
 
-            Err(e) => {
-                println!("error accept mew connection: {}", e);
-            }
-        };
-		
+                    let tok = self.tokens.get();
+
+
+                    println!("new connection ok - {} {:?}", addr, &tok);
+
+
+                    //TODO - new może zwracać clousera - który po uruchomieniu dopiero zwróci właściwy obiekt połączenia
+
+                    //event_loop.register(&stream, tok, EventSet::error() | EventSet::hup() | EventSet::readable(), PollOpt::edge()).unwrap();
+
+                    let connection = Connection::new(stream, tok.clone(), event_loop);
+
+                    self.hash.insert(tok, connection);
+
+                }
+
+                Ok(None) => {
+                    println!("no new connection");
+                    return;
+                }
+
+                Err(e) => {
+                    println!("error accept mew connection: {}", e);
+                    return;
+                }
+            };
+        }
+        
 		println!("hashmap after new connection {}", self.hash.len());
 
     }
