@@ -17,11 +17,14 @@ mod server;
 fn main() {
     
 	
-	println!("Hello, world! - 127.0.0.1:13265 - usize max_value: {}" , usize::max_value());
-	//4294967295 -> ffffffff
-	//18446744073709551615
+	println!("Hello, world! - 127.0.0.1:13265 - usize max_value");
 	
 	
+	println!("TODO - zrobić pętlę na czytaniu danych");
+    println!("TODO - zrobić pętlę na pisaniu danych");
+    
+    
+    
     let new_conn_chan = server::MyHandler::new(&"127.0.0.1:13265".to_string());
     
 	
