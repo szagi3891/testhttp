@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct Response {
-    message : String,
+    pub message : String,
 }
 
 impl Response {
@@ -13,6 +13,10 @@ impl Response {
 		Response {
 			message : mess
 		}
+	}
+	
+	pub fn as_bytes(&self) -> &[u8] {
+		self.message.as_bytes()
 	}
 }
 

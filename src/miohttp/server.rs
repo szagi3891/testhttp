@@ -19,14 +19,14 @@ pub struct MyHandler {
     server   : TcpListener,
     hash     : HashMap<Token, Connection>,
     tokens   : TokenGen,
-	send     : mpsc::Sender<(request::Request, mio::Sender<response::Response>)>,
+	send     : mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>,
 }
 
 
 impl Handler for MyHandler {
 
     type Timeout = ();
-    type Message = response::Response;
+    type Message = (Token, response::Response);
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
         
@@ -41,17 +41,21 @@ impl Handler for MyHandler {
         }
     }
 	
-	/// Invoked when a message has been received via the event loop's channel.
+	
     fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
 		
-		println!("odebrano kominikat z kanału {:?}", msg);
+		match msg {
+			(token, response) => {
+				self.send_data_to_user(event_loop, token, response);
+			}
+		};
     }
 }
 
 
 impl MyHandler {
 
-    pub fn new(ip: &String, tx: mpsc::Sender<(request::Request, mio::Sender<response::Response>)>) {
+    pub fn new(ip: &String, tx: mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>) {
 
         let mut tokens = TokenGen::new();
 
@@ -79,7 +83,25 @@ impl MyHandler {
 		});
     }
 	
-
+	fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, response: response::Response) {
+		
+		println!("odebrano kominikat z kanału {} {:?}", token.as_usize(), response);
+		
+		match self.hash.remove(&token) {
+			
+            Some(connection) => {
+				
+				let new_connection = connection.send_data_to_user(event_loop, token.clone(), response);
+				
+				self.hash.insert(token.clone(), new_connection);
+			}
+			
+			None => {
+				println!("socket_ready: no socket by token: {:?}", &token);
+			}
+		}
+	}
+	
     fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>) {
 
         println!("new connection - prepending");
@@ -143,7 +165,7 @@ impl MyHandler {
                     
                     Some(request) => {
                         
-						self.send.send((request, event_loop.channel()));
+						self.send.send((request, token.clone(), event_loop.channel()));
 						
                         //println!("request to send: {:?}", request);
                         //TODO, wyślij go przez kanał do zainteresowanych, self.send.send(request)
@@ -159,7 +181,7 @@ impl MyHandler {
 			
             None => {
 				
-                println!("no socket by token: {:?}", &token);
+                println!("socket_ready: no socket by token: {:?}", &token);
             }
         };
 		

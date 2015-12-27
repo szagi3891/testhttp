@@ -15,6 +15,10 @@ use miohttp::request;
 use miohttp::response;
 //miohttp::request
 
+use std::thread;
+use std::time::Duration;
+
+
 fn main() {
     
 	
@@ -25,7 +29,7 @@ fn main() {
     println!("TODO - zrobić pętlę na pisaniu danych ?");
     
     //mpsc::Sender<(request::Request, mio::Sender<response::Response>)>
-    let (tx_request, rx_request) = channel::<(request::Request, mio::Sender<response::Response>)>();
+    let (tx_request, rx_request) = channel::<(request::Request, mio::Token, mio::Sender<(mio::Token, response::Response)>)>();
 		
     
     miohttp::server::MyHandler::new(&"127.0.0.1:13265".to_string(), tx_request);
@@ -41,7 +45,7 @@ fn main() {
     });
 	
     
-	let mut count = 0;
+	//let mut count = 0;
     
 	
 	loop {
@@ -54,28 +58,32 @@ fn main() {
 				return;
 			},
 			
-			//(request, chan_response) = rx_request.recv() => {
-            
             to_handle = rx_request.recv() => {
 				
+				/*
                 if count > 20 {
                     return
                 }
-                
                 count = count + 1;
-                
+                */
+				
 				match to_handle {
 					
-					Ok((req, resp_chanel)) => {
+					Ok((req, token, resp_chanel)) => {
 						
-						let time_current = time::get_time();
+						thread::spawn(move || {
+							
+							thread::sleep(Duration::new(3, 0));
+							
+							let time_current = time::get_time();
 
-                		//TODO - test response
-                		let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
-						
-						resp_chanel.send(response::Response::from_string(response));
-						
-						println!("przesłano kanał z odpowiedzią : {:?}", req);
+							//TODO - test response
+							let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
+
+							resp_chanel.send((token, response::Response::from_string(response)));
+
+							println!("przesłano kanał z odpowiedzią : {:?}", req);
+						});
 					}
 					
 					Err(err) => {
@@ -83,31 +91,6 @@ fn main() {
 						println!("error get from channel {:?}", err);
 					}
 				}
-					
-                
-                //formuj odpowiedź
-                
-                //wyślij odpowiedź na kanał zwrotny
-                
-
-                //formatuj obiekt Response            
-                /*
-
-                let time_current = time::get_time();
-
-                //TODO - test response
-                let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
-
-                let mut resp_vec: Vec<u8> = Vec::new();
-
-                for byte in response.as_bytes() {
-                    resp_vec.push(byte.clone());
-                }
-
-                //TODO - testowa odpowiedź
-                Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(resp_vec, 0))
-                */
-                
 			}
 		}
 	}

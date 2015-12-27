@@ -3,7 +3,7 @@ use mio::tcp::{TcpStream};
 use httparse;
 use miohttp::server::MyHandler;
 use miohttp::request::Request;
-
+use miohttp::response;
 
 
 enum ConnectionMode {
@@ -75,6 +75,36 @@ impl Connection {
 		(new_connection, request)
     }
 	
+	pub fn send_data_to_user(self, event_loop: &mut EventLoop<MyHandler>, tok: Token, response: response::Response) -> Connection {
+		
+		println!("transformuję połączenie -> send_data_to_user");
+		
+		let new_connection = match self {
+			Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse) => {
+				
+				//TODO - występuje kopiowanie pamięci, znaleźć lepszy sposób na konwersję tych danych
+				
+                let mut resp_vec: Vec<u8> = Vec::new();
+
+                for byte in response.as_bytes() {
+                    resp_vec.push(byte.clone());
+                }
+				
+				Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(resp_vec, 0))
+			}
+			
+			Connection(stream, keep_alive, event, mode) => {
+				
+				println!("TODO - ustawić strumień błędów i wrzucić odpowiedni komunikat : {}", tok.as_usize());
+				Connection(stream, keep_alive, event, mode)
+			}
+		};
+			
+		let new_connection = new_connection.set_events(event_loop, tok);
+		
+		new_connection
+	}
+
     pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> Connection {
 		
         
