@@ -6,7 +6,7 @@ use time;
 use std::collections::HashMap;
 
 
-struct Request {
+pub struct Request {
     method : String,
     path : String,
     version : u8,
@@ -16,16 +16,15 @@ struct Request {
 
 enum ConnectionMode {
 	
+                                                    //czytanie requestu
 	ReadingRequest([u8; 2048], usize),
-    
-    //sparsowany request
-    //Request
-    
-													//oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
+                                                    //oczekujący sparsowany request
+    ParsedRequest(Request),
+													//oczekiwanie na wygenerowanie odpowiedzi serwera
     WaitingForServerResponse,
-													//siedzą dane gotowe do wysłania dla użytkownika
+													//wysyłanie odpowiedz
     SendingResponse(Vec<u8>, usize),
-	
+                                                    //połączenie do zamknięcia
 	Close,
 }
 
@@ -72,6 +71,7 @@ impl Connection {
         
 		if events.is_error() {
 			println!("EVENT ERROR {}", tok.as_usize());
+            panic!("TODO");
 		}
 		
         
@@ -133,6 +133,30 @@ impl Connection {
                 Connection(stream, keep_alive, Event::Write, ConnectionMode::ReadingRequest(buf, done))
 			}
 			
+            Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request)) => {
+                
+                println!("----------> set mode : ParsedRequest");
+                
+                let event_none = base_event;
+                
+				match event {
+                    
+                    Event::Init => {
+                        println!("----------> register: {:?} {:?}", token, event_none);
+                        event_loop.register(&stream, token, event_none, pool_opt).unwrap();
+                    }
+                    
+                    Event::None => {}
+                    
+                    _ => {
+                        println!("----------> reregister: {:?} {:?}", token, event_none);
+                        event_loop.reregister(&stream, token, event_none, pool_opt).unwrap();
+                    }
+                }
+                
+                Connection(stream, keep_alive, Event::None, ConnectionMode::ParsedRequest(request))   
+            }
+            
 			Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse) => {
 				
 				println!("----------> set mode : WaitingForDataServer");
@@ -210,6 +234,11 @@ impl Connection {
                 transform_from_waiting_for_user(events, stream, keep_alive, event, buf, done)
             }
 			
+            Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request)) => {
+                
+                Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request))
+            }
+            
             Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse) => {
                 
                 Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse)

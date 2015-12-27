@@ -126,6 +126,8 @@ impl MyHandler {
                 }
                 
                 
+                //weź obiekt requestu, wyślij go przez kanał do zainteresowanych
+                
 				
 				self.hash.insert(token.clone(), new_connection);
             }
