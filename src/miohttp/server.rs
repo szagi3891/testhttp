@@ -40,6 +40,12 @@ impl Handler for MyHandler {
             self.socket_ready(event_loop, token, events);
         }
     }
+	
+	/// Invoked when a message has been received via the event loop's channel.
+    fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
+		
+		println!("odebrano kominikat z kanału {:?}", msg);
+    }
 }
 
 
@@ -108,7 +114,7 @@ impl MyHandler {
             };
         }
     }
-
+	
     fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
 
         println!("count hasmapy before socket_ready {}", self.hash.len());

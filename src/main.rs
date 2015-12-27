@@ -68,10 +68,18 @@ fn main() {
 					
 					Ok((req, resp_chanel)) => {
 						
-						println!("new request to handle : {:?}", req);
+						let time_current = time::get_time();
+
+                		//TODO - test response
+                		let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
+						
+						resp_chanel.send(response::Response::from_string(response));
+						
+						println!("przesłano kanał z odpowiedzią : {:?}", req);
 					}
 					
 					Err(err) => {
+						
 						println!("error get from channel {:?}", err);
 					}
 				}
