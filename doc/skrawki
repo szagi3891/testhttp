@@ -1,0 +1,11 @@
+
+
+//use deeply::nested::function as other_function;
+// This is equivalent to `use deeply::nested::function as function
+
+//use super::function as root_function;
+
+//use self::cool::function as my_cool_function;
+// ===
+//use cool::function as root_cool_function;
+

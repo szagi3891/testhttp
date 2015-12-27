@@ -224,8 +224,6 @@ impl Connection {
 				
 				println!("----------> set mode : Close");
 				
-                let event_none = base_event;
-                
                 match event {
                     
                     Event::Init => {}
@@ -244,117 +242,11 @@ impl Connection {
     
 	fn transform(self, events: EventSet) -> Connection {
 		
-        
-		
         match self {
 			
-            Connection(mut stream, keep_alive, event, ConnectionMode::WaitingForDataUser(mut buf, mut done)) => {
+            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done)) => {
 				
-				if events.is_readable() {
-					
-                    
-					let total = buf.len();
-                    
-                    println!("total count {}", &done);
-                    
-					match stream.try_read(&mut buf[done..total]) {
-						
-						Ok(Some(size)) => {
-                            
-							if size > 0 {
-								
-								done = done + size;
-
-								println!("read : {}", size);
-
-
-								let mut headers = [httparse::EMPTY_HEADER; 100];
-								let mut req     = httparse::Request::new(&mut headers);
-
-								match req.parse(&buf) {
-
-									Ok(httparse::Status::Complete(size_parse)) => {
-										
-										println!("parse ok, get count {}, parse count {}", done, size_parse);
-										
-										println!("method : {:?}", req.method);
-										println!("path : {:?}", req.path);
-										println!("version : {:?}", req.version);
-										//println!("headers : {:?}", req.headers);
-										
-										for header in req.headers {
-											let str_header = String::from_utf8_lossy(header.value);
-											println!("  {} : {}", header.name, str_header);
-										}
-										
-										//TODO - get info about keep alive
-										
-										
-										let time_current = time::get_time();
-											
-										//TODO - test response
-										let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
-										
-										let mut resp_vec: Vec<u8> = Vec::new();
-										
-										for byte in response.as_bytes() {
-											resp_vec.push(byte.clone());
-										}
-										
-										//TODO - testowa odpowiedź
-										return Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(resp_vec, 0));
-									}
-
-									Ok(httparse::Status::Partial) => {
-										//częściowe parsowanie
-									}
-
-									Err(err) => {
-
-										match err {
-											httparse::Error::HeaderName => {
-												println!("header name");
-											}
-											_ => {
-												println!("error parse {:?}", err);
-											}
-										}
-
-										/* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
-									}
-								}
-
-								//uruchom parser
-									//jeśli się udało sparsować, to git
-
-								//jeśli osiągneliśmy całkowity rozmiar bufora a mimo to nie udało się sparsować danych
-									//to rzuć błędem że nieprawidłowe zapytanie
-							}
-						}
-						
-						Ok(None) => {
-							println!("no data");
-						}
-                        
-						Err(err) => {
-							println!("error read from socket {:?}", err);
-						}
-					}
-					
-					
-					
-					//czytaj, odczytane dane przekaż do parsera
-					//jeśli otrzymalismy poprawny obiekt requestu to :
-						// przełącz stan tego obiektu połączenia, na oczekiwanie na dane z serwera
-						// wyślij kanałem odpowiednią informację o requescie
-						// zwróć informację na zewnątrz tej funkcji że nic się nie dzieje z tym połaczeniem
-					
-					return Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done));
-				}
-				
-				//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
-				
-                Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
+                transform_from_waiting_for_user(events, stream, keep_alive, event, buf, done)
             }
 			
             Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer) => {
@@ -362,56 +254,10 @@ impl Connection {
                 Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer)
             }
 			
-            Connection(mut stream, keep_alive, event, ConnectionMode::DataToSendUser(str, mut done))  => {
-				
-				if events.is_writable() {
-					
-					match stream.try_write(&str[done..str.len()]) {
-						
-						Ok(Some(size)) => {
-							
-							println!("write data count='{}'", size);
-							
-							if size > 0 {
-								
-								done = done + size;
-								
-																//send all data to browser
-								if done == str.len() {
-									/*
-									if keep_alive == true {
-										
-										//keep connection
-										//TODO
-										
-									} else {
-										*/
-											//close connection
-										
-										return Connection(stream, keep_alive, event, ConnectionMode::Close);
-									//}
-								} else {
-									//println!("XXXXXXXXX");
-									panic!("something went wrong");
-								}
-							}
-						}
-						
-						Ok(None) => {
-							
-							println!("empty write");
-						}
-						
-						Err(err) => {
-							
-							println!("error write to socket {:?}", err);
-						}
-					}
-				}
-				
-				Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))
+            Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))  => {
+                
+				transform_from_sending_to_user(events, stream, keep_alive, event, str, done)
             },
-			
 			
 			Connection(stream, keep_alive, event, ConnectionMode::Close)  => {
 				
@@ -421,3 +267,181 @@ impl Connection {
 	}
 }
 
+
+
+fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep_alive: bool, event: Event, mut buf: [u8; 2048], done: usize) -> Connection {
+    
+    if events.is_readable() {
+        
+        let total = buf.len();
+
+        println!("total count {}", &done);
+
+        return match stream.try_read(&mut buf[done..total]) {
+
+            Ok(Some(size)) => {
+
+                if size > 0 {
+                    
+                    //TODO - w tym miejscu zaimplementować zjedzenie "done"
+                    
+                    let new_done = done + size;
+
+                    println!("read : {}", size);
+                    
+                    
+                    let mut headers = [httparse::EMPTY_HEADER; 100];
+                    let mut req     = httparse::Request::new(&mut headers);
+
+                    match req.parse(&buf) {
+
+                        Ok(httparse::Status::Complete(size_parse)) => {
+
+                            println!("parse ok, get count {}, parse count {}", done, size_parse);
+
+                            println!("method : {:?}", req.method);
+                            println!("path : {:?}", req.path);
+                            println!("version : {:?}", req.version);
+                            //println!("headers : {:?}", req.headers);
+
+                            for header in req.headers {
+                                let str_header = String::from_utf8_lossy(header.value);
+                                println!("  {} : {}", header.name, str_header);
+                            }
+
+                            //TODO - get info about keep alive
+
+
+                            let time_current = time::get_time();
+
+                            //TODO - test response
+                            let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
+
+                            let mut resp_vec: Vec<u8> = Vec::new();
+
+                            for byte in response.as_bytes() {
+                                resp_vec.push(byte.clone());
+                            }
+
+                            //TODO - testowa odpowiedź
+                            Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(resp_vec, 0))
+                        }
+
+                        Ok(httparse::Status::Partial) => {
+                            
+                            //częściowe parsowanie
+                            
+                            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, new_done))
+                        }
+
+                        Err(err) => {
+
+                            match err {
+                                httparse::Error::HeaderName => {
+                                    println!("header name");
+                                }
+                                _ => {
+                                    println!("error parse {:?}", err);
+                                }
+                            }
+                            
+                            /* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
+                            
+                            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, new_done))
+                        }
+                    }
+                    
+                    
+                    //uruchom parser
+                        //jeśli się udało sparsować, to git
+
+                    //jeśli osiągneliśmy całkowity rozmiar bufora a mimo to nie udało się sparsować danych
+                        //to rzuć błędem że nieprawidłowe zapytanie
+                
+                } else {
+                    
+                    Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
+                }
+            }
+
+            Ok(None) => {
+                println!("no data");
+                Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
+            }
+
+            Err(err) => {
+                println!("error read from socket {:?}", err);
+                Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
+            }
+        }
+
+
+
+        //czytaj, odczytane dane przekaż do parsera
+        //jeśli otrzymalismy poprawny obiekt requestu to :
+            // przełącz stan tego obiektu połączenia, na oczekiwanie na dane z serwera
+            // wyślij kanałem odpowiednią informację o requescie
+            // zwróć informację na zewnątrz tej funkcji że nic się nie dzieje z tym połaczeniem
+
+        //return Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done));
+    
+    } else {
+
+        //trzeba też ustawić jakiś timeout czekania na dane od użytkownika
+
+        return Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done));
+    }
+}
+
+
+fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_alive: bool, event: Event, str: Vec<u8>, done: usize) -> Connection{
+
+    if events.is_writable() {
+
+        match stream.try_write(&str[done..str.len()]) {
+
+            Ok(Some(size)) => {
+
+                println!("write data count='{}'", size);
+
+                if size > 0 {
+
+                    let new_done = done + size;
+
+                                                    //send all data to browser
+                    if new_done == str.len() {
+                        
+                        /*
+                        if keep_alive == true {
+
+                            //keep connection
+                            //TODO
+
+                        } else {
+                            */
+                                //close connection
+
+                            return Connection(stream, keep_alive, event, ConnectionMode::Close);
+                        //}
+
+                    } else {
+
+                        return Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, new_done));
+                    }
+                }
+            }
+
+            Ok(None) => {
+
+                println!("empty write");
+            }
+
+            Err(err) => {
+
+                println!("error write to socket {:?}", err);
+            }
+        }
+    }
+
+    Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))
+}

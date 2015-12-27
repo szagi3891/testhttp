@@ -1,0 +1,62 @@
+
+
+/*
+    keep alive
+    kompresja
+
+    utworzenie soketu nas<b3>uchuj<b9>cego
+
+    4 nowe event loopy
+        nowy event lopp z po<bf>yczeniem tego soketu
+
+    wysy<b3>aj<b9> kana<b3>em informacj<ea> o requestach do przetworzenia
+        request :
+            request        - request - do obs<b3>u<bf>enia
+            time        - czas zapytania
+            kana<b3> zwrotny - na kt<f3>ry zostanie przes<b3>ana odpowied<9f> do przes<b3>ania
+*/
+
+/*
+    80
+    443 - serwer z dekodowaniem certyfikatu -> a potem na http2
+
+                            https://github.com/seanmonstar/httparse        - bezstanowy parser
+
+    https://github.com/nbaksalyar/rust-streaming-http-parser    - nak<b3>adka na joyent parser
+*/
+
+
+
+//to co przeczytali<9c>my trafia do bufora
+//parser przetwarzaa
+//je<9c>li otrzymali<9c>my prawid<b3>ow<b9> warto<9c><e6> requestu, to zamknij czytanie i otw<f3>rz wysy<b3>anie
+//obiekt requestu wy<9c>lij kana<b3>em na zewn<ea>trzny <9c>wiat
+
+    //zewn<ea>trzny <9c>wiat, obiet requestu
+        //ma token, ma kana<b3> kt<f3>rym mo<bf>emy si<ea> skomunikowa<e6> z powrotem
+    //gdy wy<9c>lemy nowe dane odpowiedzi na ten obiekt, to obiekt musi zje<9c><e6> sam siebie (tylko raz mo<bf>na wys<b3>a<e6> odpowied<9f>)
+
+//je<9c>li mamy keep alive, to utrzymujemy po<b3><b9>czenie i czekamy na nowe dane
+//lub jesli klient si<ea> roz<b3><b9>czy<b3> to wyrzucamy obiekt po<b3><b9>czenia
+
+
+//wykorzysta<e6> Slab<Connection> do trzymania puli po<b3><b9>cze<f1>
+
+
+/*
+https://github.com/carllerche/mio-examples/blob/master/ping_pong/src/main.rs
+https://github.com/carllerche/mio/blob/master/test/test_close_on_drop.rs
+
+https://github.com/carllerche/mio/blob/master/src/handler.rs
+
+https://nbaksalyar.github.io/2015/07/10/writing-chat-in-rust.html
+https://github.com/nbaksalyar/rust-chat/blob/part-1/src/main.rs
+
+
+if hint.is_hup() {
+    si<ea> roz<b3><b9>czy<b3>
+*/
+
+
+// &mut i32 to &'a mut i32, they're the same
+
