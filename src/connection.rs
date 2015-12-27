@@ -16,19 +16,21 @@ struct Request {
 
 enum ConnectionMode {
 	
-	WaitingForDataUser([u8; 2048], usize),
+	ReadingRequest([u8; 2048], usize),
     
     //sparsowany request
     //Request
+    
 													//oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
-    WaitingForDataServer,
+    WaitingForServerResponse,
 													//siedzą dane gotowe do wysłania dla użytkownika
-    DataToSendUser(Vec<u8>, usize),
+    SendingResponse(Vec<u8>, usize),
 	
 	Close,
 }
 
 
+                                //typ zdarzeń który jest ustawiony w mio
 enum Event {
     Init,
     Write,
@@ -41,10 +43,11 @@ pub struct Connection (TcpStream, bool, Event, ConnectionMode);
 
 
 impl Connection {
-
+    
+    
     pub fn new(stream: TcpStream, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> Connection {
 	
-        let conn = Connection(stream, false, Event::Init, ConnectionMode::WaitingForDataUser([0u8; 2048], 0));
+        let conn = Connection(stream, false, Event::Init, ConnectionMode::ReadingRequest([0u8; 2048], 0));
         
         conn.set_events(event_loop, tok)
     }
@@ -62,7 +65,7 @@ impl Connection {
             }
         }
     }
-                
+    
 	
     pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> Connection {
 		
@@ -106,7 +109,7 @@ impl Connection {
         
 		match self {
 			
-			Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done)) => {
+			Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done)) => {
 				
                 println!("----------> set mode : WaitingForDataUser");
                 
@@ -127,10 +130,10 @@ impl Connection {
                     }
                 }
                 
-                Connection(stream, keep_alive, Event::Write, ConnectionMode::WaitingForDataUser(buf, done))
+                Connection(stream, keep_alive, Event::Write, ConnectionMode::ReadingRequest(buf, done))
 			}
 			
-			Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer) => {
+			Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse) => {
 				
 				println!("----------> set mode : WaitingForDataServer");
 				
@@ -151,10 +154,10 @@ impl Connection {
                     }
                 }
                 
-                Connection(stream, keep_alive, Event::None, ConnectionMode::WaitingForDataServer)
+                Connection(stream, keep_alive, Event::None, ConnectionMode::WaitingForServerResponse)
 			}
 			
-			Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done)) => {
+			Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done)) => {
 				
 				println!("----------> set mode : DataToSendUser");
 				
@@ -175,7 +178,7 @@ impl Connection {
                     }
                 }
                 
-				Connection(stream, keep_alive, Event::Read, ConnectionMode::DataToSendUser(str, done))
+				Connection(stream, keep_alive, Event::Read, ConnectionMode::SendingResponse(str, done))
 		   	}
 			
 		    Connection(stream, keep_alive, event, ConnectionMode::Close) => {
@@ -202,17 +205,17 @@ impl Connection {
 		
         match self {
 			
-            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done)) => {
+            Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done)) => {
 				
                 transform_from_waiting_for_user(events, stream, keep_alive, event, buf, done)
             }
 			
-            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer) => {
+            Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse) => {
                 
-                Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataServer)
+                Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse)
             }
 			
-            Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))  => {
+            Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done))  => {
                 
 				transform_from_sending_to_user(events, stream, keep_alive, event, str, done)
             },
@@ -279,14 +282,14 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                             }
 
                             //TODO - testowa odpowiedź
-                            Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(resp_vec, 0))
+                            Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(resp_vec, 0))
                         }
 
                         Ok(httparse::Status::Partial) => {
                             
                             //częściowe parsowanie
                             
-                            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
+                            Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
                         }
 
                         Err(err) => {
@@ -303,7 +306,7 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                             
                             /* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
                             
-                            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
+                            Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
                         }
                     }
                     
@@ -316,18 +319,18 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                 
                 } else {
                     
-                    Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
+                    Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
                 }
             }
 
             Ok(None) => {
                 println!("no data");
-                Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
+                Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
             }
 
             Err(err) => {
                 println!("error read from socket {:?}", err);
-                Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
+                Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
             }
         }
 
@@ -343,7 +346,7 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
 
         //trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 
-        return Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done));
+        return Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done));
     }
 }
 
@@ -380,7 +383,7 @@ fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_
                     
                     } else if done < str.len() {
 
-                        return Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done));
+                        return Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done));
                         
                     } else {
                         
@@ -389,25 +392,25 @@ fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_
                 
                 } else {
                     
-                    return Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done));
+                    return Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done));
                 }
             }
             
             Ok(None) => {
                 
                 println!("empty write");
-                Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))
+                Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done))
             }
             
             Err(err) => {
                 
                 println!("error write to socket {:?}", err);
-                Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))
+                Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done))
             }
         }
     
     } else {
         
-        Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))
+        Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done))
     }
 }
