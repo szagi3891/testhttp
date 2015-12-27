@@ -1,8 +1,8 @@
 use mio::{Token, EventLoop, EventSet, PollOpt, TryRead, TryWrite};
 use mio::tcp::{TcpStream};
-use server::MyHandler;
 use httparse;
-use request::Request;
+use miohttp::server::MyHandler;
+use miohttp::request::Request;
 
 
 

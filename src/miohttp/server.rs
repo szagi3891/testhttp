@@ -4,8 +4,8 @@ use mio::tcp::{TcpListener};
 use std::collections::HashMap;
 use std::thread;
 use std::sync::mpsc::{Sender};
-use connection::{Connection};
-use token_gen::TokenGen;
+use miohttp::connection::{Connection};
+use miohttp::token_gen::TokenGen;
 
 
 // Define a handler to process the events

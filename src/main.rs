@@ -9,11 +9,7 @@ extern crate time;
 use std::sync::mpsc::{channel};
 use simple_signal::{Signals, Signal};
 
-mod token_gen;
-mod request;
-mod response;
-mod connection;
-mod server;
+mod miohttp;
 
 
 fn main() {
@@ -29,7 +25,7 @@ fn main() {
     let (tx_request, rx_request) = channel::<String>();
 		
     
-    server::MyHandler::new(&"127.0.0.1:13265".to_string(), tx_request);
+    miohttp::server::MyHandler::new(&"127.0.0.1:13265".to_string(), tx_request);
     
 	
 	let (ctrl_c_tx, ctrl_c_rx) = channel();
