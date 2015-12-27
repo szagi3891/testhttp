@@ -1,11 +1,16 @@
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler};
+use mio;
 use mio::tcp::{TcpListener};
 //use mio::util::Slab;                              //TODO - użyć tego modułu zamiast hashmapy
 use std::collections::HashMap;
 use std::thread;
+use std::sync::mpsc;
 use std::sync::mpsc::{Sender};
 use miohttp::connection::{Connection};
 use miohttp::token_gen::TokenGen;
+use miohttp::request;
+use miohttp::response;
+
 
 
 // Define a handler to process the events
@@ -14,14 +19,14 @@ pub struct MyHandler {
     server   : TcpListener,
     hash     : HashMap<Token, Connection>,
     tokens   : TokenGen,
-	send     : Sender<String>,
+	send     : mpsc::Sender<(request::Request, mio::Sender<response::Response>)>,
 }
 
 
 impl Handler for MyHandler {
 
     type Timeout = ();
-    type Message = ();
+    type Message = response::Response;
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
         
@@ -40,7 +45,7 @@ impl Handler for MyHandler {
 
 impl MyHandler {
 
-    pub fn new(ip: &String, tx: Sender<String>) {
+    pub fn new(ip: &String, tx: mpsc::Sender<(request::Request, mio::Sender<response::Response>)>) {
 
         let mut tokens = TokenGen::new();
 
@@ -126,13 +131,15 @@ impl MyHandler {
                 }
                 
                 
-                let (new_connection, request_opt) = new_connection.get_request();
+                let (new_connection, request_opt) = new_connection.get_request(token.clone(), event_loop);
                 
                 match request_opt {
                     
                     Some(request) => {
                         
-                        println!("request to send: {:?}", request);
+						self.send.send((request, event_loop.channel()));
+						
+                        //println!("request to send: {:?}", request);
                         //TODO, wyślij go przez kanał do zainteresowanych, self.send.send(request)
                     }
                     

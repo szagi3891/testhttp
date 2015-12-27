@@ -8,9 +8,12 @@ extern crate time;
 
 use std::sync::mpsc::{channel};
 use simple_signal::{Signals, Signal};
+use mio::EventLoop;
 
 mod miohttp;
-
+use miohttp::request;
+use miohttp::response;
+//miohttp::request
 
 fn main() {
     
@@ -21,8 +24,8 @@ fn main() {
 	println!("TODO - zrobić pętlę na czytaniu danych ?");
     println!("TODO - zrobić pętlę na pisaniu danych ?");
     
-    
-    let (tx_request, rx_request) = channel::<String>();
+    //mpsc::Sender<(request::Request, mio::Sender<response::Response>)>
+    let (tx_request, rx_request) = channel::<(request::Request, mio::Sender<response::Response>)>();
 		
     
     miohttp::server::MyHandler::new(&"127.0.0.1:13265".to_string(), tx_request);
@@ -53,7 +56,7 @@ fn main() {
 			
 			//(request, chan_response) = rx_request.recv() => {
             
-            conn = rx_request.recv() => {
+            to_handle = rx_request.recv() => {
 				
                 if count > 20 {
                     return
@@ -61,7 +64,18 @@ fn main() {
                 
                 count = count + 1;
                 
-				println!("new connection to handle : {:?}", conn);
+				match to_handle {
+					
+					Ok((req, resp_chanel)) => {
+						
+						println!("new request to handle : {:?}", req);
+					}
+					
+					Err(err) => {
+						println!("error get from channel {:?}", err);
+					}
+				}
+					
                 
                 //formuj odpowiedź
                 

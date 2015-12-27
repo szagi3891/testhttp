@@ -32,6 +32,7 @@ enum Event {
 								//socket, keep alive, actuall event set, current mode
 pub struct Connection (TcpStream, bool, Event, ConnectionMode);
 
+	//TODO - może warto z połączeniem przechowywać również token ... ?
 
 impl Connection {
     
@@ -58,16 +59,20 @@ impl Connection {
     }
     
     
-    pub fn get_request(self) -> (Connection, Option<Request>) {
+    pub fn get_request(self, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> (Connection, Option<Request>) {
         
-        match self {
+        let (new_connection, request) = match self {
             Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request)) => {
                 (Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse), Some(request))
             }
             Connection(stream, keep_alive, event, mode) => {
                 (Connection(stream, keep_alive, event, mode), None)
             }
-        }
+        };
+		
+		let new_connection = new_connection.set_events(event_loop, tok);
+		
+		(new_connection, request)
     }
 	
     pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> Connection {

@@ -1,5 +1,5 @@
 mod token_gen;
-mod request;
-mod response;
+pub mod request;
+pub mod response;
 mod connection;
 pub mod server;
