@@ -1,10 +1,10 @@
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler};
 use mio::tcp::{TcpListener};
-//use mio::util::Slab;
+//use mio::util::Slab;                              //TODO - użyć tego modułu zamiast hashmapy
 use std::collections::HashMap;
 use std::thread;
 use std::sync::mpsc::{Sender};
-use connection::Connection;
+use connection::{Connection};
 use token_gen::TokenGen;
 
 
@@ -112,22 +112,22 @@ impl MyHandler {
 			
             Some(connection) => {
 				
-                let (new_connetion, is_close) = connection.ready(events, token.clone(), event_loop);
+                let new_connection = connection.ready(events, token.clone(), event_loop);
 				
-				//let new_connetion = new_connetion.set_options(, token.clone());
-				
-				if is_close {
-					
-                    //panic!("zamykam");
+                if new_connection.in_state_close() {
                     
-					println!("!!!!!!!!!!!!!! server close connection {:?} !!!!!!!!!!!!!!", &token);
+                    //panic!("zamykam");
+
+                    println!("!!!!!!!!!!!!!! server close connection {:?} !!!!!!!!!!!!!!", &token);
                     println!("count hasmapy after ready after close {}", self.hash.len());
                     println!("\n\n\n");
-                    
-					return;
-				}
+
+                    return;
+                }
+                
+                
 				
-				self.hash.insert(token.clone(), new_connetion);
+				self.hash.insert(token.clone(), new_connection);
             }
 			
             None => {

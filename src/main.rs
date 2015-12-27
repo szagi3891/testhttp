@@ -20,8 +20,8 @@ fn main() {
 	println!("Hello, world! - 127.0.0.1:13265");
 	
 	
-	println!("TODO - zrobić pętlę na czytaniu danych");
-    println!("TODO - zrobić pętlę na pisaniu danych");
+	println!("TODO - zrobić pętlę na czytaniu danych ?");
+    println!("TODO - zrobić pętlę na pisaniu danych ?");
     
     
     let (tx_request, rx_request) = channel::<String>();

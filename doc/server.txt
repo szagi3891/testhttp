@@ -60,3 +60,33 @@ if hint.is_hup() {
 
 // &mut i32 to &'a mut i32, they're the same
 
+
+
+
+/*
+struct request {
+    //parser
+    //metody dostępowe
+}
+
+http://seanmonstar.com/
+	info o bezstanowości httparse
+
+https://github.com/hyperium/hyper/blob/master/src/buffer.rs
+	sprawdzić jak hyper sobie radzi z parsowaniem danych ...
+
+https://github.com/nbaksalyar/rust-chat/blob/part-1/src/main.rs#L2
+	dobrze zaimplementowane mio
+*/
+
+/*
+So really, 'allocation-free' means, make any allocations you want beforehand, and then give me a slice. (Hyper creates a stack array of [Header; 100], for instance).
+
+https://github.com/seanmonstar/httparse
+
+				httpparse w hyper
+https://github.com/hyperium/hyper/blob/master/src/http/h1.rs
+*/
+
+
+

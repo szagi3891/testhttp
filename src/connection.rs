@@ -3,65 +3,23 @@ use mio::tcp::{TcpStream};
 use server::MyHandler;
 use httparse;
 use time;
+use std::collections::HashMap;
 
 
-/*
-struct request {
-    //parser
-    //metody dostępowe
+struct Request {
+    method : String,
+    path : String,
+    version : u8,
+    headers : HashMap<String, String>,
 }
-
-http://seanmonstar.com/
-	info o bezstanowości httparse
-
-https://github.com/hyperium/hyper/blob/master/src/buffer.rs
-	sprawdzić jak hyper sobie radzi z parsowaniem danych ...
-
-https://github.com/nbaksalyar/rust-chat/blob/part-1/src/main.rs#L2
-	dobrze zaimplementowane mio
-*/
-
-/*
-So really, 'allocation-free' means, make any allocations you want beforehand, and then give me a slice. (Hyper creates a stack array of [Header; 100], for instance).
-
-https://github.com/seanmonstar/httparse
-
-				httpparse w hyper
-https://github.com/hyperium/hyper/blob/master/src/http/h1.rs
-*/
-
-
-/*
-fn read(stream : &mut TcpStream, total : usize) -> Option<Vec<u8>>
-{
-	let mut buffer = Vec::with_capacity(total);
-	let mut done   = 0;
-
-	unsafe { 
-		buffer.set_len(total)
-	}
-
-	while done < total {
-
-		if let Ok(count) = stream.read(&mut buffer[done..total]) {
-			done += count;    
-		} else {
-			break;
-		}   
-	}
-
-	if done == total {
-		Some(buffer)
-	} else {
-		None
-	}   
-}
-*/
 
 
 enum ConnectionMode {
 	
 	WaitingForDataUser([u8; 2048], usize),
+    
+    //sparsowany request
+    //Request
 													//oczekiwanie na wygenerowanie danych z odpowiedzią od serwera
     WaitingForDataServer,
 													//siedzą dane gotowe do wysłania dla użytkownika
@@ -69,6 +27,7 @@ enum ConnectionMode {
 	
 	Close,
 }
+
 
 enum Event {
     Init,
@@ -91,8 +50,21 @@ impl Connection {
     }
     
     
+    pub fn in_state_close(&self) -> bool {
+        
+        match *self {
+            
+            Connection(_, _, _, ConnectionMode::Close) => {
+                true
+            }
+            _ => {
+                false
+            }
+        }
+    }
+                
 	
-    pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> (Connection, bool) {
+    pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> Connection {
 		
         
 		if events.is_error() {
@@ -123,28 +95,14 @@ impl Connection {
         
 		let new_connection = new_connection.set_events(event_loop, tok);
 		
-        
-		let is_close = match *&new_connection {
-            
-            Connection(_, _, _, ConnectionMode::Close) => {
-                true
-            }
-            _ => {
-                false
-            }
-        };
-		
-        
-		(new_connection, is_close)
+        new_connection
     }
 
 
 	fn set_events(self, event_loop: &mut EventLoop<MyHandler>, token: Token) -> Connection {
 		
 		let base_event = EventSet::error() | EventSet::hup();
-		//let pool_opt   = PollOpt::edge();	//;
         let pool_opt   = PollOpt::edge() | PollOpt::oneshot();
-		//let pool_opt   = PollOpt::level();
         
 		match self {
 			
@@ -295,20 +253,20 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                         Ok(httparse::Status::Complete(size_parse)) => {
 
                             println!("parse ok, get count {}, parse count {}", done, size_parse);
-
+                            
                             println!("method : {:?}", req.method);
                             println!("path : {:?}", req.path);
                             println!("version : {:?}", req.version);
                             //println!("headers : {:?}", req.headers);
-
+                            
                             for header in req.headers {
                                 let str_header = String::from_utf8_lossy(header.value);
                                 println!("  {} : {}", header.name, str_header);
                             }
 
                             //TODO - get info about keep alive
-
-
+                            
+                            
                             let time_current = time::get_time();
 
                             //TODO - test response
@@ -332,7 +290,8 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                         }
 
                         Err(err) => {
-
+                            
+//TODO - 400 error http
                             match err {
                                 httparse::Error::HeaderName => {
                                     println!("header name");
@@ -379,8 +338,6 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
             // przełącz stan tego obiektu połączenia, na oczekiwanie na dane z serwera
             // wyślij kanałem odpowiednią informację o requescie
             // zwróć informację na zewnątrz tej funkcji że nic się nie dzieje z tym połaczeniem
-
-        //return Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done));
     
     } else {
 
