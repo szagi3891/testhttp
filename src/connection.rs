@@ -268,7 +268,6 @@ impl Connection {
 }
 
 
-
 fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep_alive: bool, event: Event, mut buf: [u8; 2048], done: usize) -> Connection {
     
     if events.is_readable() {
@@ -283,10 +282,8 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
 
                 if size > 0 {
                     
-                    //TODO - w tym miejscu zaimplementować zjedzenie "done"
+                    let done = done + size;
                     
-                    let new_done = done + size;
-
                     println!("read : {}", size);
                     
                     
@@ -331,7 +328,7 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                             
                             //częściowe parsowanie
                             
-                            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, new_done))
+                            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
                         }
 
                         Err(err) => {
@@ -347,7 +344,7 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                             
                             /* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
                             
-                            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, new_done))
+                            Connection(stream, keep_alive, event, ConnectionMode::WaitingForDataUser(buf, done))
                         }
                     }
                     
@@ -398,7 +395,7 @@ fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_
 
     if events.is_writable() {
 
-        match stream.try_write(&str[done..str.len()]) {
+        return match stream.try_write(&str[done..str.len()]) {
 
             Ok(Some(size)) => {
 
@@ -406,10 +403,10 @@ fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_
 
                 if size > 0 {
 
-                    let new_done = done + size;
+                    let done = done + size;
 
                                                     //send all data to browser
-                    if new_done == str.len() {
+                    if done == str.len() {
                         
                         /*
                         if keep_alive == true {
@@ -423,25 +420,37 @@ fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_
 
                             return Connection(stream, keep_alive, event, ConnectionMode::Close);
                         //}
+                    
+                    } else if done < str.len() {
 
+                        return Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done));
+                        
                     } else {
-
-                        return Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, new_done));
+                        
+                        unreachable!();
                     }
+                
+                } else {
+                    
+                    return Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done));
                 }
             }
-
+            
             Ok(None) => {
-
+                
                 println!("empty write");
+                Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))
             }
-
+            
             Err(err) => {
-
+                
                 println!("error write to socket {:?}", err);
+                Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))
             }
         }
+    
+    } else {
+        
+        Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))
     }
-
-    Connection(stream, keep_alive, event, ConnectionMode::DataToSendUser(str, done))
 }
