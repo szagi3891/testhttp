@@ -2,16 +2,8 @@ use mio::{Token, EventLoop, EventSet, PollOpt, TryRead, TryWrite};
 use mio::tcp::{TcpStream};
 use server::MyHandler;
 use httparse;
-use time;
-use std::collections::HashMap;
+use request::Request;
 
-
-pub struct Request {
-    method : String,
-    path : String,
-    version : u8,
-    headers : HashMap<String, String>,
-}
 
 
 enum ConnectionMode {
@@ -65,6 +57,18 @@ impl Connection {
         }
     }
     
+    
+    pub fn get_request(self) -> (Connection, Option<Request>) {
+        
+        match self {
+            Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request)) => {
+                (Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse), Some(request))
+            }
+            Connection(stream, keep_alive, event, mode) => {
+                (Connection(stream, keep_alive, event, mode), None)
+            }
+        }
+    }
 	
     pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> Connection {
 		
@@ -100,7 +104,7 @@ impl Connection {
 		
         new_connection
     }
-
+    
 
 	fn set_events(self, event_loop: &mut EventLoop<MyHandler>, token: Token) -> Connection {
 		
@@ -283,47 +287,45 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                     match req.parse(&buf) {
 
                         Ok(httparse::Status::Complete(size_parse)) => {
-
+                            
                             println!("parse ok, get count {}, parse count {}", done, size_parse);
                             
-                            println!("method : {:?}", req.method);
-                            println!("path : {:?}", req.path);
-                            println!("version : {:?}", req.version);
-                            //println!("headers : {:?}", req.headers);
+                            //let request = Request::new(req);
                             
-                            for header in req.headers {
-                                let str_header = String::from_utf8_lossy(header.value);
-                                println!("  {} : {}", header.name, str_header);
+                            match Request::new(req) {
+                                
+                                Ok(request) => {
+                                    
+                                    println!("Request::new ok");
+                                    
+                                    
+                                    //TODO - get info about keep alive
+                                    
+                                    
+                                    Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request))
+                                }
+                                
+                                Err(mess) => {
+                                    
+//TODO - błąd 400
+//trzeba też zamknąć połączenie
+
+                                    Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
+                                }
                             }
-
-                            //TODO - get info about keep alive
-                            
-                            
-                            let time_current = time::get_time();
-
-                            //TODO - test response
-                            let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
-
-                            let mut resp_vec: Vec<u8> = Vec::new();
-
-                            for byte in response.as_bytes() {
-                                resp_vec.push(byte.clone());
-                            }
-
-                            //TODO - testowa odpowiedź
-                            Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(resp_vec, 0))
                         }
 
+                                                            //częściowe parsowanie
                         Ok(httparse::Status::Partial) => {
-                            
-                            //częściowe parsowanie
                             
                             Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
                         }
 
                         Err(err) => {
-                            
+
 //TODO - 400 error http
+//zamknij połączenie
+
                             match err {
                                 httparse::Error::HeaderName => {
                                     println!("header name");

@@ -10,6 +10,8 @@ use std::sync::mpsc::{channel};
 use simple_signal::{Signals, Signal};
 
 mod token_gen;
+mod request;
+mod response;
 mod connection;
 mod server;
 
@@ -39,7 +41,9 @@ fn main() {
         ctrl_c_tx.send(()).unwrap(); 
     });
 	
-	
+    
+	let mut count = 0;
+    
 	
 	loop {
         
@@ -51,9 +55,41 @@ fn main() {
 				return;
 			},
 			
-			conn = rx_request.recv() => {
+			//(request, chan_response) = rx_request.recv() => {
+            
+            conn = rx_request.recv() => {
 				
+                if count > 20 {
+                    return
+                }
+                
+                count = count + 1;
+                
 				println!("new connection to handle : {:?}", conn);
+                
+                //formuj odpowiedź
+                
+                //wyślij odpowiedź na kanał zwrotny
+                
+
+                //formatuj obiekt Response            
+                /*
+
+                let time_current = time::get_time();
+
+                //TODO - test response
+                let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
+
+                let mut resp_vec: Vec<u8> = Vec::new();
+
+                for byte in response.as_bytes() {
+                    resp_vec.push(byte.clone());
+                }
+
+                //TODO - testowa odpowiedź
+                Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(resp_vec, 0))
+                */
+                
 			}
 		}
 	}

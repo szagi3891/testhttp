@@ -126,9 +126,21 @@ impl MyHandler {
                 }
                 
                 
-                //weź obiekt requestu, wyślij go przez kanał do zainteresowanych
+                let (new_connection, request_opt) = new_connection.get_request();
+                
+                match request_opt {
+                    
+                    Some(request) => {
+                        
+                        println!("request to send: {:?}", request);
+                        //TODO, wyślij go przez kanał do zainteresowanych, self.send.send(request)
+                    }
+                    
+                    None => {}
+                }
                 
 				
+                
 				self.hash.insert(token.clone(), new_connection);
             }
 			
