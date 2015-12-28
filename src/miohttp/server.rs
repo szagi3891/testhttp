@@ -5,7 +5,7 @@ use mio::tcp::{TcpListener};
 use std::collections::HashMap;
 use std::thread;
 use std::sync::mpsc;
-use std::sync::mpsc::{Sender};
+//use std::sync::mpsc::{Sender};
 use miohttp::connection::{Connection};
 use miohttp::token_gen::TokenGen;
 use miohttp::request;
@@ -165,7 +165,7 @@ impl MyHandler {
                     
                     Some(request) => {
                         
-						self.send.send((request, token.clone(), event_loop.channel()));
+						let _ = self.send.send((request, token.clone(), event_loop.channel()));
 						
                         //println!("request to send: {:?}", request);
                         //TODO, wyślij go przez kanał do zainteresowanych, self.send.send(request)
