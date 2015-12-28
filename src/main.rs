@@ -8,15 +8,15 @@ extern crate time;
 
 use std::sync::mpsc::{channel};
 use simple_signal::{Signals, Signal};
-use mio::EventLoop;
+//use mio::EventLoop;
 
 mod miohttp;
 use miohttp::request;
 use miohttp::response;
 //miohttp::request
 
-use std::thread;
-use std::time::Duration;
+//use std::thread;
+//use std::time::Duration;
 
 
 fn main() {
@@ -81,7 +81,7 @@ fn main() {
 							let response_body = format!("Hello user: {} - {}", time_current.sec, time_current.nsec);
 							let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\nConnection: keep-alive\r\nContent-length: {}\r\n\r\n{}", response_body.len(), response_body);
 
-							resp_chanel.send((token, response::Response::from_string(response)));
+							let _ = resp_chanel.send((token, response::Response::from_string(response)));
 
 							println!("przesłano kanał z odpowiedzią : {:?}", req);
 						//});
