@@ -1,4 +1,9 @@
 https://nbaksalyar.github.io/2015/07/10/writing-chat-in-rust.html
         obsługa socketów
 
-http://hermanradtke.com/2015/07/12/my-basic-understanding-of-mio-and-async-io.html
+1: http://hermanradtke.com/2015/07/12/my-basic-understanding-of-mio-and-async-io.html
+2: http://hermanradtke.com/2015/07/22/creating-a-multi-echo-server-using-rust-and-mio.html
+3: http://hermanradtke.com/2015/09/12/creating-a-simple-protocol-when-using-rust-and-mio.html
+
+http://hoverbear.org/2015/03/03/getting-acquainted-with-mio/
+

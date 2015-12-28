@@ -71,8 +71,6 @@ impl Request {
             let str_header = String::from_utf8_lossy(header.value);
             println!("  {} : {}", header.name, str_header);
         }
-        
-        panic!("STOP");
         */
     }
 	

@@ -10,7 +10,7 @@ use miohttp::connection::{Connection};
 use miohttp::token_gen::TokenGen;
 use miohttp::request;
 use miohttp::response;
-
+use miohttp::log;
 
 
 // Define a handler to process the events
@@ -29,7 +29,9 @@ impl Handler for MyHandler {
     type Message = (Token, response::Response);
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
-        
+		
+        //log::error("testowy komunikat");
+		
         println!(">>>>>>>>>>> {:?} {:?} (is server = {})", token, events, token == self.token);
         
         if token == self.token {
@@ -149,8 +151,6 @@ impl MyHandler {
 				
                 if new_connection.in_state_close() {
                     
-                    //panic!("zamykam");
-
                     println!("!!!!!!!!!!!!!! server close connection {:?} !!!!!!!!!!!!!!", &token);
                     println!("count hasmapy after ready after close {}", self.hash.len());
                     println!("\n\n\n");
