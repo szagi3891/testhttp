@@ -10,8 +10,8 @@ use miohttp::connection::{Connection};
 use miohttp::token_gen::TokenGen;
 use miohttp::request;
 use miohttp::response;
-use miohttp::log;
 
+use miohttp::log;
 
 // Define a handler to process the events
 pub struct MyHandler {
@@ -29,10 +29,7 @@ impl Handler for MyHandler {
     type Message = (Token, response::Response);
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
-		
-        //log::error("testowy komunikat");
-		
-        println!(">>>>>>>>>>> {:?} {:?} (is server = {})", token, events, token == self.token);
+        log_error!(">>>>>>>>>>> {:?} {:?} (is server = {})", token, events, token == self.token);
         
         if token == self.token {
 
@@ -65,6 +62,8 @@ impl MyHandler {
 
         let addr = ip.parse().unwrap();
 
+        log_crit!("Otwieram nasłuch na {}", addr);
+		
         let server = TcpListener::bind(&addr).unwrap();
 
         let token = tokens.get();
