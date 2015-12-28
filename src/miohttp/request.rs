@@ -8,8 +8,14 @@ pub struct Request {
     method : String,
     path : String,
     version : u8,
-    headers : HashMap<String, String>,
+    headers : HashMap<Box<String>, String>,
 }
+
+/*
+http://hyper.rs/hyper/hyper/header/struct.Headers.html
+				ta biblioteka wykorzystuje nagłówki dostarczane przez hyper-a
+https://github.com/tailhook/rotor-http/blob/master/src/http1.rs
+*/
 
 impl Request {
     
@@ -32,7 +38,7 @@ impl Request {
                         }
                     };
                     
-                    match headers.insert(key.clone(), value) {
+                    match headers.insert(Box::new(key.clone()), value) {
                         None => {}      //insert ok
                         Some(_) => {
                             return Err(format!("double header: {}", &key));
@@ -69,5 +75,15 @@ impl Request {
         panic!("STOP");
         */
     }
+	
+	pub fn is_header_set(&self, name: String, value: String) -> bool {
+		//"Connection": "keep-alive")
+		
+		match self.headers.get(&Box::new(name)) {
+			Some(_) => true,
+			None => false
+		}
+	}
+
 }
 

@@ -71,19 +71,19 @@ fn main() {
 					
 					Ok((req, token, resp_chanel)) => {
 						
-						thread::spawn(move || {
+						//thread::spawn(move || {
 							
-							thread::sleep(Duration::new(3, 0));
+						//	thread::sleep(Duration::new(3, 0));
 							
 							let time_current = time::get_time();
 
 							//TODO - test response
-							let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
+							let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\nConnection: keep-alive\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
 
 							resp_chanel.send((token, response::Response::from_string(response)));
 
 							println!("przesłano kanał z odpowiedzią : {:?}", req);
-						});
+						//});
 					}
 					
 					Err(err) => {

@@ -333,10 +333,8 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                                     
                                     println!("Request::new ok");
                                     
-                                    
-                                    //TODO - get info about keep alive
-                                    
-                                    
+									let keep_alive = request.is_header_set("Connection".to_string(), "keep-alive".to_string());
+									
                                     Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request))
                                 }
                                 
@@ -434,18 +432,16 @@ fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_
                                                     //send all data to browser
                     if done == str.len() {
                         
-                        /*
+                            						//eep connection
                         if keep_alive == true {
-
-                            //keep connection
-                            //TODO
-
+							
+							println!("PODTRZYMUJĘ POŁĄCZENIE !!");
+							return Connection(stream, true, Event::Read, ConnectionMode::ReadingRequest([0u8; 2048], 0));
+							
+                                					//close connection
                         } else {
-                            */
-                                //close connection
-
                             return Connection(stream, keep_alive, event, ConnectionMode::Close);
-                        //}
+                        }
                     
                     } else if done < str.len() {
 
