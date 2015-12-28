@@ -78,7 +78,8 @@ fn main() {
 							let time_current = time::get_time();
 
 							//TODO - test response
-							let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\nConnection: keep-alive\r\n\r\nHello user: {} - {}", time_current.sec, time_current.nsec);
+							let response_body = format!("Hello user: {} - {}", time_current.sec, time_current.nsec);
+							let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\nConnection: keep-alive\r\nContent-length: {}\r\n\r\n{}", response_body.len(), response_body);
 
 							resp_chanel.send((token, response::Response::from_string(response)));
 
