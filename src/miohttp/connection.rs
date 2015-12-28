@@ -75,11 +75,13 @@ impl Connection {
 		(new_connection, request)
     }
 	
+
 	pub fn send_data_to_user(self, event_loop: &mut EventLoop<MyHandler>, tok: Token, response: response::Response) -> Connection {
 		
 		println!("transformuję połączenie -> send_data_to_user");
 		
 		let new_connection = match self {
+			
 			Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse) => {
 				
 				//TODO - występuje kopiowanie pamięci, znaleźć lepszy sposób na konwersję tych danych
@@ -104,7 +106,8 @@ impl Connection {
 		
 		new_connection
 	}
-
+	
+	
     pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> Connection {
 		
         
@@ -140,7 +143,7 @@ impl Connection {
         new_connection
     }
     
-
+	
 	fn set_events(self, event_loop: &mut EventLoop<MyHandler>, token: Token) -> Connection {
 		
 		let base_event = EventSet::error() | EventSet::hup();

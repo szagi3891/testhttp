@@ -11,13 +11,15 @@ use miohttp::token_gen::TokenGen;
 use miohttp::request;
 use miohttp::response;
 use miohttp::log;
+//use miohttp::hashmap_connection;
 
 
 // Define a handler to process the events
 pub struct MyHandler {
     token    : Token,
     server   : TcpListener,
-    hash     : HashMap<Token, Connection>,
+	hash     : HashMap<Token, Connection>,
+    //hash     : hashmap_connection::Hashmap,
     tokens   : TokenGen,
 	send     : mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>,
 }
@@ -25,24 +27,19 @@ pub struct MyHandler {
 
 impl Handler for MyHandler {
 
-    type Timeout = ();
+    type Timeout = Token;
     type Message = (Token, response::Response);
-
+	
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
-		
-        //log::error("testowy komunikat");
 		
         println!(">>>>>>>>>>> {:?} {:?} (is server = {})", token, events, token == self.token);
         
         if token == self.token {
-
             self.new_connection(event_loop);
-
         } else {
             self.socket_ready(event_loop, token, events);
         }
     }
-	
 	
     fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
 		
@@ -51,6 +48,11 @@ impl Handler for MyHandler {
 				self.send_data_to_user(event_loop, token, response);
 			}
 		};
+    }
+	
+	fn timeout(&mut self, event_loop: &mut EventLoop<Self>, timeout: Self::Timeout) {
+		
+		println!("timeout zaszedł {:?}", timeout);
     }
 }
 
