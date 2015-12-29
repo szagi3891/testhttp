@@ -22,7 +22,7 @@ use miohttp::response;
 fn main() {
     
 	
-	println!("Hello, world! - 127.0.0.1:13265");
+	//println!("Hello, world! - 127.0.0.1:13265");
 	
 	
 	println!("TODO - zrobić pętlę na czytaniu danych ?");
