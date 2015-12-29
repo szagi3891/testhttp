@@ -21,7 +21,7 @@ pub struct MyHandler {
     hash     : HashMap<Token, Connection>,
     //hash     : hashmap_connection::Hashmap,
     tokens   : TokenGen,
-	send     : mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>,
+    send     : mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>,
 }
 
 
@@ -32,26 +32,26 @@ impl Handler for MyHandler {
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
         log_error!(">>>>>>>>>>> {:?} {:?} (is server = {})", token, events, token == self.token);
-        
+
         if token == self.token {
             self.new_connection(event_loop);
         } else {
             self.socket_ready(event_loop, token, events);
         }
     }
-	
+
     fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
-		
-		match msg {
-			(token, response) => {
-				self.send_data_to_user(event_loop, token, response);
-			}
-		};
+
+        match msg {
+            (token, response) => {
+                self.send_data_to_user(event_loop, token, response);
+            }
+        };
     }
-	
-	fn timeout(&mut self, event_loop: &mut EventLoop<Self>, timeout: Self::Timeout) {
-		
-		println!("timeout zaszedł {:?}", timeout);
+
+    fn timeout(&mut self, event_loop: &mut EventLoop<Self>, timeout: Self::Timeout) {
+
+        println!("timeout zaszedł {:?}", timeout);
     }
 }
 
@@ -67,46 +67,46 @@ impl MyHandler {
         let addr = ip.parse().unwrap();
 
         log_crit!("Otwieram nasłuch na {}", addr);
-		
+
         let server = TcpListener::bind(&addr).unwrap();
 
         let token = tokens.get();
-        
+
         event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
-		
+
         let mut inst = MyHandler{
-			token  : token,
-			server : server,
-			hash   : HashMap::new(),
-			tokens : tokens,
-			send   : tx,
-		};
-		
-		thread::spawn(move || {
-			
-        	event_loop.run(&mut inst).unwrap();
-		});
+            token  : token,
+            server : server,
+            hash   : HashMap::new(),
+            tokens : tokens,
+            send   : tx,
+        };
+
+        thread::spawn(move || {
+
+            event_loop.run(&mut inst).unwrap();
+        });
     }
-	
-	fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, response: response::Response) {
-		
-		println!("odebrano kominikat z kanału {} {:?}", token.as_usize(), response);
-		
-		match self.hash.remove(&token) {
-			
+
+    fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, response: response::Response) {
+
+        println!("odebrano kominikat z kanału {} {:?}", token.as_usize(), response);
+
+        match self.hash.remove(&token) {
+
             Some(connection) => {
-				
-				let new_connection = connection.send_data_to_user(event_loop, token.clone(), response);
-				
-				self.hash.insert(token.clone(), new_connection);
-			}
-			
-			None => {
-				println!("socket_ready: no socket by token: {:?}", &token);
-			}
-		}
-	}
-	
+
+                let new_connection = connection.send_data_to_user(event_loop, token.clone(), response);
+
+                self.hash.insert(token.clone(), new_connection);
+            }
+
+            None => {
+                println!("socket_ready: no socket by token: {:?}", &token);
+            }
+        }
+    }
+
     fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>) {
 
         println!("new connection - prepending");
@@ -117,80 +117,80 @@ impl MyHandler {
                 Ok(Some((stream, addr))) => {
 
                     let tok = self.tokens.get();
-                    
+
                     println!("new connection ok - {} {:?}", addr, &tok);
-                    
+
                     let connection = Connection::new(stream, tok.clone(), event_loop);
 
                     self.hash.insert(tok, connection);
-                    
+
                     println!("hashmap after new connection {}", self.hash.len());
                 }
 
                 Ok(None) => {
-                    
+
                     println!("no new connection");
                     return;
                 }
 
                 Err(e) => {
-                    
+
                     println!("error accept mew connection: {}", e);
                     return;
                 }
             };
         }
     }
-	
+
     fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
 
         println!("count hasmapy before socket_ready {}", self.hash.len());
-        
+
         match self.hash.remove(&token) {
-			
+
             Some(connection) => {
-				
+
                 let new_connection = connection.ready(events, token.clone(), event_loop);
-				
+
                 if new_connection.in_state_close() {
-                    
+
                     println!("!!!!!!!!!!!!!! server close connection {:?} !!!!!!!!!!!!!!", &token);
                     println!("count hasmapy after ready after close {}", self.hash.len());
                     println!("\n\n\n");
 
                     return;
                 }
-                
-                
+
+
                 let (new_connection, request_opt) = new_connection.get_request(token.clone(), event_loop);
-                
+
                 match request_opt {
-                    
+
                     Some(request) => {
-                        
-						let _ = self.send.send((request, token.clone(), event_loop.channel()));
-						
+
+                        let _ = self.send.send((request, token.clone(), event_loop.channel()));
+
                         //println!("request to send: {:?}", request);
                         //TODO, wyślij go przez kanał do zainteresowanych, self.send.send(request)
                     }
-                    
+
                     None => {}
                 }
-                
-				
-                
-				self.hash.insert(token.clone(), new_connection);
+
+
+
+                self.hash.insert(token.clone(), new_connection);
             }
-			
+
             None => {
-				
+
                 println!("socket_ready: no socket by token: {:?}", &token);
             }
         };
-		
-		
-		println!("count hasmapy after ready {}", self.hash.len());
-		
+
+
+        println!("count hasmapy after ready {}", self.hash.len());
+
     }
 
 }
