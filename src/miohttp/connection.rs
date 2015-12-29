@@ -1,4 +1,4 @@
-use mio::{Token, EventLoop, EventSet, PollOpt, TryRead, TryWrite};
+use mio::{Token, EventSet, PollOpt, TryRead, TryWrite};
 use mio::tcp::{TcpStream};
 use httparse;
 use miohttp::server::MyHandler;
@@ -21,27 +21,18 @@ enum ConnectionMode {
 }
 
 
-                                //typ zdarzeń który jest ustawiony w mio
-enum Event {
-    Init,
-    Write,
-    Read,
-    None
-}
 
 								//socket, keep alive, actuall event set, current mode
-pub struct Connection (TcpStream, bool, Event, ConnectionMode);
+pub struct Connection (TcpStream, bool, ConnectionMode);
 
 	//TODO - może warto z połączeniem przechowywać również token ... ?
 
 impl Connection {
     
     
-    pub fn new(stream: TcpStream, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> Connection {
-	
-        let conn = Connection(stream, false, Event::Init, ConnectionMode::ReadingRequest([0u8; 2048], 0));
-        
-        conn.set_events(event_loop, tok)
+    pub fn new(stream: TcpStream, tok: Token) -> Connection {
+		
+        Connection(stream, false, ConnectionMode::ReadingRequest([0u8; 2048], 0))
     }
     
     
@@ -59,30 +50,28 @@ impl Connection {
     }
     
     
-    pub fn get_request(self, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> (Connection, Option<Request>) {
+    pub fn get_request(self, tok: Token) -> (Connection, Option<Request>) {
         
         let (new_connection, request) = match self {
-            Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request)) => {
-                (Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse), Some(request))
+            Connection(stream, keep_alive, ConnectionMode::ParsedRequest(request)) => {
+                (Connection(stream, keep_alive, ConnectionMode::WaitingForServerResponse), Some(request))
             }
-            Connection(stream, keep_alive, event, mode) => {
-                (Connection(stream, keep_alive, event, mode), None)
+            Connection(stream, keep_alive, mode) => {
+                (Connection(stream, keep_alive, mode), None)
             }
         };
-		
-		let new_connection = new_connection.set_events(event_loop, tok);
 		
 		(new_connection, request)
     }
 	
 
-	pub fn send_data_to_user(self, event_loop: &mut EventLoop<MyHandler>, tok: Token, response: response::Response) -> Connection {
+	pub fn send_data_to_user(self, tok: Token, response: response::Response) -> Connection {
 		
 		println!("transformuję połączenie -> send_data_to_user");
 		
 		let new_connection = match self {
 			
-			Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse) => {
+			Connection(stream, keep_alive, ConnectionMode::WaitingForServerResponse) => {
 				
 				//TODO - występuje kopiowanie pamięci, znaleźć lepszy sposób na konwersję tych danych
 				
@@ -101,14 +90,12 @@ impl Connection {
 				Connection(stream, keep_alive, event, mode)
 			}
 		};
-			
-		let new_connection = new_connection.set_events(event_loop, tok);
 		
 		new_connection
 	}
 	
 	
-    pub fn ready(self, events: EventSet, tok: Token, event_loop: &mut EventLoop<MyHandler>) -> Connection {
+    pub fn ready(self, events: EventSet, tok: Token) -> Connection {
 		
         
 		if events.is_error() {
@@ -138,133 +125,11 @@ impl Connection {
         };		
 		
         
-		let new_connection = new_connection.set_events(event_loop, tok);
+		//let new_connection = new_connection.set_events(event_loop, tok);
 		
         new_connection
     }
     
-	
-	fn set_events(self, event_loop: &mut EventLoop<MyHandler>, token: Token) -> Connection {
-		
-		let base_event = EventSet::error() | EventSet::hup();
-        let pool_opt   = PollOpt::edge() | PollOpt::oneshot();
-        
-		match self {
-			
-			Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done)) => {
-				
-                println!("----------> set mode : WaitingForDataUser");
-                
-                let event_read = base_event | EventSet::readable();
-                
-				match event {
-                    
-                    Event::Init => {
-                        println!("----------> register: {:?} {:?}", token, event_read);
-                        event_loop.register(&stream, token, event_read, pool_opt).unwrap();
-                    }
-                    
-                    Event::Write => {}
-                    
-                    _ => {
-                        println!("----------> reregister: {:?} {:?}", token, event_read);
-                        event_loop.reregister(&stream, token, event_read, pool_opt).unwrap();
-                    }
-                }
-                
-                Connection(stream, keep_alive, Event::Write, ConnectionMode::ReadingRequest(buf, done))
-			}
-			
-            Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request)) => {
-                
-                println!("----------> set mode : ParsedRequest");
-                
-                let event_none = base_event;
-                
-				match event {
-                    
-                    Event::Init => {
-                        println!("----------> register: {:?} {:?}", token, event_none);
-                        event_loop.register(&stream, token, event_none, pool_opt).unwrap();
-                    }
-                    
-                    Event::None => {}
-                    
-                    _ => {
-                        println!("----------> reregister: {:?} {:?}", token, event_none);
-                        event_loop.reregister(&stream, token, event_none, pool_opt).unwrap();
-                    }
-                }
-                
-                Connection(stream, keep_alive, Event::None, ConnectionMode::ParsedRequest(request))   
-            }
-            
-			Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse) => {
-				
-				println!("----------> set mode : WaitingForDataServer");
-				
-                let event_none = base_event;
-                
-                match event {
-                    
-                    Event::Init => {
-                        println!("----------> register: {:?} {:?}", token, event_none);
-                        event_loop.register(&stream, token, event_none, pool_opt).unwrap();
-                    }
-    
-                    Event::None => {}
-                    
-                    _ => {
-                        println!("----------> reregister: {:?} {:?}", token, event_none);
-                        event_loop.reregister(&stream, token, event_none, pool_opt).unwrap();
-                    }
-                }
-                
-                Connection(stream, keep_alive, Event::None, ConnectionMode::WaitingForServerResponse)
-			}
-			
-			Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done)) => {
-				
-				println!("----------> set mode : DataToSendUser");
-				
-                let event_write = base_event | EventSet::writable();
-                
-				match event {
-                    
-                    Event::Init => {
-                        println!("----------> register: {:?} {:?}", token, event_write);
-                        event_loop.register(&stream, token, event_write, pool_opt).unwrap();
-                    }
-                    
-                    Event::Read => {}
-                    
-                    _ => {
-                        println!("----------> reregister: {:?} {:?}", token, event_write);
-                        event_loop.reregister(&stream, token, event_write, pool_opt).unwrap();
-                    }
-                }
-                
-				Connection(stream, keep_alive, Event::Read, ConnectionMode::SendingResponse(str, done))
-		   	}
-			
-		    Connection(stream, keep_alive, event, ConnectionMode::Close) => {
-				
-				println!("----------> set mode : Close");
-				
-                match event {
-                    
-                    Event::Init => {}
-                    
-                    _ => {
-                        println!("----------> deregister: {:?}", token);
-                        event_loop.deregister(&stream).unwrap();
-                    }
-                }
-                
-				Connection(stream, keep_alive, Event::None, ConnectionMode::Close)
-			}
-		}
-	}
 	
     
 	fn transform(self, events: EventSet) -> Connection {
@@ -300,7 +165,7 @@ impl Connection {
 }
 
 
-fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep_alive: bool, event: Event, mut buf: [u8; 2048], done: usize) -> Connection {
+fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep_alive: bool, mut buf: [u8; 2048], done: usize) -> Connection {
     
     if events.is_readable() {
         
@@ -338,7 +203,7 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                                     
 									let keep_alive = request.is_header_set("Connection".to_string(), "keep-alive".to_string());
 									
-                                    Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request))
+                                    Connection(stream, keep_alive, ConnectionMode::ParsedRequest(request))
                                 }
                                 
                                 Err(mess) => {
@@ -346,7 +211,7 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
 //TODO - błąd 400
 //trzeba też zamknąć połączenie
 
-                                    Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
+                                    Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
                                 }
                             }
                         }
@@ -354,7 +219,7 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                                                             //częściowe parsowanie
                         Ok(httparse::Status::Partial) => {
                             
-                            Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
+                            Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
                         }
 
                         Err(err) => {
@@ -373,7 +238,7 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                             
                             /* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
                             
-                            Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
+                            Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
                         }
                     }
                     
@@ -386,18 +251,18 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
                 
                 } else {
                     
-                    Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
+                    Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
                 }
             }
 
             Ok(None) => {
                 println!("no data");
-                Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
+                Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
             }
 
             Err(err) => {
                 println!("error read from socket {:?}", err);
-                Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done))
+                Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
             }
         }
 
@@ -413,12 +278,12 @@ fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep
 
         //trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 
-        return Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done));
+        return Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done));
     }
 }
 
 
-fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_alive: bool, event: Event, str: Vec<u8>, done: usize) -> Connection{
+fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_alive: bool, str: Vec<u8>, done: usize) -> Connection{
 
     if events.is_writable() {
 
@@ -439,16 +304,16 @@ fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_
                         if keep_alive == true {
 							
 							println!("PODTRZYMUJĘ POŁĄCZENIE !!");
-							return Connection(stream, true, Event::Read, ConnectionMode::ReadingRequest([0u8; 2048], 0));
+							return Connection(stream, true, ConnectionMode::ReadingRequest([0u8; 2048], 0));
 							
                                 					//close connection
                         } else {
-                            return Connection(stream, keep_alive, event, ConnectionMode::Close);
+                            return Connection(stream, keep_alive, ConnectionMode::Close);
                         }
                     
                     } else if done < str.len() {
 
-                        return Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done));
+                        return Connection(stream, keep_alive, ConnectionMode::SendingResponse(str, done));
                         
                     } else {
                         
@@ -457,25 +322,25 @@ fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_
                 
                 } else {
                     
-                    return Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done));
+                    return Connection(stream, keep_alive, ConnectionMode::SendingResponse(str, done));
                 }
             }
             
             Ok(None) => {
                 
                 println!("empty write");
-                Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done))
+                Connection(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
             }
             
             Err(err) => {
                 
                 println!("error write to socket {:?}", err);
-                Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done))
+                Connection(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
             }
         }
     
     } else {
         
-        Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done))
+        Connection(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
     }
 }

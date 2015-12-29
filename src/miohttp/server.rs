@@ -18,10 +18,19 @@ use miohttp::log;
 pub struct MyHandler {
     token    : Token,
     server   : TcpListener,
-	hash     : HashMap<Token, Connection>,
+	hash     : HashMap<Token, (Connection, Event)>,
     //hash     : hashmap_connection::Hashmap,
     tokens   : TokenGen,
 	send     : mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>,
+}
+
+
+                                //typ event who is set for socket in event_loop
+enum Event {
+    Init,
+    Write,
+    Read,
+    None
 }
 
 
@@ -91,13 +100,13 @@ impl MyHandler {
 		
 		println!("odebrano kominikat z kanału {} {:?}", token.as_usize(), response);
 		
-		match self.hash.remove(&token) {
+		match self.get_connection(&token) {
 			
-            Some(connection) => {
+			Some((connection, old_event)) => {
 				
 				let new_connection = connection.send_data_to_user(event_loop, token.clone(), response);
 				
-				self.hash.insert(token.clone(), new_connection);
+				self.insert_connection(&token, new_connection, old_event);
 			}
 			
 			None => {
@@ -114,14 +123,15 @@ impl MyHandler {
             match self.server.accept() {
 
                 Ok(Some((stream, addr))) => {
-
-                    let tok = self.tokens.get();
+					
+                    let token = self.tokens.get();
                     
-                    println!("new connection ok - {} {:?}", addr, &tok);
+                    println!("new connection ok - {} {:?}", addr, &token);
                     
-                    let connection = Connection::new(stream, tok.clone(), event_loop);
+                    let connection = Connection::new(stream, token.clone(), event_loop);
 
-                    self.hash.insert(tok, connection);
+                    //self.hash.insert(tok, connection);
+					self.insert_connection(&token, connection, Event::Init);
                     
                     println!("hashmap after new connection {}", self.hash.len());
                 }
@@ -192,6 +202,145 @@ impl MyHandler {
 		
     }
 
+	fn insert_connection(&self, &token: Token, connection: Connection, old_event: Event) {
+		
+		//tutaj musimy wyznaczyć nowe eventy
+		//na podstawie zmiany, trzeba dokonać odpowiednich rejestracji, rerejestracji
+		
+		self.hash.insert(token.clone(), (connection, Event::Init));
+	}
+	
+	fn get_connection(&self, &token: Token) -> Option<(Connection, Event)> {
+		
+		self.hash.remove(&token)
+		//Some((connection, event)) => {
+		//}
+	}
+	
+	
+	/*
+	fn set_events(self, event_loop: &mut EventLoop<MyHandler>, token: Token) -> Connection {
+		
+		let base_event = EventSet::error() | EventSet::hup();
+        let pool_opt   = PollOpt::edge() | PollOpt::oneshot();
+        
+		match self {
+			
+			Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done)) => {
+				
+                println!("----------> set mode : WaitingForDataUser");
+                
+                let event_read = base_event | EventSet::readable();
+                
+				match event {
+                    
+                    Event::Init => {
+                        println!("----------> register: {:?} {:?}", token, event_read);
+                        event_loop.register(&stream, token, event_read, pool_opt).unwrap();
+                    }
+                    
+                    Event::Write => {}
+                    
+                    _ => {
+                        println!("----------> reregister: {:?} {:?}", token, event_read);
+                        event_loop.reregister(&stream, token, event_read, pool_opt).unwrap();
+                    }
+                }
+                
+                Connection(stream, keep_alive, Event::Write, ConnectionMode::ReadingRequest(buf, done))
+			}
+			
+            Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request)) => {
+                
+                println!("----------> set mode : ParsedRequest");
+                
+                let event_none = base_event;
+                
+				match event {
+                    
+                    Event::Init => {
+                        println!("----------> register: {:?} {:?}", token, event_none);
+                        event_loop.register(&stream, token, event_none, pool_opt).unwrap();
+                    }
+                    
+                    Event::None => {}
+                    
+                    _ => {
+                        println!("----------> reregister: {:?} {:?}", token, event_none);
+                        event_loop.reregister(&stream, token, event_none, pool_opt).unwrap();
+                    }
+                }
+                
+                Connection(stream, keep_alive, Event::None, ConnectionMode::ParsedRequest(request))   
+            }
+            
+			Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse) => {
+				
+				println!("----------> set mode : WaitingForDataServer");
+				
+                let event_none = base_event;
+                
+                match event {
+                    
+                    Event::Init => {
+                        println!("----------> register: {:?} {:?}", token, event_none);
+                        event_loop.register(&stream, token, event_none, pool_opt).unwrap();
+                    }
+    
+                    Event::None => {}
+                    
+                    _ => {
+                        println!("----------> reregister: {:?} {:?}", token, event_none);
+                        event_loop.reregister(&stream, token, event_none, pool_opt).unwrap();
+                    }
+                }
+                
+                Connection(stream, keep_alive, Event::None, ConnectionMode::WaitingForServerResponse)
+			}
+			
+			Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done)) => {
+				
+				println!("----------> set mode : DataToSendUser");
+				
+                let event_write = base_event | EventSet::writable();
+                
+				match event {
+                    
+                    Event::Init => {
+                        println!("----------> register: {:?} {:?}", token, event_write);
+                        event_loop.register(&stream, token, event_write, pool_opt).unwrap();
+                    }
+                    
+                    Event::Read => {}
+                    
+                    _ => {
+                        println!("----------> reregister: {:?} {:?}", token, event_write);
+                        event_loop.reregister(&stream, token, event_write, pool_opt).unwrap();
+                    }
+                }
+                
+				Connection(stream, keep_alive, Event::Read, ConnectionMode::SendingResponse(str, done))
+		   	}
+			
+		    Connection(stream, keep_alive, event, ConnectionMode::Close) => {
+				
+				println!("----------> set mode : Close");
+				
+                match event {
+                    
+                    Event::Init => {}
+                    
+                    _ => {
+                        println!("----------> deregister: {:?}", token);
+                        event_loop.deregister(&stream).unwrap();
+                    }
+                }
+                
+				Connection(stream, keep_alive, Event::None, ConnectionMode::Close)
+			}
+		}
+	}
+	*/
 }
 
 
