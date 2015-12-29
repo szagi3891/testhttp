@@ -1,6 +1,6 @@
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler};
 use mio;
-use mio::tcp::{TcpListener, TcpStream};
+use mio::tcp::{TcpListener};
 //use mio::util::Slab;                              //TODO - użyć tego modułu zamiast hashmapy
 use std::collections::HashMap;
 use std::thread;
@@ -9,7 +9,6 @@ use miohttp::connection::{Connection};
 use miohttp::token_gen::TokenGen;
 use miohttp::request;
 use miohttp::response;
-use miohttp::log;
 
 
 // Define a handler to process the events

@@ -11,10 +11,10 @@ enum ConnectionMode {
 
                                                     //czytanie requestu
     ReadingRequest([u8; 2048], usize),
-                                                    //oczekiwanie na wygenerowanie odpowiedzi serwera
-    WaitingForServerResponse,
-                                                    //wysyłanie odpowiedz
-    SendingResponse(Vec<u8>, usize),
+                                                    //oczekiwanie na wygenerowanie odpowiedzi serwera (bool to keep alive)
+    WaitingForServerResponse(bool),
+                                                    //wysyłanie odpowiedz (bool to keep alive)
+    SendingResponse(bool, Vec<u8>, usize),
                                                     //połączenie do zamknięcia
     Close,
 }
@@ -26,7 +26,6 @@ enum ConnectionMode {
 
 pub struct Connection {
     pub stream: TcpStream,
-    keep_alive: bool,
     mode: ConnectionMode,
 }
 
@@ -39,26 +38,24 @@ impl Connection {
     pub fn new(stream: TcpStream) -> Connection {
 
         Connection {
-            stream    : stream,
-            keep_alive: false,                                //TODO - stąd powinien wylecieć ten parametr
-            mode      : ConnectionMode::ReadingRequest([0u8; 2048], 0),
+            stream : stream,
+            mode   : ConnectionMode::ReadingRequest([0u8; 2048], 0),
         }
     }
 
-    fn make(stream: TcpStream, keep_alive: bool, mode: ConnectionMode) -> Connection {
+    fn make(stream: TcpStream, mode: ConnectionMode) -> Connection {
 
         Connection {
-            stream    : stream,
-            keep_alive: keep_alive,                                //TODO - stąd powinien wylecieć ten parametr
-            mode      : mode,
+            stream : stream,
+            mode   : mode,
         }
     }
 
     fn replace_mode(self, mode: ConnectionMode) -> Connection {
+        
         Connection {
-            stream    : self.stream,
-            keep_alive: self.keep_alive,
-            mode      : mode,
+            stream : self.stream,
+            mode   : mode,
         }
     }
 
@@ -76,7 +73,7 @@ impl Connection {
 
         let new_connection = match self.mode {
 
-            ConnectionMode::WaitingForServerResponse => {
+            ConnectionMode::WaitingForServerResponse(keep_alive) => {
 
                 //TODO - występuje kopiowanie pamięci, znaleźć lepszy sposób na konwersję tych danych
 
@@ -86,7 +83,7 @@ impl Connection {
                     resp_vec.push(byte.clone());
                 }
 
-                self.replace_mode(ConnectionMode::SendingResponse(resp_vec, 0))
+                self.replace_mode(ConnectionMode::SendingResponse(keep_alive, resp_vec, 0))
             }
 
             _ => {
@@ -103,10 +100,10 @@ impl Connection {
 
         match self.mode {
             
-            ConnectionMode::ReadingRequest(_, _)     => Event::Read,
-            ConnectionMode::WaitingForServerResponse => Event::None,
-            ConnectionMode::SendingResponse(_, _)    => Event::Write,
-            ConnectionMode::Close                    => Event::None
+            ConnectionMode::ReadingRequest(_, _)        => Event::Read,
+            ConnectionMode::WaitingForServerResponse(_) => Event::None,
+            ConnectionMode::SendingResponse(_, _, _)    => Event::Write,
+            ConnectionMode::Close                       => Event::None
         }
     }
 
@@ -133,28 +130,28 @@ impl Connection {
 
             ConnectionMode::ReadingRequest(buf, done) => {
 
-                transform_from_waiting_for_user(self.stream, self.keep_alive, events, buf, done)
+                transform_from_waiting_for_user(self.stream, events, buf, done)
             }
 
-            ConnectionMode::WaitingForServerResponse => {
+            ConnectionMode::WaitingForServerResponse(keep_alive) => {
 
-                (Connection::make(self.stream, self.keep_alive, ConnectionMode::WaitingForServerResponse), None)
+                (Connection::make(self.stream, ConnectionMode::WaitingForServerResponse(keep_alive)), None)
             }
             
-            ConnectionMode::SendingResponse(str, done) => {
+            ConnectionMode::SendingResponse(keep_alive, str, done) => {
 
-                (transform_from_sending_to_user(self.stream, self.keep_alive, events, str, done), None)
+                (transform_from_sending_to_user(self.stream, keep_alive, events, str, done), None)
             },
 
             ConnectionMode::Close => {
 
-                (Connection::make(self.stream, self.keep_alive, ConnectionMode::Close), None)
+                (Connection::make(self.stream, ConnectionMode::Close), None)
             }
         }
     }
 }
 
-fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, events: EventSet, mut buf: [u8; 2048], done: usize) -> (Connection, Option<Request>) {
+fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize) -> (Connection, Option<Request>) {
 
     if events.is_readable() {
 
@@ -192,7 +189,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
 
                                     let keep_alive = request.is_header_set("Connection".to_string(), "keep-alive".to_string());
 
-                                    (Connection::make(stream, keep_alive, ConnectionMode::WaitingForServerResponse), Some(request))
+                                    (Connection::make(stream, ConnectionMode::WaitingForServerResponse(keep_alive)), Some(request))
                                 }
 
                                 Err(mess) => {
@@ -200,7 +197,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
 //TODO - błąd 400
 //trzeba też zamknąć połączenie
 
-                                    (Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done)), None)
+                                    (Connection::make(stream, ConnectionMode::ReadingRequest(buf, done)), None)
                                 }
                             }
                         }
@@ -208,7 +205,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
                                                             //częściowe parsowanie
                         Ok(httparse::Status::Partial) => {
 
-                            (Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done)), None)
+                            (Connection::make(stream, ConnectionMode::ReadingRequest(buf, done)), None)
                         }
 
                         Err(err) => {
@@ -227,7 +224,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
 
                             /* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
 
-                            (Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done))), None)
+                            (Connection::make(stream, (ConnectionMode::ReadingRequest(buf, done))), None)
                         }
                     }
 
@@ -240,18 +237,18 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
 
                 } else {
 
-                    (Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done))), None)
+                    (Connection::make(stream, (ConnectionMode::ReadingRequest(buf, done))), None)
                 }
             }
 
             Ok(None) => {
                 println!("no data");
-                (Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done))), None)
+                (Connection::make(stream, (ConnectionMode::ReadingRequest(buf, done))), None)
             }
 
             Err(err) => {
                 println!("error read from socket {:?}", err);
-                (Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done))), None)
+                (Connection::make(stream, (ConnectionMode::ReadingRequest(buf, done))), None)
             }
         }
 
@@ -267,7 +264,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
 
         //trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 
-        return (Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done)), None);
+        return (Connection::make(stream, ConnectionMode::ReadingRequest(buf, done)), None);
     }
 }
 
@@ -293,16 +290,16 @@ fn transform_from_sending_to_user(mut stream: TcpStream, keep_alive: bool, event
                         if keep_alive == true {
 
                             println!("PODTRZYMUJĘ POŁĄCZENIE !!");
-                            return Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest([0u8; 2048], 0)));
+                            return Connection::make(stream, (ConnectionMode::ReadingRequest([0u8; 2048], 0)));
 
                                                     //close connection
                         } else {
-                            return Connection::make(stream, keep_alive, (ConnectionMode::Close));
+                            return Connection::make(stream, (ConnectionMode::Close));
                         }
 
                     } else if done < str.len() {
 
-                        return Connection::make(stream, keep_alive, (ConnectionMode::SendingResponse(str, done)));
+                        return Connection::make(stream, (ConnectionMode::SendingResponse(keep_alive, str, done)));
 
                     } else {
 
@@ -311,25 +308,25 @@ fn transform_from_sending_to_user(mut stream: TcpStream, keep_alive: bool, event
 
                 } else {
 
-                    return Connection::make(stream, keep_alive, ConnectionMode::SendingResponse(str, done));
+                    return Connection::make(stream, ConnectionMode::SendingResponse(keep_alive, str, done));
                 }
             }
 
             Ok(None) => {
 
                 println!("empty write");
-                Connection::make(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
+                Connection::make(stream, ConnectionMode::SendingResponse(keep_alive, str, done))
             }
 
             Err(err) => {
 
                 println!("error write to socket {:?}", err);
-                Connection::make(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
+                Connection::make(stream, ConnectionMode::SendingResponse(keep_alive, str, done))
             }
         }
 
     } else {
 
-        Connection::make(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
+        Connection::make(stream, ConnectionMode::SendingResponse(keep_alive, str, done))
     }
 }
