@@ -68,7 +68,7 @@ impl Request {
         //println!("headers : {:?}", req.headers);
 
         for header in req.headers {
-            	let str_header = String::from_utf8_lossy(header.value);
+                let str_header = String::from_utf8_lossy(header.value);
             println!("  {} : {}", header.name, str_header);
         }
         */
@@ -78,16 +78,16 @@ impl Request {
         //"Connection": "keep-alive")
 
         match self.headers.get(&Box::new(name)) {
-			Some(get_value) => {
-				/*
-				if get_value == value {
-					return true;
-				} else {
-					return false;
-				}
-				*/
-				true
-			}
+            Some(get_value) => {
+                /*
+                if get_value == value {
+                    return true;
+                } else {
+                    return false;
+                }
+                */
+                true
+            }
             None => false
         }
     }
