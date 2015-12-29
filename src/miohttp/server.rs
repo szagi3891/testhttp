@@ -157,7 +157,7 @@ impl MyHandler {
 
             Some((connection, old_event)) => {
 
-                let new_connection = connection.ready(events, token.clone());
+                let (new_connection, request_opt) = connection.ready(events, token.clone());
 
                 if new_connection.in_state_close() {
 
@@ -167,9 +167,6 @@ impl MyHandler {
 
                     return;
                 }
-
-
-                let (new_connection, request_opt) = new_connection.get_request();
 
                 match request_opt {
 

@@ -11,10 +11,6 @@ enum ConnectionMode {
 
                                                     //czytanie requestu
     ReadingRequest([u8; 2048], usize),
-
-                                                    //oczekujący sparsowany request
-    ParsedRequest(Request),                                                                //TODO - ten stan jest do wywalenia
-
                                                     //oczekiwanie na wygenerowanie odpowiedzi serwera
     WaitingForServerResponse,
                                                     //wysyłanie odpowiedz
@@ -74,24 +70,6 @@ impl Connection {
         }
     }
 
-
-    pub fn get_request(self) -> (Connection, Option<Request>) {
-
-        let (new_connection, request) = match self.mode {
-            ConnectionMode::ParsedRequest(request) => {
-                //(self.replace_mode(ConnectionMode::WaitingForServerResponse), Some(request))
-
-                (Connection::make(self.stream, self.keep_alive, ConnectionMode::WaitingForServerResponse), Some(request))
-            }
-            _ => {
-                (self, None)
-            }
-        };
-
-        (new_connection, request)
-    }
-
-
     pub fn send_data_to_user(self, tok: Token, response: response::Response) -> Connection {
 
         println!("transformuję połączenie -> send_data_to_user");
@@ -124,49 +102,32 @@ impl Connection {
     pub fn get_event(&self) -> Event {
 
         match self.mode {
-
+            
             ConnectionMode::ReadingRequest(_, _)     => Event::Read,
-            ConnectionMode::ParsedRequest(_)         => Event::None,
             ConnectionMode::WaitingForServerResponse => Event::None,
             ConnectionMode::SendingResponse(_, _)    => Event::Write,
             ConnectionMode::Close                    => Event::None
         }
     }
 
-    pub fn ready(self, events: EventSet, tok: Token) -> Connection {
-
-
+    pub fn ready(self, events: EventSet, tok: Token) -> (Connection, Option<Request>) {
+        
         if events.is_error() {
             println!("EVENT ERROR {}", tok.as_usize());
             panic!("TODO");
         }
 
-
-        let new_connection = self.transform(events);
-
-
-        let new_connection =
-
-            if events.is_hup() {
-
-                println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);
-
-                new_connection.replace_mode(ConnectionMode::Close)
-
-            } else {
-
-                new_connection
-            };
-
-
-        //let new_connection = new_connection.set_events(event_loop, tok);
-
-        new_connection
+        if events.is_hup() {
+            println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);
+            return (self.replace_mode(ConnectionMode::Close), None);
+        }
+        
+        self.transform(events)
     }
 
 
 
-    fn transform(self, events: EventSet) -> Connection {
+    fn transform(self, events: EventSet) -> (Connection, Option<Request>) {
 
         match self.mode {
 
@@ -175,30 +136,25 @@ impl Connection {
                 transform_from_waiting_for_user(self.stream, self.keep_alive, events, buf, done)
             }
 
-            ConnectionMode::ParsedRequest(request) => {
-
-                Connection::make(self.stream, self.keep_alive, ConnectionMode::ParsedRequest(request))
-            }
-
             ConnectionMode::WaitingForServerResponse => {
 
-                Connection::make(self.stream, self.keep_alive, ConnectionMode::WaitingForServerResponse)
+                (Connection::make(self.stream, self.keep_alive, ConnectionMode::WaitingForServerResponse), None)
             }
-
+            
             ConnectionMode::SendingResponse(str, done) => {
 
-                transform_from_sending_to_user(self.stream, self.keep_alive, events, str, done)
+                (transform_from_sending_to_user(self.stream, self.keep_alive, events, str, done), None)
             },
 
             ConnectionMode::Close => {
 
-                Connection::make(self.stream, self.keep_alive, ConnectionMode::Close)
+                (Connection::make(self.stream, self.keep_alive, ConnectionMode::Close), None)
             }
         }
     }
 }
 
-fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, events: EventSet, mut buf: [u8; 2048], done: usize) -> Connection {
+fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, events: EventSet, mut buf: [u8; 2048], done: usize) -> (Connection, Option<Request>) {
 
     if events.is_readable() {
 
@@ -236,7 +192,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
 
                                     let keep_alive = request.is_header_set("Connection".to_string(), "keep-alive".to_string());
 
-                                    Connection::make(stream, keep_alive, ConnectionMode::ParsedRequest(request))
+                                    (Connection::make(stream, keep_alive, ConnectionMode::WaitingForServerResponse), Some(request))
                                 }
 
                                 Err(mess) => {
@@ -244,7 +200,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
 //TODO - błąd 400
 //trzeba też zamknąć połączenie
 
-                                    Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
+                                    (Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done)), None)
                                 }
                             }
                         }
@@ -252,7 +208,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
                                                             //częściowe parsowanie
                         Ok(httparse::Status::Partial) => {
 
-                            Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
+                            (Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done)), None)
                         }
 
                         Err(err) => {
@@ -271,7 +227,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
 
                             /* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
 
-                            Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done)))
+                            (Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done))), None)
                         }
                     }
 
@@ -284,18 +240,18 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
 
                 } else {
 
-                    Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done)))
+                    (Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done))), None)
                 }
             }
 
             Ok(None) => {
                 println!("no data");
-                Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done)))
+                (Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done))), None)
             }
 
             Err(err) => {
                 println!("error read from socket {:?}", err);
-                Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done)))
+                (Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done))), None)
             }
         }
 
@@ -311,7 +267,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, even
 
         //trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 
-        return Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done));
+        return (Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done)), None);
     }
 }
 
