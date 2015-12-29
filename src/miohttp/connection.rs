@@ -1,63 +1,90 @@
-use mio::{Token, EventSet, PollOpt, TryRead, TryWrite};
+use mio::{Token, EventSet, TryRead, TryWrite};
 use mio::tcp::{TcpStream};
 use httparse;
-use miohttp::server::MyHandler;
+use miohttp::server::{Event};
 use miohttp::request::Request;
 use miohttp::response;
 
 
+
 enum ConnectionMode {
-	
+
                                                     //czytanie requestu
-	ReadingRequest([u8; 2048], usize),
+    ReadingRequest([u8; 2048], usize),
+	
                                                     //oczekujący sparsowany request
-    ParsedRequest(Request),
-													//oczekiwanie na wygenerowanie odpowiedzi serwera
+    ParsedRequest(Request),																//TODO - ten stan jest do wywalenia
+	
+                                                    //oczekiwanie na wygenerowanie odpowiedzi serwera
     WaitingForServerResponse,
-													//wysyłanie odpowiedz
+                                                    //wysyłanie odpowiedz
     SendingResponse(Vec<u8>, usize),
                                                     //połączenie do zamknięcia
-	Close,
+    Close,
 }
 
 
 
-								//socket, keep alive, actuall event set, current mode
-pub struct Connection (TcpStream, bool, ConnectionMode);
+//socket, keep alive, actuall event set, current mode
+//pub struct Connection (TcpStream, bool, ConnectionMode);
 
-	//TODO - może warto z połączeniem przechowywać również token ... ?
+pub struct Connection {
+	pub stream: TcpStream,
+	keep_alive: bool,
+	mode: ConnectionMode,
+}
+	
+
+//TODO - może warto z połączeniem przechowywać również token ... ?
 
 impl Connection {
     
     
-    pub fn new(stream: TcpStream, tok: Token) -> Connection {
+    pub fn new(stream: TcpStream) -> Connection {
 		
-        Connection(stream, false, ConnectionMode::ReadingRequest([0u8; 2048], 0))
+		Connection {
+			stream    : stream,
+			keep_alive: false,								//TODO - stąd powinien wylecieć ten parametr
+			mode      : ConnectionMode::ReadingRequest([0u8; 2048], 0),
+		}
     }
-    
-    
+	
+	fn make(stream: TcpStream, keep_alive: bool, mode: ConnectionMode) -> Connection {
+		
+		Connection {
+			stream    : stream,
+			keep_alive: keep_alive,								//TODO - stąd powinien wylecieć ten parametr
+			mode      : mode,
+		}
+	}
+	
+	fn replace_mode(self, mode: ConnectionMode) -> Connection {
+		Connection {
+			stream    : self.stream,
+			keep_alive: self.keep_alive,
+			mode      : mode,
+		}
+	}
+	
     pub fn in_state_close(&self) -> bool {
-        
-        match *self {
-            
-            Connection(_, _, _, ConnectionMode::Close) => {
-                true
-            }
-            _ => {
-                false
-            }
-        }
+		
+		match self.mode {
+			ConnectionMode::Close => true,
+			_ => false
+		}
     }
     
     
-    pub fn get_request(self, tok: Token) -> (Connection, Option<Request>) {
+    pub fn get_request(self) -> (Connection, Option<Request>) {
         
-        let (new_connection, request) = match self {
-            Connection(stream, keep_alive, ConnectionMode::ParsedRequest(request)) => {
-                (Connection(stream, keep_alive, ConnectionMode::WaitingForServerResponse), Some(request))
+        let (new_connection, request) = match self.mode {
+            ConnectionMode::ParsedRequest(request) => {
+                //(self.replace_mode(ConnectionMode::WaitingForServerResponse), Some(request))
+				
+				(Connection::make(self.stream, self.keep_alive, ConnectionMode::WaitingForServerResponse), Some(request))
             }
-            Connection(stream, keep_alive, mode) => {
-                (Connection(stream, keep_alive, mode), None)
+			_ => {
+                (self, None)
             }
         };
 		
@@ -69,9 +96,9 @@ impl Connection {
 		
 		println!("transformuję połączenie -> send_data_to_user");
 		
-		let new_connection = match self {
+		let new_connection = match self.mode {
 			
-			Connection(stream, keep_alive, ConnectionMode::WaitingForServerResponse) => {
+			ConnectionMode::WaitingForServerResponse => {
 				
 				//TODO - występuje kopiowanie pamięci, znaleźć lepszy sposób na konwersję tych danych
 				
@@ -81,19 +108,30 @@ impl Connection {
                     resp_vec.push(byte.clone());
                 }
 				
-				Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(resp_vec, 0))
+				self.replace_mode(ConnectionMode::SendingResponse(resp_vec, 0))
 			}
 			
-			Connection(stream, keep_alive, event, mode) => {
+			_ => {
 				
 				println!("TODO - ustawić strumień błędów i wrzucić odpowiedni komunikat : {}", tok.as_usize());
-				Connection(stream, keep_alive, event, mode)
+				self
 			}
 		};
 		
 		new_connection
 	}
 	
+	pub fn get_event(&self) -> Event {
+		
+		match self.mode {
+			
+			ConnectionMode::ReadingRequest(_, _)     => Event::Read,
+            ConnectionMode::ParsedRequest(_)         => Event::None,
+			ConnectionMode::WaitingForServerResponse => Event::None,
+			ConnectionMode::SendingResponse(_, _)    => Event::Write,
+		    ConnectionMode::Close                    => Event::None
+		}
+	}
 	
     pub fn ready(self, events: EventSet, tok: Token) -> Connection {
 		
@@ -101,28 +139,24 @@ impl Connection {
 		if events.is_error() {
 			println!("EVENT ERROR {}", tok.as_usize());
             panic!("TODO");
-		}
-		
-        
-		let new_connection = self.transform(events);
-		
-        
-        let new_connection = match new_connection {
+        }
 
-            Connection(stream, keep_alive, event, mode) => {
-                
-                if events.is_hup() {
-			         
-                    println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);
-                    
-                    Connection(stream, keep_alive, event, ConnectionMode::Close)
-                    
-                } else {
-                    
-                    Connection(stream, keep_alive, event, mode)
-                }
-            }
-        };		
+
+        let new_connection = self.transform(events);
+
+
+        let new_connection = 
+			
+			if events.is_hup() {
+
+				println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);
+
+				new_connection.replace_mode(ConnectionMode::Close)
+
+			} else {
+
+				new_connection
+			};	
 		
         
 		//let new_connection = new_connection.set_events(event_loop, tok);
@@ -134,213 +168,212 @@ impl Connection {
     
 	fn transform(self, events: EventSet) -> Connection {
 		
-        match self {
-			
-            Connection(stream, keep_alive, event, ConnectionMode::ReadingRequest(buf, done)) => {
-				
-                transform_from_waiting_for_user(events, stream, keep_alive, event, buf, done)
+        match self.mode {
+
+            ConnectionMode::ReadingRequest(buf, done) => {
+
+                transform_from_waiting_for_user(self.stream, self.keep_alive, events, buf, done)
             }
-			
-            Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request)) => {
-                
-                Connection(stream, keep_alive, event, ConnectionMode::ParsedRequest(request))
+
+            ConnectionMode::ParsedRequest(request) => {
+
+                Connection::make(self.stream, self.keep_alive, ConnectionMode::ParsedRequest(request))
             }
-            
-            Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse) => {
-                
-                Connection(stream, keep_alive, event, ConnectionMode::WaitingForServerResponse)
+
+            ConnectionMode::WaitingForServerResponse => {
+
+                Connection::make(self.stream, self.keep_alive, ConnectionMode::WaitingForServerResponse)
             }
-			
-            Connection(stream, keep_alive, event, ConnectionMode::SendingResponse(str, done))  => {
-                
-				transform_from_sending_to_user(events, stream, keep_alive, event, str, done)
+
+            ConnectionMode::SendingResponse(str, done) => {
+
+                transform_from_sending_to_user(self.stream, self.keep_alive, events, str, done)
             },
-			
-			Connection(stream, keep_alive, event, ConnectionMode::Close)  => {
-				
-				Connection(stream, keep_alive, event, ConnectionMode::Close)
-			}
+
+            ConnectionMode::Close => {
+
+                Connection::make(self.stream, self.keep_alive, ConnectionMode::Close)
+            }
         }
-	}
+    }
 }
 
+fn transform_from_waiting_for_user(mut stream: TcpStream, keep_alive: bool, events: EventSet, mut buf: [u8; 2048], done: usize) -> Connection {
 
-fn transform_from_waiting_for_user(events: EventSet, mut stream: TcpStream, keep_alive: bool, mut buf: [u8; 2048], done: usize) -> Connection {
-    
-    if events.is_readable() {
-        
-        let total = buf.len();
+	if events.is_readable() {
 
-        println!("total count {}", &done);
+		let total = buf.len();
 
-        return match stream.try_read(&mut buf[done..total]) {
+		println!("total count {}", &done);
 
-            Ok(Some(size)) => {
+		return match stream.try_read(&mut buf[done..total]) {
 
-                if size > 0 {
-                    
-                    let done = done + size;
-                    
-                    println!("read : {}", size);
-                    
-                    
-                    let mut headers = [httparse::EMPTY_HEADER; 100];
-                    let mut req     = httparse::Request::new(&mut headers);
+			Ok(Some(size)) => {
 
-                    match req.parse(&buf) {
+				if size > 0 {
 
-                        Ok(httparse::Status::Complete(size_parse)) => {
-                            
-                            println!("parse ok, get count {}, parse count {}", done, size_parse);
-                            
-                            //let request = Request::new(req);
-                            
-                            match Request::new(req) {
-                                
-                                Ok(request) => {
-                                    
-                                    println!("Request::new ok");
-                                    
+					let done = done + size;
+
+					println!("read : {}", size);
+
+
+					let mut headers = [httparse::EMPTY_HEADER; 100];
+					let mut req     = httparse::Request::new(&mut headers);
+
+					match req.parse(&buf) {
+
+						Ok(httparse::Status::Complete(size_parse)) => {
+
+							println!("parse ok, get count {}, parse count {}", done, size_parse);
+
+							//let request = Request::new(req);
+
+							match Request::new(req) {
+
+								Ok(request) => {
+
+									println!("Request::new ok");
+
 									let keep_alive = request.is_header_set("Connection".to_string(), "keep-alive".to_string());
-									
-                                    Connection(stream, keep_alive, ConnectionMode::ParsedRequest(request))
-                                }
-                                
-                                Err(mess) => {
-                                    
+
+									Connection::make(stream, keep_alive, ConnectionMode::ParsedRequest(request))
+								}
+
+								Err(mess) => {
+
 //TODO - błąd 400
 //trzeba też zamknąć połączenie
 
-                                    Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
-                                }
-                            }
-                        }
+									Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
+								}
+							}
+						}
 
-                                                            //częściowe parsowanie
-                        Ok(httparse::Status::Partial) => {
-                            
-                            Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
-                        }
+															//częściowe parsowanie
+						Ok(httparse::Status::Partial) => {
 
-                        Err(err) => {
+							Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
+						}
+
+						Err(err) => {
 
 //TODO - 400 error http
 //zamknij połączenie
 
-                            match err {
-                                httparse::Error::HeaderName => {
-                                    println!("header name");
-                                }
-                                _ => {
-                                    println!("error parse {:?}", err);
-                                }
-                            }
-                            
-                            /* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
-                            
-                            Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
-                        }
-                    }
-                    
-                    
-                    //uruchom parser
-                        //jeśli się udało sparsować, to git
+							match err {
+								httparse::Error::HeaderName => {
+									println!("header name");
+								}
+								_ => {
+									println!("error parse {:?}", err);
+								}
+							}
 
-                    //jeśli osiągneliśmy całkowity rozmiar bufora a mimo to nie udało się sparsować danych
-                        //to rzuć błędem że nieprawidłowe zapytanie
-                
-                } else {
-                    
-                    Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
-                }
-            }
+							/* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
 
-            Ok(None) => {
-                println!("no data");
-                Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
-            }
-
-            Err(err) => {
-                println!("error read from socket {:?}", err);
-                Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done))
-            }
-        }
+							Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done)))
+						}
+					}
 
 
+					//uruchom parser
+						//jeśli się udało sparsować, to git
 
-        //czytaj, odczytane dane przekaż do parsera
-        //jeśli otrzymalismy poprawny obiekt requestu to :
-            // przełącz stan tego obiektu połączenia, na oczekiwanie na dane z serwera
-            // wyślij kanałem odpowiednią informację o requescie
-            // zwróć informację na zewnątrz tej funkcji że nic się nie dzieje z tym połaczeniem
-    
-    } else {
+					//jeśli osiągneliśmy całkowity rozmiar bufora a mimo to nie udało się sparsować danych
+						//to rzuć błędem że nieprawidłowe zapytanie
 
-        //trzeba też ustawić jakiś timeout czekania na dane od użytkownika
+				} else {
 
-        return Connection(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done));
-    }
+					Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done)))
+				}
+			}
+
+			Ok(None) => {
+				println!("no data");
+				Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done)))
+			}
+
+			Err(err) => {
+				println!("error read from socket {:?}", err);
+				Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest(buf, done)))
+			}
+		}
+
+
+
+		//czytaj, odczytane dane przekaż do parsera
+		//jeśli otrzymalismy poprawny obiekt requestu to :
+			// przełącz stan tego obiektu połączenia, na oczekiwanie na dane z serwera
+			// wyślij kanałem odpowiednią informację o requescie
+			// zwróć informację na zewnątrz tej funkcji że nic się nie dzieje z tym połaczeniem
+
+	} else {
+
+		//trzeba też ustawić jakiś timeout czekania na dane od użytkownika
+
+		return Connection::make(stream, keep_alive, ConnectionMode::ReadingRequest(buf, done));
+	}
 }
 
 
-fn transform_from_sending_to_user(events: EventSet, mut stream: TcpStream, keep_alive: bool, str: Vec<u8>, done: usize) -> Connection{
+fn transform_from_sending_to_user(mut stream: TcpStream, keep_alive: bool, events: EventSet, str: Vec<u8>, done: usize) -> Connection {
 
-    if events.is_writable() {
+	if events.is_writable() {
 
-        return match stream.try_write(&str[done..str.len()]) {
+		return match stream.try_write(&str[done..str.len()]) {
 
-            Ok(Some(size)) => {
+			Ok(Some(size)) => {
 
-                println!("write data count='{}'", size);
+				println!("write data count='{}'", size);
 
-                if size > 0 {
+				if size > 0 {
 
-                    let done = done + size;
+					let done = done + size;
 
-                                                    //send all data to browser
-                    if done == str.len() {
-                        
-                            						//eep connection
-                        if keep_alive == true {
-							
+													//send all data to browser
+					if done == str.len() {
+
+													//eep connection
+						if keep_alive == true {
+
 							println!("PODTRZYMUJĘ POŁĄCZENIE !!");
-							return Connection(stream, true, ConnectionMode::ReadingRequest([0u8; 2048], 0));
-							
-                                					//close connection
-                        } else {
-                            return Connection(stream, keep_alive, ConnectionMode::Close);
-                        }
-                    
-                    } else if done < str.len() {
+							return Connection::make(stream, keep_alive, (ConnectionMode::ReadingRequest([0u8; 2048], 0)));
 
-                        return Connection(stream, keep_alive, ConnectionMode::SendingResponse(str, done));
-                        
-                    } else {
-                        
-                        unreachable!();
-                    }
-                
-                } else {
-                    
-                    return Connection(stream, keep_alive, ConnectionMode::SendingResponse(str, done));
-                }
-            }
-            
-            Ok(None) => {
-                
-                println!("empty write");
-                Connection(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
-            }
-            
-            Err(err) => {
-                
-                println!("error write to socket {:?}", err);
-                Connection(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
-            }
-        }
-    
-    } else {
-        
-        Connection(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
-    }
+													//close connection
+						} else {
+							return Connection::make(stream, keep_alive, (ConnectionMode::Close));
+						}
+
+					} else if done < str.len() {
+
+						return Connection::make(stream, keep_alive, (ConnectionMode::SendingResponse(str, done)));
+
+					} else {
+
+						unreachable!();
+					}
+
+				} else {
+
+					return Connection::make(stream, keep_alive, ConnectionMode::SendingResponse(str, done));
+				}
+			}
+
+			Ok(None) => {
+
+				println!("empty write");
+				Connection::make(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
+			}
+
+			Err(err) => {
+
+				println!("error write to socket {:?}", err);
+				Connection::make(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
+			}
+		}
+
+	} else {
+
+		Connection::make(stream, keep_alive, ConnectionMode::SendingResponse(str, done))
+	}
 }
