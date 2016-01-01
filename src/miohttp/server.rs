@@ -13,11 +13,13 @@ use miohttp::response;
 
 // Define a handler to process the events
 pub struct MyHandler {
-    token    : Token,
-    server   : TcpListener,
-    hash2    : HashMap<Token, (Connection, Event, Option<Timeout>)>,
-    tokens   : TokenGen,
-    send     : mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>,
+    token           : Token,
+    server          : TcpListener,
+    hash2           : HashMap<Token, (Connection, Event, Option<Timeout>)>,
+    tokens          : TokenGen,
+    send            : mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>,
+    timeout_reading : u64,
+    timeout_writing : u64,
 }
 
 
@@ -66,7 +68,7 @@ impl Handler for MyHandler {
 
 impl MyHandler {
 
-    pub fn new(ip: &String, tx: mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>) {
+    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>) {
 
         let mut tokens = TokenGen::new();
 
@@ -81,11 +83,13 @@ impl MyHandler {
         event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
 
         let mut inst = MyHandler{
-            token  : token,
-            server : server,
-            hash2  : HashMap::new(),
-            tokens : tokens,
-            send   : tx,
+            token           : token,
+            server          : server,
+            hash2           : HashMap::new(),
+            tokens          : tokens,
+            send            : tx,
+            timeout_reading : timeout_reading,
+            timeout_writing : timeout_writing,
         };
 
         thread::spawn(move || {
@@ -304,7 +308,7 @@ impl MyHandler {
                         
                         println!("USTAWIAM TIMER IN");
                         
-                        match event_loop.timeout_ms(token.clone(), 4000) {
+                        match event_loop.timeout_ms(token.clone(), self.timeout_reading) {
                             
                             Ok(timeout) => {
                                 
@@ -329,7 +333,7 @@ impl MyHandler {
                         
                         //timeout_ms(&mut self, token: H, delay: u64) -> TimerResult<Timeout>
                         
-                        match event_loop.timeout_ms(token.clone(), 4000) {
+                        match event_loop.timeout_ms(token.clone(), self.timeout_writing) {
                             
                             Ok(timeout) => {
                                 

@@ -32,7 +32,7 @@ fn main() {
     let (tx_request, rx_request) = channel::<(request::Request, mio::Token, mio::Sender<(mio::Token, response::Response)>)>();
 		
     
-    miohttp::server::MyHandler::new(&"127.0.0.1:13265".to_string(), tx_request);
+    miohttp::server::MyHandler::new(&"127.0.0.1:13265".to_string(), 4000, 4000, tx_request);
     
 	
 	let (ctrl_c_tx, ctrl_c_rx) = channel();
