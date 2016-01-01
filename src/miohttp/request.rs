@@ -5,9 +5,9 @@ use std;
 
 #[derive(Debug)]
 pub struct Request {
-    method : String,
-    path : String,
-    version : u8,
+    pub method : String,
+    pub path : String,
+    pub version : u8,
     headers : HashMap<Box<String>, String>,
 }
 

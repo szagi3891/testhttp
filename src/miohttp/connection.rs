@@ -195,9 +195,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
                         Ok(httparse::Status::Complete(size_parse)) => {
 
                             println!("parse ok, get count {}, parse count {}", done, size_parse);
-
-                            //let request = Request::new(req);
-
+                            
                             match Request::new(req) {
 
                                 Ok(request) => {

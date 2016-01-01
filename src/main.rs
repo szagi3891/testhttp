@@ -14,9 +14,12 @@ use miohttp::request;
 use miohttp::response;
 //miohttp::request
 
-//use std::thread;
+use std::thread;
 //use std::time::Duration;
 
+use std::io::prelude::Read;
+use std::fs::File;
+use std::path::Path;
 
 fn main() {
     
@@ -76,18 +79,36 @@ fn main() {
 	}	
 }
 
-fn process_request(/*req*/ _ : request::Request, token: mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>) {
+fn process_request(req: request::Request, token: mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>) {
     
-    //thread::spawn(move || {
     //	thread::sleep(Duration::new(3, 0));
-    //});
-
-    let time_current = time::get_time();
-    let response_body = format!("Hello user : {} - {}", time_current.sec, time_current.nsec);
     
-    let resp = response::Response::create(response::Code::Code200, response::Type::Html, response_body);
-    let _    = resp_chanel.send((token, resp));
-    
+    thread::spawn(move || {
+        
+        let path_str = "../../static".to_string() + req.path.trim();
+        let path     = Path::new(&path_str);
+        
+        match File::create(path) {
+            Ok(mut file) => {
+                
+                let mut content = String::new();
+                file.read_to_string(&mut content);
+                
+                println!("{:?} {:?}", file, content);
+            }
+            Err(err) => {
+            }
+        }
+        
+        println!("przetwarzam {:?} {:?}", req, path);
+        
+        let time_current = time::get_time();
+        let response_body = format!("Hello user : {} - {}", time_current.sec, time_current.nsec);
+        
+        let resp = response::Response::create(response::Code::Code200, response::Type::Html, response_body);
+        let _    = resp_chanel.send((token, resp));
+        
+    });
     // -> ../../static
 }
 

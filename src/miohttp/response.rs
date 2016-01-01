@@ -1,11 +1,15 @@
 pub enum Code {
-    Code200
+    Code200,
+    Code404,
 }
+
+//https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 
 impl Code {
     fn to_str(&self) -> &str {
-        match self {
-            Code200 => "200 OK",
+        match *self {
+            Code::Code200 => "200 OK",
+            Code::Code404 => "404 Not Found",
         }
     }
 }
@@ -16,8 +20,8 @@ pub enum Type {
 
 impl Type {
     fn to_str(&self) -> &str {
-        match self {
-            Html => "text/html; charset=utf-8",
+        match *self {
+            Type::Html => "text/html; charset=utf-8",
         }
     }
 }
@@ -68,6 +72,8 @@ impl Response {
     let hello = "Hello ".to_string();
     let world = "world!".to_string();
     let hello_world = hello + &world;
+    
+    "sfsfsd".to_string() == "das"
     */
 }
 
