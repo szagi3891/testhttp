@@ -204,7 +204,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
 
                                     println!("Request::new ok");
 
-                                    let keep_alive = request.is_header_set("Connection".to_string(), "keep-alive".to_string());
+                                    let keep_alive = request.is_header_set("Connection", "keep-alive");
 
                                     (Connection::make(stream, ConnectionMode::WaitingForServerResponse(keep_alive)), Some(request))
                                 }

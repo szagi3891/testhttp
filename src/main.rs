@@ -21,7 +21,7 @@ use miohttp::response;
 fn main() {
     
 	
-	//println!("Hello, world! - 127.0.0.1:13265");
+	//println!("Hello, world! - 127.0.0.1:2222");
 	
 	
 	println!("TODO - zrobić pętlę na czytaniu danych ?");
@@ -31,7 +31,7 @@ fn main() {
     let (tx_request, rx_request) = channel::<(request::Request, mio::Token, mio::Sender<(mio::Token, response::Response)>)>();
 		
     
-    miohttp::server::MyHandler::new(&"127.0.0.1:13265".to_string(), 4000, 4000, tx_request);
+    miohttp::server::MyHandler::new(&"127.0.0.1:2222".to_string(), 4000, 4000, tx_request);
     
 	
 	let (ctrl_c_tx, ctrl_c_rx) = channel();
@@ -76,7 +76,7 @@ fn main() {
 	}	
 }
 
-fn process_request(req: request::Request, token: mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>) {
+fn process_request(/*req*/ _ : request::Request, token: mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>) {
     
     //thread::spawn(move || {
     //	thread::sleep(Duration::new(3, 0));
@@ -85,7 +85,7 @@ fn process_request(req: request::Request, token: mio::Token, resp_chanel: mio::S
     let time_current = time::get_time();
     let response_body = format!("Hello user : {} - {}", time_current.sec, time_current.nsec);
     
-    let resp = response::Response::create(200, response::Type::html, response_body);
+    let resp = response::Response::create(response::Code::Code200, response::Type::Html, response_body);
     let _    = resp_chanel.send((token, resp));
     
     // -> ../../static

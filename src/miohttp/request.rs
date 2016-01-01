@@ -74,20 +74,15 @@ impl Request {
         */
     }
 
-    pub fn is_header_set(&self, name: String, value: String) -> bool {
+    pub fn is_header_set(&self, name: &str, value: &str) -> bool {
         //"Connection": "keep-alive")
-
-        match self.headers.get(&Box::new(name)) {
+        
+        match self.headers.get(&Box::new(name.to_string())) {
+            
             Some(get_value) => {
-                /*
-                if get_value == value {
-                    return true;
-                } else {
-                    return false;
-                }
-                */
-                true
+                get_value == value.trim()
             }
+            
             None => false
         }
     }

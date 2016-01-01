@@ -1,48 +1,73 @@
+pub enum Code {
+    Code200
+}
+
+impl Code {
+    fn to_str(&self) -> &str {
+        match self {
+            Code200 => "200 OK",
+        }
+    }
+}
+
+pub enum Type {
+    Html
+}
+
+impl Type {
+    fn to_str(&self) -> &str {
+        match self {
+            Html => "text/html; charset=utf-8",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Response {
     pub message : String,
 }
 
-pub enum Type {
-    html
-}
-
 impl Response {
-
-    //from_text(numer, str)
-
-    //np. from_text(400, "błąd parsowania")
-
+    
     pub fn from_string(mess: String) -> Response {
         Response {
             message : mess
         }
     }
-
+    
     pub fn as_bytes(&self) -> &[u8] {
         self.message.as_bytes()
     }
     
-    pub fn create(code: u16, typ: Type, body: String) -> Response {
+    pub fn create(code: Code, typ: Type, body: String) -> Response {
         
-        //create(200, response::Type::html, response_body)));
+        let mut out: Vec<String> = Vec::new();
+        out.push("HTTP/1.1 ".to_string() + code.to_str());
+        out.push("Date: Thu, 20 Dec 2001 12:04:30 GMT".to_string());
+        out.push("Content-Type: ".to_string() + typ.to_str());
+        out.push("Connection: keep-alive".to_string());
+        out.push(format!("Content-length: {}", body.len()).to_string());
+        out.push("".to_string());
+        out.push(body);
         
-        let message = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\nConnection: keep-alive\r\nContent-length: {}\r\n\r\n{}", body.len(), body);
+        let message = out.join("\r\n");
         
         Response {
             message : message
         }
     }
     
-
-    //TODO - test response
     /*
-    let response_body = format!("Hello user: {} - {}", time_current.sec, time_current.nsec);
-    let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\nConnection: keep-alive\r\nContent-length: {}\r\n\r\n{}", response_body.len(), response_body);
+    println!("dd {}", ["hello", "world"].join(" "));
+    println!("tt {}", ["asda 11".to_string(), "asda 22".to_string()].join(" "));
     
-    //let _ = resp_chanel.send((token, response::Response::from_string(response)));
+    let hello = "Hello ".to_string();
+    let world = "world!";
+    let hello_world = hello + world;
+
+    let hello = "Hello ".to_string();
+    let world = "world!".to_string();
+    let hello_world = hello + &world;
     */
-    
-    //println!("przesłano kanał z odpowiedzią : {:?}", req);
 }
 
