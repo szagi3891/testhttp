@@ -8,7 +8,6 @@ extern crate time;
 
 use std::sync::mpsc::{channel};
 use simple_signal::{Signals, Signal};
-//use mio::EventLoop;
 
 mod miohttp;
 use miohttp::request;
@@ -60,31 +59,11 @@ fn main() {
 			
             to_handle = rx_request.recv() => {
 				
-				/*
-                if count > 20 {
-                    return
-                }
-                count = count + 1;
-                */
-				
 				match to_handle {
 					
 					Ok((req, token, resp_chanel)) => {
 						
-						//thread::spawn(move || {
-							
-						//	thread::sleep(Duration::new(3, 0));
-							
-							let time_current = time::get_time();
-
-							//TODO - test response
-							let response_body = format!("Hello user: {} - {}", time_current.sec, time_current.nsec);
-							let response = format!("HTTP/1.1 200 OK\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT \r\nContent-Type: text/html; charset=utf-8\r\nConnection: keep-alive\r\nContent-length: {}\r\n\r\n{}", response_body.len(), response_body);
-
-							let _ = resp_chanel.send((token, response::Response::from_string(response)));
-
-							println!("przesłano kanał z odpowiedzią : {:?}", req);
-						//});
+                        process_request(req, token, resp_chanel)
 					}
 					
 					Err(err) => {
@@ -94,8 +73,22 @@ fn main() {
 				}
 			}
 		}
-	}
-	
+	}	
+}
+
+fn process_request(req: request::Request, token: mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>) {
+    
+    //thread::spawn(move || {
+    //	thread::sleep(Duration::new(3, 0));
+    //});
+
+    let time_current = time::get_time();
+    let response_body = format!("Hello user : {} - {}", time_current.sec, time_current.nsec);
+    
+    let resp = response::Response::create(200, response::Type::html, response_body);
+    let _    = resp_chanel.send((token, resp));
+    
+    // -> ../../static
 }
 
 
