@@ -20,6 +20,12 @@ enum ConnectionMode {
 }
 
 
+pub enum TimerMode {
+    In,
+    Out,
+    None,
+}
+
 
 //socket, keep alive, actuall event set, current mode
 //pub struct Connection (TcpStream, bool, ConnectionMode);
@@ -106,7 +112,18 @@ impl Connection {
             ConnectionMode::Close                       => Event::None
         }
     }
-
+    
+    pub fn get_timer_mode(&self) -> TimerMode {
+        
+        match self.mode {
+            
+            ConnectionMode::ReadingRequest(_, _)        => TimerMode::In,
+            ConnectionMode::WaitingForServerResponse(_) => TimerMode::None,
+            ConnectionMode::SendingResponse(_, _, _)    => TimerMode::Out,
+            ConnectionMode::Close                       => TimerMode::None
+        }
+    }
+    
     pub fn ready(self, events: EventSet, tok: Token) -> (Connection, Option<Request>) {
         
         if events.is_error() {

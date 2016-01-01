@@ -1,11 +1,11 @@
-use mio::{Token, EventLoop, EventSet, PollOpt, Handler};
+use mio::{Token, EventLoop, EventSet, PollOpt, Handler, Timeout};
 use mio;
 use mio::tcp::{TcpListener};
 //use mio::util::Slab;                              //TODO - użyć tego modułu zamiast hashmapy
 use std::collections::HashMap;
 use std::thread;
 use std::sync::mpsc;
-use miohttp::connection::{Connection};
+use miohttp::connection::{Connection, TimerMode};
 use miohttp::token_gen::TokenGen;
 use miohttp::request;
 use miohttp::response;
@@ -15,7 +15,7 @@ use miohttp::response;
 pub struct MyHandler {
     token    : Token,
     server   : TcpListener,
-    hash2    : HashMap<Token, (Connection, Event)>,
+    hash2    : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens   : TokenGen,
     send     : mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>,
 }
@@ -57,9 +57,9 @@ impl Handler for MyHandler {
         };
     }
 
-    fn timeout(&mut self, event_loop: &mut EventLoop<Self>, timeout: Self::Timeout) {
-
-        println!("timeout zaszedł {:?}", timeout);
+    fn timeout(&mut self, _: &mut EventLoop<Self>, token: Self::Timeout) {
+        
+        self.timeout_trigger(token);
     }
 }
 
@@ -97,14 +97,14 @@ impl MyHandler {
     fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, response: response::Response) {
 
         println!("odebrano kominikat z kanału {} {:?}", token.as_usize(), response);
-
+        
         match self.get_connection(&token) {
-
-            Some((connection, old_event)) => {
+            
+            Some((connection, old_event, timeout)) => {
 
                 let new_connection = connection.send_data_to_user(token.clone(), response);
 
-                self.insert_connection(&token, new_connection, old_event, event_loop);
+                self.insert_connection(&token, new_connection, old_event, timeout, event_loop);
             }
 
             None => {
@@ -112,11 +112,31 @@ impl MyHandler {
             }
         }
     }
+    
+    
+    fn timeout_trigger(&mut self, token: Token) {
+        
+        println!("timeout zaszedł {:?}", token);
+        
+        match self.get_connection(&token) {
 
+            Some((_, _, _)) => {
+                
+                println!("timeout - poprawnie zamknięte połączenie {:?}", token);
+                println!("hashmap after timeout connection {}", self.connections_count());
+            }
+
+            None => {
+                println!("TODO - error, brak takiego połączenia, wrzucić loga w strumień błędów {:?}", token);
+            }
+        }
+    }
+    
+    
     fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>) {
 
         println!("new connection - prepending");
-
+        
         loop {
             match self.server.accept() {
 
@@ -128,7 +148,7 @@ impl MyHandler {
 
                     let connection = Connection::new(stream);
 
-                    self.insert_connection(&token, connection, Event::Init, event_loop);
+                    self.insert_connection(&token, connection, Event::Init, None, event_loop);
 
                     println!("hashmap after new connection {}", self.connections_count());
                 }
@@ -154,7 +174,7 @@ impl MyHandler {
 
         match self.get_connection(&token) {
 
-            Some((connection, old_event)) => {
+            Some((connection, old_event, timeout)) => {
 
                 let (new_connection, request_opt) = connection.ready(events, token.clone());
 
@@ -179,7 +199,7 @@ impl MyHandler {
 
 
 
-                self.insert_connection(&token, new_connection, old_event, event_loop);
+                self.insert_connection(&token, new_connection, old_event, timeout, event_loop);
             }
 
             None => {
@@ -249,13 +269,101 @@ impl MyHandler {
         }
     }
 
-    fn insert_connection(&mut self, token: &Token, connection: Connection, old_event: Event, event_loop: &mut EventLoop<MyHandler>) {
+    
+    fn set_timer(&mut self, token: &Token, timeout: Option<Timeout>, timer_mode: TimerMode, event_loop: &mut EventLoop<MyHandler>) -> Option<Timeout> {
+        
+        match timeout {
+            
+            Some(timeout) => {
+                
+                match timer_mode {
+                    
+                    TimerMode::In => {
+                        Some(timeout)
+                    },
+                    
+                    TimerMode::Out => {
+                        Some(timeout)
+                    },
+                    
+                    TimerMode::None => {
+                        
+                        println!("ZERUJĘ TIMER");
+                        
+                        let _ = event_loop.clear_timeout(timeout);
+                        None
+                    },
+                }
+            },
+            
+            None => {
+                
+                match timer_mode {
+                    
+                    TimerMode::In => {
+                        
+                        println!("USTAWIAM TIMER IN");
+                        
+                        match event_loop.timeout_ms(token.clone(), 4000) {
+                            
+                            Ok(timeout) => {
+                                
+                                println!("USTAWIAM TIMER IN - udane");
+                                Some(timeout)
+                            },
+                            
+                            Err(err) => {
+                                
+                                //TODO - błąd wrzucić w logowanie na strumień błędów
+                                
+                                println!("USTAWIAM TIMER IN - nieudane");
+                                None
+                            }
+                        }
+                            
+                    },
+                    
+                    TimerMode::Out => {
+                        
+                        println!("USTAWIAM TIMER OUT");
+                        
+                        //timeout_ms(&mut self, token: H, delay: u64) -> TimerResult<Timeout>
+                        
+                        match event_loop.timeout_ms(token.clone(), 4000) {
+                            
+                            Ok(timeout) => {
+                                
+                                println!("USTAWIAM TIMER OUT - udane");
+                                Some(timeout)
+                            },
+                            
+                            Err(err) => {
+                                
+                                //TODO - błąd wrzucić w logowanie na strumień błędów
+                                
+                                println!("USTAWIAM TIMER OUT - nieudane");
+                                None
+                            }
+                        }
+                    },
+                    
+                    TimerMode::None => {
+                        None
+                    },
+                }
+            },
+        }
+    }
+    
+    
+    
+    
+    fn insert_connection(&mut self, token: &Token, connection: Connection, old_event: Event, timeout: Option<Timeout>, event_loop: &mut EventLoop<MyHandler>) {
 
         let new_event = connection.get_event();
 
         /*
         println!("----------> set mode : WaitingForDataUser");
-        println!("----------> set mode : ParsedRequest");
         println!("----------> set mode : WaitingForDataServer");
         println!("----------> set mode : DataToSendUser");
         println!("----------> set mode : Close");
@@ -264,11 +372,15 @@ impl MyHandler {
         if old_event != new_event {
             self.set_event(&connection, token, &old_event, &new_event, event_loop);
         }
-
-        self.hash2.insert(token.clone(), (connection, new_event));
+        
+        
+        let new_timer = self.set_timer(token, timeout, connection.get_timer_mode(), event_loop);
+        
+        
+        self.hash2.insert(token.clone(), (connection, new_event, new_timer));
     }
-
-    fn get_connection(&mut self, token: &Token) -> Option<(Connection, Event)> {
+    
+    fn get_connection(&mut self, token: &Token) -> Option<(Connection, Event, Option<Timeout>)> {
 
         self.hash2.remove(&token)
     }
