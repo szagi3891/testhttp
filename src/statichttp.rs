@@ -23,15 +23,15 @@ pub fn process_request(req: request::Request, token: mio::Token, resp_chanel: mi
             
             Ok(mut file) => {
                 
-                let mut content = String::new();
+                let mut buffer: Vec<u8> = Vec::new();
                 
-                match file.read_to_string(&mut content) {
+                match file.read_to_end(&mut buffer) {
                     
                     Ok(_) => {
                         
                         //TODO - trzeba wyznaczyć rozszerzenie na podstawie ścieżki i na jego podstawie wybrać odpowiedni mime
                         
-                        let resp = response::Response::create(response::Code::Code200, response::Type::Html, content);
+                        let resp = response::Response::create_from_buf(response::Code::Code200, response::Type::Html, buffer);
                         let _    = resp_chanel.send((token, resp));
                     }
                     
@@ -53,6 +53,8 @@ pub fn process_request(req: request::Request, token: mio::Token, resp_chanel: mi
                     }
                     _ => {
                         println!("errrrr {:?}", err);
+                        
+                        //TODO - trzeba zaimplementować drop w request, który automatycznie stworzy odpowiedź 500 i wyśle ją do mio
                     }
                 }
             }
