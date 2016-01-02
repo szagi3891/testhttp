@@ -14,7 +14,7 @@ use miohttp::response;
 pub struct MyHandler {
     token           : Token,
     server          : TcpListener,
-    hash2           : HashMap<Token, (Connection, Event, Option<Timeout>)>,
+    hash            : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
     send            : mpsc::Sender<request::Request>,
     timeout_reading : u64,
@@ -84,7 +84,7 @@ impl MyHandler {
         let mut inst = MyHandler{
             token           : token,
             server          : server,
-            hash2           : HashMap::new(),
+            hash            : HashMap::new(),
             tokens          : tokens,
             send            : tx,
             timeout_reading : timeout_reading,
@@ -117,14 +117,11 @@ impl MyHandler {
     
     fn timeout_trigger(&mut self, token: &Token) {
         
-        println!("timeout zaszedł {:?}", token);
-        
         match self.get_connection(&token) {
 
             Some((_, _, _)) => {
                 
                 println!("timeout - poprawnie zamknięte połączenie {:?}", token);
-                println!("hashmap after timeout connection {}", self.connections_count());
             }
 
             None => {
@@ -135,8 +132,6 @@ impl MyHandler {
     
     
     fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler>) {
-
-        println!("new connection - prepending");
         
         loop {
             match self.server.accept() {
@@ -150,13 +145,9 @@ impl MyHandler {
                     let connection = Connection::new(stream);
 
                     self.insert_connection(&token, connection, Event::Init, None, event_loop);
-
-                    println!("hashmap after new connection {}", self.connections_count());
                 }
 
                 Ok(None) => {
-
-                    println!("no new connection");
                     return;
                 }
 
@@ -170,26 +161,28 @@ impl MyHandler {
     }
 
     fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: &Token, events: EventSet) {
-
-        println!("count hasmapy before socket_ready {}", self.connections_count());
-
+        
         match self.get_connection(&token) {
 
             Some((connection, old_event, timeout)) => {
-
+                
                 let (new_connection, request_opt) = connection.ready(events, token, event_loop);
-
+                
                 if new_connection.in_state_close() {
-
-                    println!("!!!!!!!!!!!!!! server close connection {:?} !!!!!!!!!!!!!!", &token);
-                    println!("count hasmapy after ready after close {}", self.connections_count());
-                    println!("\n\n\n");
-
+                    
+                                                //TODO - trzeba to bardziej elegancko rozwiązać
+                    match timeout {
+                        Some(timeout) => {
+                            let _ = event_loop.clear_timeout(timeout);
+                        }
+                        None => {}
+                    }
+                    
                     return;
                 }
-
+                
                 match request_opt {
-
+                    
                     Some(request) => {
                         
                         let _ = self.send.send(request);
@@ -197,8 +190,6 @@ impl MyHandler {
 
                     None => {}
                 }
-
-
 
                 self.insert_connection(&token, new_connection, old_event, timeout, event_loop);
             }
@@ -208,23 +199,10 @@ impl MyHandler {
                 println!("socket_ready: no socket by token: {:?}", &token);
             }
         };
-
-
-        println!("count hasmapy after ready {}", self.connections_count());
-
     }
 
-    fn connections_count(&self) -> usize {
-        self.hash2.len()
-    }
 
-    /*
-    event_loop.register(&stream, token, event_read, pool_opt).unwrap();
-    event_loop.register(&stream, token, event_none, pool_opt).unwrap();
-    */
-
-
-    fn set_event(&mut self, connection: &Connection, token: &Token, old_event: &Event, new_event: &Event, event_loop: &mut EventLoop<MyHandler>) /*-> String*/  {
+    fn set_event(&mut self, connection: &Connection, token: &Token, old_event: &Event, new_event: &Event, event_loop: &mut EventLoop<MyHandler>) {
 
         let pool_opt    = PollOpt::edge() | PollOpt::oneshot();
 
@@ -289,7 +267,7 @@ impl MyHandler {
                     
                     TimerMode::None => {
                         
-                        println!("ZERUJĘ TIMER");
+                        println!("ZERUJĘ TIMER {:?}", token);
                         
                         let _ = event_loop.clear_timeout(timeout);
                         None
@@ -303,7 +281,7 @@ impl MyHandler {
                     
                     TimerMode::In => {
                         
-                        println!("USTAWIAM TIMER IN");
+                        println!("USTAWIAM TIMER IN {:?}", token);
                         
                         match event_loop.timeout_ms(token.clone(), self.timeout_reading) {
                             
@@ -326,9 +304,7 @@ impl MyHandler {
                     
                     TimerMode::Out => {
                         
-                        println!("USTAWIAM TIMER OUT");
-                        
-                        //timeout_ms(&mut self, token: H, delay: u64) -> TimerResult<Timeout>
+                        println!("USTAWIAM TIMER OUT {:?}", token);
                         
                         match event_loop.timeout_ms(token.clone(), self.timeout_writing) {
                             
@@ -362,14 +338,14 @@ impl MyHandler {
     fn insert_connection(&mut self, token: &Token, connection: Connection, old_event: Event, timeout: Option<Timeout>, event_loop: &mut EventLoop<MyHandler>) {
 
         let new_event = connection.get_event();
-
+        
         /*
         println!("----------> set mode : WaitingForDataUser");
         println!("----------> set mode : WaitingForDataServer");
         println!("----------> set mode : DataToSendUser");
         println!("----------> set mode : Close");
         */
-
+        
         if old_event != new_event {
             self.set_event(&connection, token, &old_event, &new_event, event_loop);
         }
@@ -378,12 +354,19 @@ impl MyHandler {
         let new_timer = self.set_timer(token, timeout, connection.get_timer_mode(), event_loop);
         
         
-        self.hash2.insert(token.clone(), (connection, new_event, new_timer));
+        self.hash.insert(token.clone(), (connection, new_event, new_timer));
+        
+        
+        println!("count hasmapy after insert {}", self.hash.len());
     }
     
     fn get_connection(&mut self, token: &Token) -> Option<(Connection, Event, Option<Timeout>)> {
 
-        self.hash2.remove(&token)
+        let res = self.hash.remove(&token);
+        
+        println!("hashmap after decrement {}", self.hash.len());
+        
+        res
     }
 
 

@@ -36,10 +36,6 @@ fn main() {
         ctrl_c_tx.send(()).unwrap(); 
     });
 	
-    
-	//let mut count = 0;
-    
-	
 	loop {
         
 		select! {

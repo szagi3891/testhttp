@@ -55,8 +55,6 @@ pub fn process_request(request: request::Request) {
                     _ => {
                         
                         println!("errrrr {:?}", err);
-                        
-                        //TODO - trzeba zaimplementować drop w request, który automatycznie stworzy odpowiedź 500 i wyśle ją do mio
                     }
                 }
             }
