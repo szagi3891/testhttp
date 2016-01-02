@@ -60,6 +60,7 @@ impl PreRequest {
     
     pub fn bind(self, token: &mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>) -> Request {
         Request {
+            is_send     : false,
             method      : self.method,
             path        : self.path,
             version     : self.version,
@@ -74,6 +75,7 @@ impl PreRequest {
 
 #[derive(Debug)]
 pub struct Request {
+    is_send     : bool,
     pub method  : String,
     pub path    : String,
     pub version : u8,
@@ -106,10 +108,23 @@ impl Request {
         }
     }
     
-    pub fn send(self, response: response::Response) {
+    pub fn send(mut self, response: response::Response) {
         
         let _ = self.resp_chanel.send((self.token, response));
+        
+        self.is_send = true;
     }
 }
 
+impl Drop for Request {
+
+    fn drop(&mut self) {
+        
+        if self.is_send == false {
+            
+            let _ = self.resp_chanel.send((self.token, response::Response::create_500()));
+        }
+    }
+
+}
 

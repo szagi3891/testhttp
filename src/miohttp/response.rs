@@ -1,6 +1,7 @@
 pub enum Code {
     Code200,
     Code404,
+    Code500,
 }
 
 //https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
@@ -10,6 +11,7 @@ impl Code {
         match *self {
             Code::Code200 => "200 OK",
             Code::Code404 => "404 Not Found",
+            Code::Code500 => "500 Internal Server Error",
         }
     }
 }
@@ -76,7 +78,9 @@ impl Response {
         response
     }
     
-    
+    pub fn create_500() -> Response {
+        Response::create(Code::Code500, Type::Html, "500 Internal Server Error".to_string())
+    }
     
     /*
     let mut out: Vec<u8> = Vec::new();
