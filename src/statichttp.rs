@@ -28,8 +28,9 @@ pub fn process_request(req: request::Request, token: mio::Token, resp_chanel: mi
                 match file.read_to_end(&mut buffer) {
                     
                     Ok(_) => {
-                        
+                                                
                         //TODO - trzeba wyznaczyć rozszerzenie na podstawie ścieżki i na jego podstawie wybrać odpowiedni mime
+                        //https://doc.rust-lang.org/std/path/struct.Path.html#method.extension
                         
                         let resp = response::Response::create_from_buf(response::Code::Code200, response::Type::Html, buffer);
                         let _    = resp_chanel.send((token, resp));
