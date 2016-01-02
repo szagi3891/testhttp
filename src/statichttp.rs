@@ -1,4 +1,3 @@
-use mio;
 use miohttp::request;
 use miohttp::response;
 
@@ -10,11 +9,11 @@ use std::io;
 use std::thread;
 //use std::time::Duration;
 
-pub fn process_request(req: request::Request, token: mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>) {
+pub fn process_request(request: request::Request) {
     
     thread::spawn(move || {
         
-        let path_str = "./static".to_string() + req.path.trim();
+        let path_str = "./static".to_string() + request.path.trim();
         let path     = Path::new(&path_str);
         
         //TODO - trzeba zabezpieczyć żeby requesty nie mogły wychodzić poza główny katalog
@@ -32,8 +31,9 @@ pub fn process_request(req: request::Request, token: mio::Token, resp_chanel: mi
                         //TODO - trzeba wyznaczyć rozszerzenie na podstawie ścieżki i na jego podstawie wybrać odpowiedni mime
                         //https://doc.rust-lang.org/std/path/struct.Path.html#method.extension
                         
-                        let resp = response::Response::create_from_buf(response::Code::Code200, response::Type::Html, buffer);
-                        let _    = resp_chanel.send((token, resp));
+                        let response = response::Response::create_from_buf(response::Code::Code200, response::Type::Html, buffer);
+                        
+                        request.send(response);
                     }
                     
                     Err(err) => {
@@ -48,11 +48,12 @@ pub fn process_request(req: request::Request, token: mio::Token, resp_chanel: mi
                     
                     io::ErrorKind::NotFound => {
                         
-                        let mess =  "Not fund".to_string();
-                        let resp = response::Response::create(response::Code::Code404, response::Type::Html, mess);
-                        let _    = resp_chanel.send((token, resp));
+                        let mess     = "Not fund".to_string();
+                        let response = response::Response::create(response::Code::Code404, response::Type::Html, mess);
+                        request.send(response);
                     }
                     _ => {
+                        
                         println!("errrrr {:?}", err);
                         
                         //TODO - trzeba zaimplementować drop w request, który automatycznie stworzy odpowiedź 500 i wyśle ją do mio

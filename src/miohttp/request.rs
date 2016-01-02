@@ -1,25 +1,21 @@
 use httparse;
 use std::collections::HashMap;
 use std;
+use mio;
+use miohttp::response;
 
 
 #[derive(Debug)]
-pub struct Request {
-    pub method : String,
-    pub path : String,
-    pub version : u8,
+pub struct PreRequest {
+    method : String,
+    path : String,
+    version : u8,
     headers : HashMap<Box<String>, String>,
 }
 
-/*
-http://hyper.rs/hyper/hyper/header/struct.Headers.html
-                ta biblioteka wykorzystuje nagłówki dostarczane przez hyper-a
-https://github.com/tailhook/rotor-http/blob/master/src/http1.rs
-*/
+impl PreRequest {
 
-impl Request {
-
-    pub fn new(req: httparse::Request) -> Result<Request, String> {
+    pub fn new(req: httparse::Request) -> Result<PreRequest, String> {
 
         match (req.method, req.path, req.version) {
 
@@ -46,7 +42,7 @@ impl Request {
                     };
                 }
 
-                Ok(Request{
+                Ok(PreRequest{
                     method  : method.to_string(),
                     path    : path.to_string(),
                     version : version,
@@ -59,23 +55,46 @@ impl Request {
                 Err("Błąd tworzenia odpowiedzi".to_string())
             }
         }
-
-        /*
-        println!("httparse::Request:");
-        println!("method : {:?}", req.method);
-        println!("path : {:?}", req.path);
-        println!("version : {:?}", req.version);
-        //println!("headers : {:?}", req.headers);
-
-        for header in req.headers {
-                let str_header = String::from_utf8_lossy(header.value);
-            println!("  {} : {}", header.name, str_header);
-        }
-        */
     }
+    
+    
+    pub fn bind(self, token: &mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>) -> Request {
+        Request {
+            method      : self.method,
+            path        : self.path,
+            version     : self.version,
+            headers     : self.headers,
+            token       : token.clone(),
+            resp_chanel : resp_chanel
+        }
+    }
+}
+
+
+
+#[derive(Debug)]
+pub struct Request {
+    pub method  : String,
+    pub path    : String,
+    pub version : u8,
+    headers     : HashMap<Box<String>, String>,
+    token       : mio::Token,
+    resp_chanel : mio::Sender<(mio::Token, response::Response)>,
+}
+
+/*
+http://hyper.rs/hyper/hyper/header/struct.Headers.html
+                ta biblioteka wykorzystuje nagłówki dostarczane przez hyper-a
+https://github.com/tailhook/rotor-http/blob/master/src/http1.rs
+*/
+
+
+//TODO - trzeba będzie mu zaimplementować dropa
+
+
+impl Request {
 
     pub fn is_header_set(&self, name: &str, value: &str) -> bool {
-        //"Connection": "keep-alive")
         
         match self.headers.get(&Box::new(name.to_string())) {
             
@@ -86,6 +105,11 @@ impl Request {
             None => false
         }
     }
-
+    
+    pub fn send(self, response: response::Response) {
+        
+        let _ = self.resp_chanel.send((self.token, response));
+    }
 }
+
 

@@ -9,3 +9,21 @@
 // ===
 //use cool::function as root_cool_function;
 
+
+
+
+
+        /*
+        println!("httparse::Request:");
+        println!("method : {:?}", req.method);
+        println!("path : {:?}", req.path);
+        println!("version : {:?}", req.version);
+        //println!("headers : {:?}", req.headers);
+
+        for header in req.headers {
+                let str_header = String::from_utf8_lossy(header.value);
+            println!("  {} : {}", header.name, str_header);
+        }
+        */
+        //"Connection": "keep-alive")
+        

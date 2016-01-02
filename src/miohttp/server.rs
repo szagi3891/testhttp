@@ -1,5 +1,4 @@
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, Timeout};
-use mio;
 use mio::tcp::{TcpListener};
 //use mio::util::Slab;                              //TODO - użyć tego modułu zamiast hashmapy
 use std::collections::HashMap;
@@ -17,7 +16,7 @@ pub struct MyHandler {
     server          : TcpListener,
     hash2           : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
-    send            : mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>,
+    send            : mpsc::Sender<request::Request>,
     timeout_reading : u64,
     timeout_writing : u64,
 }
@@ -46,7 +45,7 @@ impl Handler for MyHandler {
         if token == self.token {
             self.new_connection(event_loop);
         } else {
-            self.socket_ready(event_loop, token, events);
+            self.socket_ready(event_loop, &token, events);
         }
     }
 
@@ -61,14 +60,14 @@ impl Handler for MyHandler {
 
     fn timeout(&mut self, _: &mut EventLoop<Self>, token: Self::Timeout) {
         
-        self.timeout_trigger(token);
+        self.timeout_trigger(&token);
     }
 }
 
 
 impl MyHandler {
 
-    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: mpsc::Sender<(request::Request, Token, mio::Sender<(Token, response::Response)>)>) {
+    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: mpsc::Sender<request::Request>) {
 
         let mut tokens = TokenGen::new();
 
@@ -116,7 +115,7 @@ impl MyHandler {
     }
     
     
-    fn timeout_trigger(&mut self, token: Token) {
+    fn timeout_trigger(&mut self, token: &Token) {
         
         println!("timeout zaszedł {:?}", token);
         
@@ -170,7 +169,7 @@ impl MyHandler {
         }
     }
 
-    fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
+    fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: &Token, events: EventSet) {
 
         println!("count hasmapy before socket_ready {}", self.connections_count());
 
@@ -178,7 +177,7 @@ impl MyHandler {
 
             Some((connection, old_event, timeout)) => {
 
-                let (new_connection, request_opt) = connection.ready(events, token.clone());
+                let (new_connection, request_opt) = connection.ready(events, token, event_loop);
 
                 if new_connection.in_state_close() {
 
@@ -192,8 +191,8 @@ impl MyHandler {
                 match request_opt {
 
                     Some(request) => {
-
-                        let _ = self.send.send((request, token.clone(), event_loop.channel()));
+                        
+                        let _ = self.send.send(request);
                     }
 
                     None => {}

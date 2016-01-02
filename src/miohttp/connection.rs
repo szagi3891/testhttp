@@ -1,8 +1,8 @@
-use mio::{Token, EventSet, TryRead, TryWrite};
+use mio::{EventLoop, Token, EventSet, TryRead, TryWrite};
 use mio::tcp::{TcpStream};
 use httparse;
-use miohttp::server::{Event};
-use miohttp::request::Request;
+use miohttp::server::{Event, MyHandler};
+use miohttp::request::{PreRequest, Request};
 use miohttp::response;
 
 
@@ -116,30 +116,30 @@ impl Connection {
         }
     }
     
-    pub fn ready(self, events: EventSet, tok: Token) -> (Connection, Option<Request>) {
+    pub fn ready(self, events: EventSet, token: &Token, event_loop: &mut EventLoop<MyHandler>) -> (Connection, Option<Request>) {
         
         if events.is_error() {
-            println!("EVENT ERROR {}", tok.as_usize());
+            println!("EVENT ERROR {}", token.as_usize());
             panic!("TODO");
         }
 
         if events.is_hup() {
-            println!("EVENT HUP - close - {} {:?}", tok.as_usize(), events);
+            println!("EVENT HUP - close - {} {:?}", token.as_usize(), events);
             return (self.replace_mode(ConnectionMode::Close), None);
         }
         
-        self.transform(events)
+        self.transform(events, event_loop, token)
     }
 
 
 
-    fn transform(self, events: EventSet) -> (Connection, Option<Request>) {
+    fn transform(self, events: EventSet, event_loop: &mut EventLoop<MyHandler>, token: &Token) -> (Connection, Option<Request>) {
 
         match self.mode {
 
             ConnectionMode::ReadingRequest(buf, done) => {
 
-                transform_from_waiting_for_user(self.stream, events, buf, done)
+                transform_from_waiting_for_user(self.stream, events, buf, done, event_loop, token)
             }
 
             ConnectionMode::WaitingForServerResponse(keep_alive) => {
@@ -160,7 +160,7 @@ impl Connection {
     }
 }
 
-fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize) -> (Connection, Option<Request>) {
+fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize, event_loop: &mut EventLoop<MyHandler>, token: &Token) -> (Connection, Option<Request>) {
 
     if events.is_readable() {
 
@@ -188,10 +188,12 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
 
                             println!("parse ok, get count {}, parse count {}", done, size_parse);
                             
-                            match Request::new(req) {
+                            match PreRequest::new(req) {
 
-                                Ok(request) => {
-
+                                Ok(pre_request) => {
+                                    
+                                    let request = pre_request.bind(&token, event_loop.channel());
+                                    
                                     println!("Request::new ok");
 
                                     let keep_alive = request.is_header_set("Connection", "keep-alive");

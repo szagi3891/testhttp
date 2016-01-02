@@ -9,28 +9,22 @@ extern crate time;
 mod miohttp;
 mod statichttp;
 
-
 use std::sync::mpsc::{channel};
 use simple_signal::{Signals, Signal};
-
 use miohttp::request;
-use miohttp::response;
 
 
 fn main() {
     
-	
-	//println!("Hello, world! - 127.0.0.1:2222");
-	
-	
-	println!("TODO - zrobić pętlę na czytaniu danych ?");
-    println!("TODO - zrobić pętlę na pisaniu danych ?");
+	let addres = "127.0.0.1:2222";
     
-    //mpsc::Sender<(request::Request, mio::Sender<response::Response>)>
-    let (tx_request, rx_request) = channel::<(request::Request, mio::Token, mio::Sender<(mio::Token, response::Response)>)>();
+	println!("Hello, world! - {}", &addres);
+	
+    
+    let (tx_request, rx_request) = channel::<request::Request>();
 		
     
-    miohttp::server::MyHandler::new(&"127.0.0.1:2222".to_string(), 4000, 4000, tx_request);
+    miohttp::server::MyHandler::new(&addres.to_string(), 4000, 4000, tx_request);
     
 	
 	let (ctrl_c_tx, ctrl_c_rx) = channel();
@@ -60,9 +54,9 @@ fn main() {
 				
 				match to_handle {
 					
-					Ok((req, token, resp_chanel)) => {
+					Ok(request) => {
 						
-                        statichttp::process_request(req, token, resp_chanel)
+                        statichttp::process_request(request);
 					}
 					
 					Err(err) => {
