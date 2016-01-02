@@ -80,16 +80,8 @@ impl Connection {
         let new_connection = match self.mode {
 
             ConnectionMode::WaitingForServerResponse(keep_alive) => {
-
-                //TODO - występuje kopiowanie pamięci, znaleźć lepszy sposób na konwersję tych danych
-
-                let mut resp_vec: Vec<u8> = Vec::new();
-
-                for byte in response.as_bytes() {
-                    resp_vec.push(byte.clone());
-                }
-
-                self.replace_mode(ConnectionMode::SendingResponse(keep_alive, resp_vec, 0))
+                
+                self.replace_mode(ConnectionMode::SendingResponse(keep_alive, response.as_bytes(), 0))
             }
 
             _ => {

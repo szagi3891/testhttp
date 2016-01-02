@@ -100,8 +100,6 @@ impl MyHandler {
 
     fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, response: response::Response) {
 
-        println!("odebrano kominikat z kanału {} {:?}", token.as_usize(), response);
-        
         match self.get_connection(&token) {
             
             Some((connection, old_event, timeout)) => {

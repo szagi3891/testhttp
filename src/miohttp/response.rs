@@ -28,26 +28,21 @@ impl Type {
 
 #[derive(Debug)]
 pub struct Response {
-    pub message : String,
+    message : Vec<u8>,
 }
+
 
 impl Response {
     
-    pub fn from_string(mess: String) -> Response {
-        Response {
-            message : mess
-        }
-    }
-    
-    pub fn as_bytes(&self) -> &[u8] {
-        self.message.as_bytes()
+    pub fn as_bytes(self) -> Vec<u8> {
+        self.message
     }
     
     pub fn create(code: Code, typ: Type, body: String) -> Response {
         
         let mut out: Vec<String> = Vec::new();
         out.push("HTTP/1.1 ".to_string() + code.to_str());
-        out.push("Date: Thu, 20 Dec 2001 12:04:30 GMT".to_string());
+        out.push("Date: Thu, 20 Dec 2001 12:04:30 GMT".to_string());      //TODO - trzeba wyznaczać aktualną wartość daty
         out.push("Content-Type: ".to_string() + typ.to_str());
         out.push("Connection: keep-alive".to_string());
         out.push(format!("Content-length: {}", body.len()).to_string());
@@ -56,8 +51,17 @@ impl Response {
         
         let message = out.join("\r\n");
         
+        //TODO - występuje kopiowanie pamięci, znaleźć lepszy sposób na konwersję tych danych
+        
+        let mut resp_vec: Vec<u8> = Vec::new();
+        
+        for byte in message.as_bytes() {
+            resp_vec.push(byte.clone());
+        }
+        
+        
         Response {
-            message : message
+            message : resp_vec
         }
     }
     
