@@ -1,4 +1,4 @@
-//use std::io::{self, Write};
+use std::io::{self, Write};
 
 // https://en.wikipedia.org/wiki/Syslog#Severity_level
 /*
@@ -15,6 +15,7 @@ enum Level {
 
 // http://stackoverflow.com/questions/27588416/how-to-send-output-to-stderr
 
+/*
 // Adds prefix and suffix to text to make it red (0;31)
 macro_rules! text_red {
     ($fmt:expr) => { concat!("\x1B[0;31m", $fmt, "\x1B[m") };
@@ -60,7 +61,7 @@ macro_rules! log_error {
         }
     });
 }
-
+*/
 //macro_rules! warn {
 //}
 
@@ -68,21 +69,22 @@ macro_rules! log_error {
 //}
 
 
-/*
-pub fn error(message: &str) {
+
+pub fn error(message: String) {
 
     let stderr = io::stderr();
     let mut handle = stderr.lock();
 
     //handle.write(b"hello world").unwrap();
-    handle.write(message).unwrap();
+    handle.write(format!("\x1B[1;31m{}\x1B[m", message).as_bytes()).unwrap();
 
     //show(message) - trzeba na czerwono wyświeltić ten komuniakt - ale tylko w przypadku
     //  wyswietlania na ekran, bo do pliku albo do sysloga to be zkoloryzowania
 }
 
 
-pub fn show() {
+pub fn info(message: String) {
+    println!("{}", format!("\x1B[32m{}\x1B[39m", message));
 }
 
-*/
+

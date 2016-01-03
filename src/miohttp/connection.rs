@@ -116,6 +116,17 @@ impl Connection {
         }
     }
     
+    pub fn get_name(&self) -> &str {
+        
+        match self.mode {
+            
+            ConnectionMode::ReadingRequest(_, _)        => "ReadingRequest",
+            ConnectionMode::WaitingForServerResponse(_) => "WaitingForServerResponse",
+            ConnectionMode::SendingResponse(_, _, _)    => "SendingResponse",
+            ConnectionMode::Close                       => "Close"
+        }
+    }
+    
     pub fn ready(self, events: EventSet, token: &Token, event_loop: &mut EventLoop<MyHandler>) -> (Connection, Option<Request>) {
         
         if events.is_error() {

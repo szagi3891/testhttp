@@ -8,7 +8,7 @@ use miohttp::connection::{Connection, TimerMode};
 use miohttp::token_gen::TokenGen;
 use miohttp::request;
 use miohttp::response;
-
+use miohttp::log;
 
 // Define a handler to process the events
 pub struct MyHandler {
@@ -40,7 +40,7 @@ impl Handler for MyHandler {
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
 
-        println!(">>>>>>>>>>> {:?} {:?} (is server = {})", token, events, token == self.token);
+        log::info(format!("miohttp {} -> ready, {:?} (is server = {})", token.as_usize(), events, token == self.token));
 
         if token == self.token {
             self.new_connection(event_loop);
@@ -109,7 +109,8 @@ impl MyHandler {
             }
 
             None => {
-                println!("socket_ready: no socket by token: {:?}", &token);
+                
+                log::info(format!("miohttp {} -> send_data_to_user: no socket", token.as_usize()));
             }
         }
     }
@@ -121,11 +122,12 @@ impl MyHandler {
 
             Some((_, _, _)) => {
                 
-                println!("timeout - poprawnie zamknięte połączenie {:?}", token);
+                log::info(format!("miohttp {} -> timeout_trigger ok", token.as_usize()));
             }
 
             None => {
-                println!("TODO - error, brak takiego połączenia, wrzucić loga w strumień błędów {:?}", token);
+                
+                log::error(format!("miohttp {} -> timeout_trigger error", token.as_usize()));
             }
         }
     }
@@ -139,8 +141,8 @@ impl MyHandler {
                 Ok(Some((stream, addr))) => {
 
                     let token = self.tokens.get();
-
-                    println!("new connection ok - {} {:?}", addr, &token);
+                    
+                    log::info(format!("miohttp {} -> new connection, addr = {}", token.as_usize(), addr));
 
                     let connection = Connection::new(stream);
 
@@ -151,9 +153,9 @@ impl MyHandler {
                     return;
                 }
 
-                Err(e) => {
-
-                    println!("error accept mew connection: {}", e);
+                Err(err) => {
+                    
+                    log::error(format!("miohttp {} -> new connection err {}", self.token.as_usize(), err));
                     return;
                 }
             };
@@ -195,14 +197,14 @@ impl MyHandler {
             }
 
             None => {
-
-                println!("socket_ready: no socket by token: {:?}", &token);
+                
+                log::info(format!("miohttp {} -> socket+ready: no socket by token", token.as_usize()));
             }
         };
     }
 
 
-    fn set_event(&mut self, connection: &Connection, token: &Token, old_event: &Event, new_event: &Event, event_loop: &mut EventLoop<MyHandler>) {
+    fn set_event(&mut self, connection: &Connection, token: &Token, old_event: &Event, new_event: &Event, event_loop: &mut EventLoop<MyHandler>) -> String {
 
         let pool_opt    = PollOpt::edge() | PollOpt::oneshot();
 
@@ -213,43 +215,47 @@ impl MyHandler {
         if *old_event == Event::Init {
 
             match *new_event {
-                Event::Init => {},
+                Event::Init => {
+                    format!("register: none")
+                },
                 Event::Write => {
-                    println!("----------> register: {:?} {:?}", token, event_write);
                     event_loop.register(&connection.stream, token.clone(), event_write, pool_opt).unwrap();
+                    format!("register: {:?}", event_write)
                 },
                 Event::Read => {
-                    println!("----------> register: {:?} {:?}", token, event_read);
                     event_loop.register(&connection.stream, token.clone(), event_read, pool_opt).unwrap();
+                    format!("register: {:?}", event_read)
                 },
                 Event::None => {
-                    println!("----------> register: {:?} {:?}", token, event_none);
                     event_loop.register(&connection.stream, token.clone(), event_none, pool_opt).unwrap();
+                    format!("register: {:?}", event_none)
                 }
             }
 
         } else {
 
             match *new_event {
-                Event::Init => {},
+                Event::Init => {
+                    format!("reregister: none")
+                },
                 Event::Write => {
-                    println!("----------> reregister: {:?} {:?}", token, event_write);
                     event_loop.reregister(&connection.stream, token.clone(), event_write, pool_opt).unwrap();
+                    format!("reregister: {:?}", event_write)
                 },
                 Event::Read => {
-                    println!("----------> reregister: {:?} {:?}", token, event_read);
                     event_loop.reregister(&connection.stream, token.clone(), event_read, pool_opt).unwrap();
+                    format!("reregister: {:?}", event_read)
                 },
                 Event::None => {
-                    println!("----------> reregister: {:?} {:?}", token, event_none);
                     event_loop.reregister(&connection.stream, token.clone(), event_none, pool_opt).unwrap();
+                    format!("reregister: {:?}", event_none)
                 }
             }
         }
     }
 
     
-    fn set_timer(&mut self, token: &Token, timeout: Option<Timeout>, timer_mode: TimerMode, event_loop: &mut EventLoop<MyHandler>) -> Option<Timeout> {
+    fn set_timer(&mut self, token: &Token, timeout: Option<Timeout>, timer_mode: TimerMode, event_loop: &mut EventLoop<MyHandler>) -> (Option<Timeout>, String) {
         
         match timeout {
             
@@ -257,20 +263,12 @@ impl MyHandler {
                 
                 match timer_mode {
                     
-                    TimerMode::In => {
-                        Some(timeout)
-                    },
-                    
-                    TimerMode::Out => {
-                        Some(timeout)
-                    },
+                    TimerMode::In  => (Some(timeout), "keep".to_string()),
+                    TimerMode::Out => (Some(timeout), "keep".to_string()),
                     
                     TimerMode::None => {
-                        
-                        println!("ZERUJĘ TIMER {:?}", token);
-                        
                         let _ = event_loop.clear_timeout(timeout);
-                        None
+                        (None, "clear".to_string())
                     },
                 }
             },
@@ -281,81 +279,46 @@ impl MyHandler {
                     
                     TimerMode::In => {
                         
-                        println!("USTAWIAM TIMER IN {:?}", token);
-                        
                         match event_loop.timeout_ms(token.clone(), self.timeout_reading) {
                             
-                            Ok(timeout) => {
-                                
-                                println!("USTAWIAM TIMER IN - udane");
-                                Some(timeout)
-                            },
-                            
-                            Err(err) => {
-                                
-                                //TODO - błąd wrzucić w logowanie na strumień błędów
-                                
-                                println!("USTAWIAM TIMER IN - nieudane");
-                                None
-                            }
+                            Ok(timeout) => (Some(timeout), "timer in set".to_string()),
+                            Err(err)    => (None , format!("timer in error {:?}", err)),
                         }
                             
                     },
                     
                     TimerMode::Out => {
                         
-                        println!("USTAWIAM TIMER OUT {:?}", token);
-                        
                         match event_loop.timeout_ms(token.clone(), self.timeout_writing) {
                             
-                            Ok(timeout) => {
-                                
-                                println!("USTAWIAM TIMER OUT - udane");
-                                Some(timeout)
-                            },
-                            
-                            Err(err) => {
-                                
-                                //TODO - błąd wrzucić w logowanie na strumień błędów
-                                
-                                println!("USTAWIAM TIMER OUT - nieudane");
-                                None
-                            }
+                            Ok(timeout) => (Some(timeout), "timer out set".to_string()),
+                            Err(err)    => (None , format!("timer out error {:?}", err)),
                         }
                     },
                     
-                    TimerMode::None => {
-                        None
-                    },
+                    TimerMode::None => (None, "none".to_string()),
                 }
             },
         }
     }
     
-    
-    
-    
     fn insert_connection(&mut self, token: &Token, connection: Connection, old_event: Event, timeout: Option<Timeout>, event_loop: &mut EventLoop<MyHandler>) {
 
         let new_event = connection.get_event();
         
-        /*
-        println!("----------> set mode : WaitingForDataUser");
-        println!("----------> set mode : WaitingForDataServer");
-        println!("----------> set mode : DataToSendUser");
-        println!("----------> set mode : Close");
-        */
-        
-        if old_event != new_event {
-            self.set_event(&connection, token, &old_event, &new_event, event_loop);
-        }
+        let mess_event = if old_event != new_event {
+            self.set_event(&connection, token, &old_event, &new_event, event_loop)
+        } else {
+            "none".to_string()
+        };
         
         
-        let new_timer = self.set_timer(token, timeout, connection.get_timer_mode(), event_loop);
+        let (new_timer, timer_message) = self.set_timer(token, timeout, connection.get_timer_mode(), event_loop);
         
+        
+        log::info(format!("miohttp {} -> set mode {}, {}, timer {}", token.as_usize(), connection.get_name(), mess_event, timer_message));
         
         self.hash.insert(token.clone(), (connection, new_event, new_timer));
-        
         
         println!("count hasmapy after insert {}", self.hash.len());
     }
