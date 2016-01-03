@@ -5,13 +5,16 @@ extern crate simple_signal;
 extern crate httparse;
 extern crate time;
 
+mod async;
 mod miohttp;
 mod statichttp;
 
+use std::thread;
 use std::sync::mpsc::{channel};
 use simple_signal::{Signals, Signal};
 use miohttp::request;
-
+use miohttp::response;
+use std::io;
 
 fn main() {
     
@@ -58,6 +61,15 @@ fn main() {
             odbiera clousera - uruchamia go
     */
     
+    let (tx_files_path, rx_files_path) = channel::<(String, Box<Fn(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>();
+    let (tx_files_data, rx_files_data) = channel::<(Result<Vec<u8>, io::Error>, Box<Fn(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>();
+        
+    thread::spawn(move || {
+        
+        statichttp::run(rx_files_path, tx_files_data);
+    });
+    
+    
 	loop {
         
 		select! {
@@ -74,7 +86,52 @@ fn main() {
 					
 					Ok(request) => {
 						
-                        statichttp::process_request(request);
+                        
+                        let path_str = "./static".to_string() + request.path.trim();
+                        
+                        //versia 1
+                        
+                        tx_files_path.send((path_str, Box::new(move|data: Result<Vec<u8>, io::Error>|{
+                            
+                            match data {
+                                
+                                Ok(buffer) => {
+                                    
+                                    let response = response::Response::create_from_buf(response::Code::Code200, response::Type::Html, buffer);
+                                    request.send(response);
+                                }
+                                
+                                Err(err) => {
+                                    println!("err: {}", err);
+                                }
+                            }
+                            
+                            //println!("odebrano dane w callbacku {:?}", data);
+                        })));
+                        
+                        //versia 2
+                        /*
+                        let cb = Box::new(move|data: Result<Vec<u8>, io::Error>|{
+                            
+                            match data {
+                                
+                                Ok(buffer) => {
+                                    
+                                    let response = response::Response::create_from_buf(response::Code::Code200, response::Type::Html, buffer);
+                                    request.send(response);
+                                }
+                                
+                                Err(err) => {
+                                    println!("err: {}", err);
+                                }
+                            }
+                            
+                            //println!("odebrano dane w callbacku {:?}", data);
+                        });
+                        
+                        tx_files_path.send((path_str, cb));
+                        */
+                        
 					}
 					
 					Err(err) => {
@@ -82,7 +139,23 @@ fn main() {
 						println!("error get from channel {:?}", err);
 					}
 				}
-			}
+			},
+        
+            data = rx_files_data.recv() => {
+                
+                match data {
+                    Ok((result, callback)) => {
+                        
+                        callback(result);
+                        
+                    }
+                    Err(err) => {
+                        println!("error ...");
+                    }
+                }
+                
+                //println!("odebrano dane pliku {:?}", files_data);
+            }
 		}
 	}	
 }
