@@ -1,6 +1,5 @@
 #![feature(mpsc_select)]
 
-
 extern crate mio;
 extern crate simple_signal;
 extern crate httparse;
@@ -18,7 +17,7 @@ fn main() {
     
 	let addres = "127.0.0.1:2222";
     
-	println!("Hello, world! - {}", &addres);
+	println!("server running - {}", &addres);
 	
     
     let (tx_request, rx_request) = channel::<request::Request>();
@@ -65,35 +64,3 @@ fn main() {
 	}	
 }
 
-
-
-/*
-mod api1;
-mod api2;
-mod api3;
-
-mod async;
-
-fn main() {
-    
-    println!("test asyunchroniczności");
-    
-    async::test();
-
-}
-*/
-
-
-/*
-extern crate simple_signal;
-
-mod thread;
-
-fn main() {
-    
-    println!("test panic-a w wątkach");
-    
-    thread::test();
-
-}
-*/
