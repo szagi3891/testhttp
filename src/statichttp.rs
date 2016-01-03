@@ -10,8 +10,9 @@ use std::sync::mpsc::{Receiver, Sender};
 //use std::thread;
 //use std::time::Duration;
 
+use std::boxed::FnBox;
 
-pub fn run(rx: Receiver<(String, Box<Fn(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<Fn(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
+pub fn run(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
     
     loop {
         
