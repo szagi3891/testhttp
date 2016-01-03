@@ -25,10 +25,10 @@ impl PreRequest {
 
                 for header in req.headers {
 
-                    let key   = header.name.to_string();
+                    let key   = header.name.to_owned();
 
                     let value = match std::str::from_utf8(header.value) {
-                        Ok(value) => value.to_string(),
+                        Ok(value) => value.to_owned(),
                         Err(err) => {
                             return Err(format!("header {}, error utf8 sequence: {}", key, err))
                         }
@@ -43,8 +43,8 @@ impl PreRequest {
                 }
 
                 Ok(PreRequest{
-                    method  : method.to_string(),
-                    path    : path.to_string(),
+                    method  : method.to_owned(),
+                    path    : path.to_owned(),
                     version : version,
                     headers : headers,
                 })
@@ -52,7 +52,7 @@ impl PreRequest {
             _ => {
 
                 //TODO - komunikat ma bardziej szczegółowo wskazywać gdzie wystąpił błąd
-                Err("Błąd tworzenia odpowiedzi".to_string())
+                Err("Błąd tworzenia odpowiedzi".to_owned())
             }
         }
     }
@@ -95,7 +95,7 @@ impl Request {
 
     pub fn is_header_set(&self, name: &str, value: &str) -> bool {
         
-        match self.headers.get(&Box::new(name.to_string())) {
+        match self.headers.get(&Box::new(name.to_owned())) {
             
             Some(get_value) => {
                 get_value == value.trim()
