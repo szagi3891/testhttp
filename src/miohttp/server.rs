@@ -263,12 +263,12 @@ impl MyHandler {
                 
                 match timer_mode {
                     
-                    TimerMode::In  => (Some(timeout), "keep".to_string()),
-                    TimerMode::Out => (Some(timeout), "keep".to_string()),
+                    TimerMode::In  => (Some(timeout), "keep".to_owned()),
+                    TimerMode::Out => (Some(timeout), "keep".to_owned()),
                     
                     TimerMode::None => {
                         let _ = event_loop.clear_timeout(timeout);
-                        (None, "clear".to_string())
+                        (None, "clear".to_owned())
                     },
                 }
             },
@@ -281,7 +281,7 @@ impl MyHandler {
                         
                         match event_loop.timeout_ms(token.clone(), self.timeout_reading) {
                             
-                            Ok(timeout) => (Some(timeout), "timer in set".to_string()),
+                            Ok(timeout) => (Some(timeout), "timer in set".to_owned()),
                             Err(err)    => (None , format!("timer in error {:?}", err)),
                         }
                             
@@ -291,12 +291,12 @@ impl MyHandler {
                         
                         match event_loop.timeout_ms(token.clone(), self.timeout_writing) {
                             
-                            Ok(timeout) => (Some(timeout), "timer out set".to_string()),
+                            Ok(timeout) => (Some(timeout), "timer out set".to_owned()),
                             Err(err)    => (None , format!("timer out error {:?}", err)),
                         }
                     },
                     
-                    TimerMode::None => (None, "none".to_string()),
+                    TimerMode::None => (None, "none".to_owned()),
                 }
             },
         }
@@ -309,7 +309,7 @@ impl MyHandler {
         let mess_event = if old_event != new_event {
             self.set_event(&connection, token, &old_event, &new_event, event_loop)
         } else {
-            "none".to_string()
+            "none".to_owned()
         };
         
         
