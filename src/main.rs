@@ -21,12 +21,11 @@ fn main() {
 	
     
     let (tx_request, rx_request) = channel::<request::Request>();
-		
     
     miohttp::server::MyHandler::new(&addres.to_string(), 4000, 4000, tx_request);
     
 	
-	let (ctrl_c_tx, ctrl_c_rx) = channel();
+	let (ctrl_c_tx, ctrl_c_rx) = channel::<()>();
 	
 	Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
     
@@ -35,6 +34,30 @@ fn main() {
         ctrl_c_tx.send(()).unwrap(); 
     });
 	
+    /*
+        workery
+            api
+            
+        worker od plików
+        
+        worker od bazy danych
+    */
+    
+    /*
+    
+        model uproszczony
+        
+        worker plików
+            pytanie o plik - kanałem
+            odpowiedź o plik - kanałem, odpowiada clouserem do uruchomienia oraz danymi tego pliku
+            dane pliku współdzielone za pomocą ARC (tylko do odczytu)
+            
+        proces workera ogólnego (w pełni asynchronicznego)
+            tworzy nowy obiekt api (z namiarami na kanały workera plików)
+            odbiera request - uruchamia główną metodę api
+            odbiera clousera - uruchamia go
+    */
+    
 	loop {
         
 		select! {

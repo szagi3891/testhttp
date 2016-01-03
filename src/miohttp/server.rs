@@ -198,7 +198,7 @@ impl MyHandler {
 
             None => {
                 
-                log::info(format!("miohttp {} -> socket+ready: no socket by token", token.as_usize()));
+                log::info(format!("miohttp {} -> socket ready: no socket by token", token.as_usize()));
             }
         };
     }
