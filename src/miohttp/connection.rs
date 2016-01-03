@@ -27,16 +27,11 @@ pub enum TimerMode {
 }
 
 
-//socket, keep alive, actuall event set, current mode
-//pub struct Connection (TcpStream, bool, ConnectionMode);
-
 pub struct Connection {
     pub stream: TcpStream,
     mode: ConnectionMode,
 }
 
-
-//TODO - może warto z połączeniem przechowywać również token ... ?
 
 impl Connection {
 
@@ -206,10 +201,9 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
                                 Err(err) => {
                                     
                                     log::error(format!("miohttp {} -> error prepare request, {:?}", token.as_usize(), err));
-//TODO - błąd 400
-//trzeba też zamknąć połączenie
-
-                                    (Connection::make(stream, ConnectionMode::ReadingRequest(buf, done)), None)
+                                    
+                                    let response_400 = response::Response::create_400();
+                                    (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.as_bytes(), 0)), None)
                                 }
                             }
                         }
@@ -221,11 +215,11 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
                         }
 
                         Err(err) => {
-
-//TODO - 400 error http
-//zamknij połączenie
-
+                            
                             match err {
+                                
+//TODO - zrobić formatowanie komunikatu z błędem -> wrzucać na strumień błędów
+                                
                                 httparse::Error::HeaderName => {
                                     println!("header name");
                                 }
@@ -235,8 +229,9 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
                             }
 
                             /* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
-
-                            (Connection::make(stream, (ConnectionMode::ReadingRequest(buf, done))), None)
+                            
+                            let response_400 = response::Response::create_400();
+                            (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.as_bytes(), 0)), None)
                         }
                     }
 

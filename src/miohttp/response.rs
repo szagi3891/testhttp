@@ -1,5 +1,6 @@
 pub enum Code {
     Code200,
+    Code400,
     Code404,
     Code500,
 }
@@ -10,6 +11,7 @@ impl Code {
     fn to_str(&self) -> &str {
         match *self {
             Code::Code200 => "200 OK",
+            Code::Code400 => "400 Bad Request",
             Code::Code404 => "404 Not Found",
             Code::Code500 => "500 Internal Server Error",
         }
@@ -82,6 +84,10 @@ impl Response {
         Response::create(Code::Code500, Type::Html, "500 Internal Server Error".to_string())
     }
     
+    pub fn create_400() -> Response {
+        Response::create(Code::Code400, Type::Html, "400 Bad Request".to_string())
+    }
+    
     /*
     let mut out: Vec<u8> = Vec::new();
     out.append(&mut ("HTTP/1.1 ".to_string() + code.to_str() + "\r\n").into_bytes());
@@ -109,8 +115,6 @@ impl Response {
     out.push(body);
 
     let message = out.join("\r\n");
-
-    //TODO - występuje kopiowanie pamięci, znaleźć lepszy sposób na konwersję tych danych
 
     let mut resp_vec: Vec<u8> = Vec::new();
 

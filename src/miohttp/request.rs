@@ -91,9 +91,6 @@ https://github.com/tailhook/rotor-http/blob/master/src/http1.rs
 */
 
 
-//TODO - trzeba będzie mu zaimplementować dropa
-
-
 impl Request {
 
     pub fn is_header_set(&self, name: &str, value: &str) -> bool {
