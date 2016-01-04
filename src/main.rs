@@ -1,5 +1,6 @@
 #![feature(mpsc_select)]
 #![feature(box_syntax, box_patterns)]
+#![feature(fnbox)]
 
 extern crate mio;
 extern crate simple_signal;
@@ -122,11 +123,11 @@ fn main() {
             data = rx_files_data.recv() => {
                 
                 match data {
-                    Ok((result, callback)) => {
-                        
-                        callback(result);
-                        
+                    
+                    Ok((result, callback)) => {    
+                        callback.call_box((result,));    
                     }
+                    
                     Err(err) => {
                         println!("error ...");
                     }
