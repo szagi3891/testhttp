@@ -72,6 +72,13 @@ fn main() {
         statichttp::run(rx_files_path, tx_files_data);
     });
     
+    /*
+        TODO - potencjalnie do zastosowania - możliwe wielu konsumerów
+
+        https://github.com/BurntSushi/chan              - github
+        http://burntsushi.net/rustdoc/chan/             - dokumentacja
+        https://github.com/BurntSushi/chan/issues/2     - przebrnąć
+    */
     
 	loop {
         
