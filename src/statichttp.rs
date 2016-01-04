@@ -30,8 +30,15 @@ pub fn run(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 
 
                         let mut buffer: Vec<u8> = Vec::new();
 
-                        match file.read_to_end(&mut buffer) {
-                            Ok(_) => Ok(buffer),
+                        // FIXME: Need to set a limit of max bytes read as na option maybe?
+                        let file_size_limit = 1_000_000;
+                        match file.take(file_size_limit as u64).read_to_end(&mut buffer) {
+                            Ok(bytes_read) => {
+                                if bytes_read == file_size_limit {
+                                    println!("Truncated file {:?} to {} bytes", path, file_size_limit);
+                                }
+                                Ok(buffer)
+                            },
                             Err(err) => Err(err),
                         }
                     },
