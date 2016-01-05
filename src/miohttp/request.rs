@@ -1,7 +1,9 @@
-use httparse;
-use std::collections::HashMap;
 use std;
+use std::collections::HashMap;
 use mio;
+use httparse;
+use std::io::{Error, ErrorKind};
+
 use miohttp::response;
 
 
@@ -15,7 +17,7 @@ pub struct PreRequest {
 
 impl PreRequest {
 
-    pub fn new(req: httparse::Request) -> Result<PreRequest, String> {
+    pub fn new(req: httparse::Request) -> Result<PreRequest, Error> {
 
         match (req.method, req.path, req.version) {
 
@@ -30,14 +32,14 @@ impl PreRequest {
                     let value = match std::str::from_utf8(header.value) {
                         Ok(value) => value.to_owned(),
                         Err(err) => {
-                            return Err(format!("header {}, error utf8 sequence: {}", key, err))
+                            return Err(Error::new(ErrorKind::InvalidInput, format!("header {}, error utf8 sequence: {}", key, err)))
                         }
                     };
 
                     match headers.insert(Box::new(key.clone()), value) {
                         None => {}      //insert ok
                         Some(_) => {
-                            return Err(format!("double header: {}", &key));
+                            return Err(Error::new(ErrorKind::InvalidInput, format!("double header: {}", &key)));
                         }
                     };
                 }
@@ -52,7 +54,7 @@ impl PreRequest {
             _ => {
 
                 //TODO - komunikat ma bardziej szczegółowo wskazywać gdzie wystąpił błąd
-                Err("Błąd tworzenia odpowiedzi".to_owned())
+                Err(Error::new(ErrorKind::InvalidInput, "Błąd tworzenia odpowiedzi"))
             }
         }
     }

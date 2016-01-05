@@ -1,15 +1,16 @@
+use std::thread;
+use std::collections::HashMap;
+//use std::sync::mpsc;
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, Timeout};
 use mio::tcp::{TcpListener};
 //use mio::util::Slab;                              //TODO - użyć tego modułu zamiast hashmapy
-use std::collections::HashMap;
-use std::thread;
-//use std::sync::mpsc;
 use chan;
-use miohttp::connection::{Connection, TimerMode};
-use miohttp::token_gen::TokenGen;
+
 use miohttp::request;
 use miohttp::response;
 use miohttp::log;
+use miohttp::connection::{Connection, TimerMode};
+use miohttp::token_gen::TokenGen;
 
 // Define a handler to process the events
 pub struct MyHandler {
@@ -23,7 +24,7 @@ pub struct MyHandler {
 }
 
 
-                                //typ event who is set for socket in event_loop
+// Event type which is set for socket in event_loop
 //#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 #[derive(PartialEq)]
 pub enum Event {

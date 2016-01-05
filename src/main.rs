@@ -7,15 +7,14 @@ extern crate time;
 #[macro_use]
 extern crate chan;
 
+use std::{io, thread};
+use std::boxed::FnBox;
+use simple_signal::{Signals, Signal};
+use miohttp::{request, response};
+
 mod async;
 mod miohttp;
 mod statichttp;
-
-use std::thread;
-use simple_signal::{Signals, Signal};
-use miohttp::{request, response};
-use std::io;
-use std::boxed::FnBox;
 
 
 fn main() {
