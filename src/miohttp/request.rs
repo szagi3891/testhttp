@@ -1,7 +1,8 @@
-use httparse;
-use std::collections::HashMap;
 use std;
+use std::collections::HashMap;
 use mio;
+use httparse;
+
 use miohttp::response;
 
 

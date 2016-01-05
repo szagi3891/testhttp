@@ -3,8 +3,7 @@
 use miohttp::log;
 
 use std::io::prelude::Read;
-use std::fs::File;
-use std::fs;
+use std::fs::{self, File};
 use std::path::Path;
 use std::io;
 
