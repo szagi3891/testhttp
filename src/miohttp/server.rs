@@ -208,50 +208,33 @@ impl MyHandler {
 
     fn set_event(&mut self, connection: &Connection, token: &Token, old_event: &Event, new_event: &Event, event_loop: &mut EventLoop<MyHandler>) -> String {
 
-        let pool_opt    = PollOpt::edge() | PollOpt::oneshot();
-
-        let event_none  = EventSet::error() | EventSet::hup();
-        let event_write = event_none | EventSet::writable();
-        let event_read  = event_none | EventSet::readable();
-
+        let pool_opt = PollOpt::edge() | PollOpt::oneshot();
+        
+        let new_mode = match *new_event {
+            Event::Init  => None,
+            Event::Write => Some(EventSet::error() | EventSet::hup() | EventSet::writable()),
+            Event::Read  => Some(EventSet::error() | EventSet::hup() | EventSet::readable()),
+            Event::None  => Some(EventSet::error() | EventSet::hup()),
+        };
+        
         if *old_event == Event::Init {
-
-            match *new_event {
-                Event::Init => {
-                    format!("register: none")
+        
+            match new_mode {
+                None => format!("register: none"),
+                Some(mode) => {
+                    event_loop.register(&connection.stream, token.clone(), mode, pool_opt).unwrap();
+                    format!("register: {:?}", mode)
                 },
-                Event::Write => {
-                    event_loop.register(&connection.stream, token.clone(), event_write, pool_opt).unwrap();
-                    format!("register: {:?}", event_write)
-                },
-                Event::Read => {
-                    event_loop.register(&connection.stream, token.clone(), event_read, pool_opt).unwrap();
-                    format!("register: {:?}", event_read)
-                },
-                Event::None => {
-                    event_loop.register(&connection.stream, token.clone(), event_none, pool_opt).unwrap();
-                    format!("register: {:?}", event_none)
-                }
             }
-
+        
         } else {
-
-            match *new_event {
-                Event::Init => {
-                    format!("reregister: none")
+            
+            match new_mode {
+                None => format!("reregister: none"),
+                Some(mode) => {
+                    event_loop.reregister(&connection.stream, token.clone(), mode, pool_opt).unwrap();
+                    format!("reregister: {:?}", mode)
                 },
-                Event::Write => {
-                    event_loop.reregister(&connection.stream, token.clone(), event_write, pool_opt).unwrap();
-                    format!("reregister: {:?}", event_write)
-                },
-                Event::Read => {
-                    event_loop.reregister(&connection.stream, token.clone(), event_read, pool_opt).unwrap();
-                    format!("reregister: {:?}", event_read)
-                },
-                Event::None => {
-                    event_loop.reregister(&connection.stream, token.clone(), event_none, pool_opt).unwrap();
-                    format!("reregister: {:?}", event_none)
-                }
             }
         }
     }
