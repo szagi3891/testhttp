@@ -3,7 +3,8 @@ use mio::tcp::{TcpListener};
 //use mio::util::Slab;                              //TODO - użyć tego modułu zamiast hashmapy
 use std::collections::HashMap;
 use std::thread;
-use std::sync::mpsc;
+//use std::sync::mpsc;
+use chan;
 use miohttp::connection::{Connection, TimerMode};
 use miohttp::token_gen::TokenGen;
 use miohttp::request;
@@ -16,7 +17,7 @@ pub struct MyHandler {
     server          : TcpListener,
     hash            : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
-    send            : mpsc::Sender<request::Request>,
+    send            : chan::Sender<request::Request>,
     timeout_reading : u64,
     timeout_writing : u64,
 }
@@ -67,7 +68,7 @@ impl Handler for MyHandler {
 
 impl MyHandler {
 
-    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: mpsc::Sender<request::Request>) {
+    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: chan::Sender<request::Request>) {
 
         let mut tokens = TokenGen::new();
 
@@ -186,8 +187,9 @@ impl MyHandler {
                 match request_opt {
                     
                     Some(request) => {
-                        
+                        println!("wysyłam kanałem z mio 1");
                         let _ = self.send.send(request);
+                        println!("wysyłam kanałem z mio 2");
                     }
 
                     None => {}
@@ -206,50 +208,33 @@ impl MyHandler {
 
     fn set_event(&mut self, connection: &Connection, token: &Token, old_event: &Event, new_event: &Event, event_loop: &mut EventLoop<MyHandler>) -> String {
 
-        let pool_opt    = PollOpt::edge() | PollOpt::oneshot();
-
-        let event_none  = EventSet::error() | EventSet::hup();
-        let event_write = event_none | EventSet::writable();
-        let event_read  = event_none | EventSet::readable();
-
+        let pool_opt = PollOpt::edge() | PollOpt::oneshot();
+        
+        let new_mode = match *new_event {
+            Event::Init  => None,
+            Event::Write => Some(EventSet::error() | EventSet::hup() | EventSet::writable()),
+            Event::Read  => Some(EventSet::error() | EventSet::hup() | EventSet::readable()),
+            Event::None  => Some(EventSet::error() | EventSet::hup()),
+        };
+        
         if *old_event == Event::Init {
-
-            match *new_event {
-                Event::Init => {
-                    format!("register: none")
+        
+            match new_mode {
+                None => format!("register: none"),
+                Some(mode) => {
+                    event_loop.register(&connection.stream, token.clone(), mode, pool_opt).unwrap();
+                    format!("register: {:?}", mode)
                 },
-                Event::Write => {
-                    event_loop.register(&connection.stream, token.clone(), event_write, pool_opt).unwrap();
-                    format!("register: {:?}", event_write)
-                },
-                Event::Read => {
-                    event_loop.register(&connection.stream, token.clone(), event_read, pool_opt).unwrap();
-                    format!("register: {:?}", event_read)
-                },
-                Event::None => {
-                    event_loop.register(&connection.stream, token.clone(), event_none, pool_opt).unwrap();
-                    format!("register: {:?}", event_none)
-                }
             }
-
+        
         } else {
-
-            match *new_event {
-                Event::Init => {
-                    format!("reregister: none")
+            
+            match new_mode {
+                None => format!("reregister: none"),
+                Some(mode) => {
+                    event_loop.reregister(&connection.stream, token.clone(), mode, pool_opt).unwrap();
+                    format!("reregister: {:?}", mode)
                 },
-                Event::Write => {
-                    event_loop.reregister(&connection.stream, token.clone(), event_write, pool_opt).unwrap();
-                    format!("reregister: {:?}", event_write)
-                },
-                Event::Read => {
-                    event_loop.reregister(&connection.stream, token.clone(), event_read, pool_opt).unwrap();
-                    format!("reregister: {:?}", event_read)
-                },
-                Event::None => {
-                    event_loop.reregister(&connection.stream, token.clone(), event_none, pool_opt).unwrap();
-                    format!("reregister: {:?}", event_none)
-                }
             }
         }
     }
