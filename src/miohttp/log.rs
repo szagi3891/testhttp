@@ -76,7 +76,7 @@ pub fn error(message: String) {
     let mut handle = stderr.lock();
 
     //handle.write(b"hello world").unwrap();
-    handle.write(format!("\x1B[1;31m{}\x1B[m", message).as_bytes()).unwrap();
+    handle.write(format!("\x1B[1;31m{}\x1B[m\n", message).as_bytes()).unwrap();
 
     //show(message) - trzeba na czerwono wyświeltić ten komuniakt - ale tylko w przypadku
     //  wyswietlania na ekran, bo do pliku albo do sysloga to be zkoloryzowania
