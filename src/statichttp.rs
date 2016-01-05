@@ -18,7 +18,7 @@ pub fn run(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 
         
         match rx.recv() {
 
-            Ok((path_str, callback)) => {
+            Some((path_str, callback)) => {
 
                 let path = Path::new(&path_str);
                 
@@ -39,12 +39,15 @@ pub fn run(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 
                     Err(err) => Err(err),
                 };
                 
+                println!("odpowiedź zwrotna");
+                
                 response_data.send((response, callback));
             }
             
-            Err(err) => {
+            None => {
                 
-                panic!("error {:?}", err);
+                println!("worker statichttp się zakończył");
+                return
             }
         }
     }

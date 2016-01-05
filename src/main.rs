@@ -17,28 +17,26 @@ use miohttp::{request, response};
 use std::io;
 use std::boxed::FnBox;
 
-                    //TODO - zastąpić modułem chan
-use std::sync::mpsc::{channel};
 
 fn main() {
     
-	let addres = "127.0.0.1:2222";
+	let addres = "0.0.0.0:2222";
     
 	println!("server running - {}", &addres);
 	
     
-    let (tx_request, rx_request) = channel::<request::Request>();
+    let (tx_request, rx_request) = chan::sync(0);       //channel::<request::Request>();
     
     miohttp::server::MyHandler::new(&addres.to_string(), 4000, 4000, tx_request);
     
 	
-	let (ctrl_c_tx, ctrl_c_rx) = channel::<()>();
+	let (ctrl_c_tx, ctrl_c_rx) = chan::sync(0);        //channel::<()>();
 	
 	Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
     
         println!("catch ctrl+c");
         
-        ctrl_c_tx.send(()).unwrap(); 
+        ctrl_c_tx.send(());
     });
 	
     /*
@@ -101,12 +99,15 @@ fn main() {
 				
 				match to_handle {
 					
-					Ok(request) => {
+					Some(request) => {
 						
                         
                         let path_str = "./static".to_owned() + request.path.trim();
                         
                         //versia 1
+                        
+                        println!("ścieżka do zaserwowania {}", path_str);
+                        
                         
                         tx_files_path.send((path_str, Box::new(move|data: Result<Vec<u8>, io::Error>|{
                             
@@ -121,34 +122,41 @@ fn main() {
                                 }
                                 
                                 Err(err) => {
-                                    println!("err: {}", err);
+                                    
+                                    println!("error czytania pliku: {}", err);
                                 }
                             }
                         })));
 					}
 					
-					Err(err) => {
+					None => {
 						
-						println!("error get from channel {:?}", err);
+                        //TODO
+                        println!("wyparował nadawca requestów");
+						//println!("error get from channel {:?}", err);
 					}
 				}
 			},
         
             rx_files_data.recv() -> data => {
                 
+                println!("odebrało dane z plikiem");
+                
                 match data {
                     
-                    Ok((result, callback)) => {    
+                    Some((result, callback)) => {    
                         callback.call_box((result,));    
                     }
                     
-                    Err(err) => {
-                        println!("error ...");
+                    None => {
+                        
+                        //TODO
+                        println!("wyparował nadawca requestów");
                     }
                 }
                 
                 //println!("odebrano dane pliku {:?}", files_data);
-            },
+            }
 		}
 	}	
 }
