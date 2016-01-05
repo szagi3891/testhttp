@@ -1,23 +1,24 @@
-#![feature(mpsc_select)]
-#![feature(box_syntax, box_patterns)]
 #![feature(fnbox)]
 
 extern crate mio;
 extern crate simple_signal;
 extern crate httparse;
 extern crate time;
+#[macro_use]
+extern crate chan;
 
 mod async;
 mod miohttp;
 mod statichttp;
 
 use std::thread;
-use std::sync::mpsc::{channel};
 use simple_signal::{Signals, Signal};
-use miohttp::request;
-use miohttp::response;
+use miohttp::{request, response};
 use std::io;
 use std::boxed::FnBox;
+
+                    //TODO - zastąpić modułem chan
+use std::sync::mpsc::{channel};
 
 fn main() {
     
@@ -64,9 +65,15 @@ fn main() {
             odbiera clousera - uruchamia go
     */
     
+    let (tx_files_path, rx_files_path) = chan::sync(0);
+    let (tx_files_data, rx_files_data) = chan::sync(0);
+    
+    
+    /*
     let (tx_files_path, rx_files_path) = channel::<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>();
     let (tx_files_data, rx_files_data) = channel::<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>();
-        
+    */
+    
     thread::spawn(move || {
         
         statichttp::run(rx_files_path, tx_files_data);
@@ -82,15 +89,15 @@ fn main() {
     
 	loop {
         
-		select! {
+		chan_select! {
 			
-			_ = ctrl_c_rx.recv() => {
+			ctrl_c_rx.recv() => {
 				
 				println!("shoutdown");
 				return;
 			},
 			
-            to_handle = rx_request.recv() => {
+            rx_request.recv() -> to_handle => {
 				
 				match to_handle {
 					
@@ -127,7 +134,7 @@ fn main() {
 				}
 			},
         
-            data = rx_files_data.recv() => {
+            rx_files_data.recv() -> data => {
                 
                 match data {
                     
@@ -141,7 +148,7 @@ fn main() {
                 }
                 
                 //println!("odebrano dane pliku {:?}", files_data);
-            }
+            },
 		}
 	}	
 }

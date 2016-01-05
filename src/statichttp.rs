@@ -6,7 +6,7 @@ use std::fs::File;
 use std::path::Path;
 use std::io;
 
-use std::sync::mpsc::{Receiver, Sender};
+use chan::{Receiver, Sender};
 //use std::thread;
 //use std::time::Duration;
 
