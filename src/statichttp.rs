@@ -1,8 +1,10 @@
 //use miohttp::request;
 //use miohttp::response;
+use miohttp::log;
 
 use std::io::prelude::Read;
 use std::fs::File;
+use std::fs;
 use std::path::Path;
 use std::io;
 
@@ -23,20 +25,31 @@ pub fn run(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 
                 let path = Path::new(&path_str);
                 
                 println!("plik do odczytania : {:?}", path);
-                
-                let response = match File::open(path) {
 
-                    Ok(mut file) => {
-
-                        let mut buffer: Vec<u8> = Vec::new();
-
-                        match file.read_to_end(&mut buffer) {
-                            Ok(_) => Ok(buffer),
-                            Err(err) => Err(err),
+                let response = match fs::metadata(path) {
+                    Ok(meta) => {
+                        // FIXME: Need to set a limit of max bytes read as na option maybe?
+                        if meta.len() > 1_000_000 {
+                            log::error(format!("File {:?} is too big to serve", path));
+                            Err(io::Error::new(io::ErrorKind::InvalidData, "Static file too big"))
+                        } else {
+                            match File::open(path) {
+                         
+                                Ok(mut file) => {
+                         
+                                    let mut buffer: Vec<u8> = Vec::new();
+                         
+                                    match file.read_to_end(&mut buffer) {
+                                        Ok(_) => Ok(buffer),
+                                        Err(err) => Err(err),
+                                    }
+                                },
+                                
+                                Err(err) => Err(err),
+                            }
                         }
-                    },
-                    
-                    Err(err) => Err(err),
+                    }
+                    Err(err) => Err(err), 
                 };
                 
                 println!("odpowiedź zwrotna");
