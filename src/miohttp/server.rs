@@ -24,7 +24,7 @@ pub struct MyHandler {
 }
 
 
-                                //typ event who is set for socket in event_loop
+// Event type which is set for socket in event_loop
 //#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 #[derive(PartialEq)]
 pub enum Event {
