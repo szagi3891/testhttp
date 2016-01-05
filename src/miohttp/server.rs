@@ -3,7 +3,8 @@ use mio::tcp::{TcpListener};
 //use mio::util::Slab;                              //TODO - użyć tego modułu zamiast hashmapy
 use std::collections::HashMap;
 use std::thread;
-use std::sync::mpsc;
+//use std::sync::mpsc;
+use chan;
 use miohttp::connection::{Connection, TimerMode};
 use miohttp::token_gen::TokenGen;
 use miohttp::request;
@@ -16,7 +17,7 @@ pub struct MyHandler {
     server          : TcpListener,
     hash            : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
-    send            : mpsc::Sender<request::Request>,
+    send            : chan::Sender<request::Request>,
     timeout_reading : u64,
     timeout_writing : u64,
 }
@@ -67,7 +68,7 @@ impl Handler for MyHandler {
 
 impl MyHandler {
 
-    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: mpsc::Sender<request::Request>) {
+    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: chan::Sender<request::Request>) {
 
         let mut tokens = TokenGen::new();
 
@@ -186,8 +187,9 @@ impl MyHandler {
                 match request_opt {
                     
                     Some(request) => {
-                        
+                        println!("wysyłam kanałem z mio 1");
                         let _ = self.send.send(request);
+                        println!("wysyłam kanałem z mio 2");
                     }
 
                     None => {}
