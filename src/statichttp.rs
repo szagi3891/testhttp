@@ -1,32 +1,41 @@
-//use miohttp::request;
-//use miohttp::response;
-use miohttp::log;
-
 use std::io::prelude::Read;
 use std::fs::{self, File};
 use std::path::Path;
 use std::io;
 
-use chan::{Receiver, Sender};
+use chan::{Receiver, Sender, WaitGroup};
 use std::thread;
 //use std::time::Duration;
 
 use std::boxed::FnBox;
 
-pub fn run(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
-    
-    for _ in 0..2 {
+//use miohttp::request;
+//use miohttp::response;
+use miohttp::log;
+
+pub fn run(wg: WaitGroup, rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
+
+    let static_workers_no = 5;
+
+    for i in 0..static_workers_no {
         
+        wg.add(1);
+
+        let wg            = wg.clone();
         let rx            = rx.clone();
         let response_data = response_data.clone();
         
-        thread::spawn(||{
+        match thread::Builder::new().name(format!("StaticHttp worker #{}", i).to_string()).spawn(move ||{
             worker(rx, response_data);
-        });
+            wg.done();
+        }) {
+            Err(err) => panic!("Can't spawn statichttp worker #{}: {}", i, err),
+            Ok(_) => { },
+        };
     }
-    
+
     //TODO - dodać monitoring działania workerów
-    
+    println!("StaticHttp workers spawned: {}", static_workers_no);
 }
 
 
@@ -53,10 +62,10 @@ fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + '
                          
                                 Ok(mut file) => {
                          
-                                    let mut buffer: Vec<u8> = Vec::new();
+                                    let mut file_data: Vec<u8> = Vec::new();
                          
-                                    match file.read_to_end(&mut buffer) {
-                                        Ok(_) => Ok(buffer),
+                                    match file.read_to_end(&mut file_data) {
+                                        Ok(_) => Ok(file_data),
                                         Err(err) => Err(err),
                                     }
                                 },
@@ -69,14 +78,14 @@ fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + '
                 };
                 
                 println!("odpowiedź zwrotna");
-                
+            
                 response_data.send((response, callback));
             }
             
             None => {
                 
-                println!("worker statichttp się zakończył");
-                return
+                println!("{} ends.", thread::current().name().unwrap());
+                return;
             }
         }
     }

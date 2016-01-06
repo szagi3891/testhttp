@@ -19,13 +19,19 @@ impl Code {
 }
 
 pub enum Type {
-    Html
+    TextHtml,
+    TextPlain,
+    ImageJpeg,
+    ImagePng,
 }
 
 impl Type {
-    fn to_str(&self) -> &str {
+    pub fn to_str(&self) -> &str {
         match *self {
-            Type::Html => "text/html; charset=utf-8",
+            Type::TextHtml => "text/html; charset=utf-8",
+            Type::TextPlain => "text/plain",
+            Type::ImageJpeg => "image/jpeg",
+            Type::ImagePng => "image/png",
         }
     }
 }
@@ -81,11 +87,11 @@ impl Response {
     }
     
     pub fn create_500() -> Response {
-        Response::create(Code::Code500, Type::Html, "500 Internal Server Error".to_owned())
+        Response::create(Code::Code500, Type::TextHtml, "500 Internal Server Error".to_owned())
     }
     
     pub fn create_400() -> Response {
-        Response::create(Code::Code400, Type::Html, "400 Bad Request".to_owned())
+        Response::create(Code::Code400, Type::TextHtml, "400 Bad Request".to_owned())
     }
     
     /*
