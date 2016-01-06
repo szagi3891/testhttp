@@ -76,7 +76,7 @@ fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + '
             None => {
                 
                 println!("worker statichttp się zakończył");
-                return
+                return;
             }
         }
     }

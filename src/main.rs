@@ -11,7 +11,7 @@ use std::{io, thread};
 use std::boxed::FnBox;
 use std::path::Path;
 use simple_signal::{Signals, Signal};
-use miohttp::{request, response};
+use miohttp::response;
 
 mod async;
 mod miohttp;
@@ -75,8 +75,7 @@ fn main() {
     let (tx_files_data, rx_files_data) = channel::<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>();
     */
     
-    thread::spawn(move || {
-        
+    let statichttp_thread = thread::spawn(move || {
         statichttp::run(rx_files_path, tx_files_data);
     });
     
@@ -87,9 +86,9 @@ fn main() {
 			
 			ctrl_c_rx1.recv() => {
 				
-				println!("shoutdown");
+				println!("shutdown");
                 ctrl_c_tx2.send(());
-				return;
+				break;
 			},
 			
             rx_request.recv() -> to_handle => {
@@ -156,7 +155,7 @@ fn main() {
 						
                         //TODO
                         println!("wyparował nadawca requestów");
-                        return;
+                        break;
 					}
 				}
 			},
@@ -175,11 +174,16 @@ fn main() {
                         
                         //TODO
                         println!("wyparował nadawca requestów");
-                        return;
+                        break;
                     }
                 }
             }
 		}
-	}	
+	}
+
+    match statichttp_thread.join() {
+        Err(err) => println!("Error wating for static thread: {:?}", err),
+        Ok(_) => { }
+    };
 }
 
