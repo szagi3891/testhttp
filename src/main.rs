@@ -24,18 +24,21 @@ fn main() {
 	println!("server running - {}", &addres);
 	
     
-    let (tx_request, rx_request) = chan::sync(0);       //channel::<request::Request>();
+    let (tx_request, rx_request) = chan::async();       //channel::<request::Request>();
     
     miohttp::server::MyHandler::new(&addres.to_string(), 4000, 4000, tx_request);
     
 	
-	let (ctrl_c_tx, ctrl_c_rx) = chan::sync(0);        //channel::<()>();
+	let (ctrl_c_tx1, ctrl_c_rx1) = chan::sync(0);
+    let (ctrl_c_tx2, ctrl_c_rx2) = chan::sync(0);
 	
 	Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
     
         println!("catch ctrl+c");
         
-        ctrl_c_tx.send(());
+        ctrl_c_tx1.send(());
+                                        //oczekuj na zakończenie procedury wyłączania
+        let _ = ctrl_c_rx2.recv();
     });
 	
     /*
@@ -63,7 +66,7 @@ fn main() {
     */
     
     let (tx_files_path, rx_files_path) = chan::async();
-    let (tx_files_data, rx_files_data) = chan::sync(0);
+    let (tx_files_data, rx_files_data) = chan::async();
     
     
     /*
@@ -81,9 +84,10 @@ fn main() {
         
 		chan_select! {
 			
-			ctrl_c_rx.recv() => {
+			ctrl_c_rx1.recv() => {
 				
 				println!("shoutdown");
+                ctrl_c_tx2.send(());
 				return;
 			},
 			
