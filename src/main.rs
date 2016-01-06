@@ -9,7 +9,6 @@ extern crate chan;
 
 use std::{io, thread};
 use std::boxed::FnBox;
-use std::path::Path;
 use simple_signal::{Signals, Signal};
 use miohttp::response;
 
@@ -116,22 +115,9 @@ fn main() {
 
                                         let buffer = buffer.to_owned();
 
-                                        // TODO: Move this match to different place as it will grow very big
-                                        // TODO: Match on strings is slow, maybe some b-tree?
-                                        // TODO: Maybe request.path should be an instance of Path already?
-                                        let content_type = match Path::new(&request.path.trim()).extension() {
-                                            Some(ext) => match ext.to_str() {
-                                                Some("html") => response::Type::TextHtml,
-                                                Some("txt") => response::Type::TextPlain,
-                                                Some("jpg") => response::Type::ImageJpeg,
-                                                Some("png") => response::Type::ImagePng,
-                                                Some(_) => response::Type::TextHtml,
-                                                None => response::Type::TextHtml,
-                                            },
-                                            None => response::Type::TextHtml,
-                                        };
+                                        let content_type = response::Type::from_path(request.path.trim());
 
-                                        println!("200, {}, {}", content_type.to_str(), request.path);
+                                        println!("200, {}, {}", content_type, request.path);
 
                                         let response = response::Response::create_from_buf(response::Code::Code200, content_type, buffer);
                                         request.send(response);
