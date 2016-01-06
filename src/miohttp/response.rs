@@ -1,3 +1,5 @@
+use std::path::Path;
+
 pub enum Code {
     Code200,
     Code400,
@@ -159,5 +161,25 @@ impl Response {
     
     "sfsfsd".to_owned() == "das"
     */
+}
+
+
+pub fn create_type_from_path(path: &Path) -> Type {
+    
+    // TODO: Match on strings is slow, maybe some b-tree?
+    
+    match path.extension() {
+        
+        Some(ext) => match ext.to_str() {
+            Some("html") => Type::TextHtml,
+            Some("txt")  => Type::TextPlain,
+            Some("jpg")  => Type::ImageJpeg,
+            Some("png")  => Type::ImagePng,
+            Some(_)      => Type::TextHtml,
+            None         => Type::TextHtml,
+        },
+        
+        None => Type::TextHtml,
+    }
 }
 

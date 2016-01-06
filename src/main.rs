@@ -104,36 +104,26 @@ fn main() {
                         
                         Some(request) => {
                             
-                            let path_str = "./static".to_owned() + request.path.trim();
-
-                            println!("ścieżka do zaserwowania {}", path_str);
-
-                            tx_files_path.send((path_str, Box::new(move|data: Result<Vec<u8>, io::Error>|{
+                            let path_src = "./static".to_owned() + request.path.trim();
+                            
+                            println!("ścieżka do zaserwowania {}", &path_src);
+                            
+                            tx_files_path.send((path_src.clone(), Box::new(move|data: Result<Vec<u8>, io::Error>|{
                                 
                                 match data {
                                     
                                     Ok(buffer) => {
-
+                                        
                                         let buffer = buffer.to_owned();
-
-                                        // TODO: Move this match to different place as it will grow very big
-                                        // TODO: Match on strings is slow, maybe some b-tree?
-                                        // TODO: Maybe request.path should be an instance of Path already?
-                                        let content_type = match Path::new(&request.path.trim()).extension() {
-                                            Some(ext) => match ext.to_str() {
-                                                Some("html") => response::Type::TextHtml,
-                                                Some("txt") => response::Type::TextPlain,
-                                                Some("jpg") => response::Type::ImageJpeg,
-                                                Some("png") => response::Type::ImagePng,
-                                                Some(_) => response::Type::TextHtml,
-                                                None => response::Type::TextHtml,
-                                            },
-                                            None => response::Type::TextHtml,
-                                        };
-
+                                        
+                                        let path         = Path::new(&path_src);
+                                        let content_type = response::create_type_from_path(&path);
+                                        
                                         println!("200, {}, {}", content_type.to_str(), request.path);
-
+                                        
                                         let response = response::Response::create_from_buf(response::Code::Code200, content_type, buffer);
+                                        
+                                        
                                         request.send(response);
                                     }
                                     

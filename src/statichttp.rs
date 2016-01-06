@@ -5,7 +5,6 @@ use std::io;
 
 use chan::{Receiver, Sender, WaitGroup};
 use std::thread;
-//use std::time::Duration;
 
 use std::boxed::FnBox;
 
@@ -45,9 +44,9 @@ fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + '
         
         match rx.recv() {
 
-            Some((path_str, callback)) => {
-
-                let path = Path::new(&path_str);
+            Some((path_src, callback)) => {
+                
+                let path = Path::new(&path_src);
                 
                 println!("plik do odczytania : {:?}", path);
 
