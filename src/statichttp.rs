@@ -1,7 +1,3 @@
-//use miohttp::request;
-//use miohttp::response;
-use miohttp::log;
-
 use std::io::prelude::Read;
 use std::fs::{self, File};
 use std::path::Path;
@@ -12,6 +8,10 @@ use std::thread;
 //use std::time::Duration;
 
 use std::boxed::FnBox;
+
+//use miohttp::request;
+//use miohttp::response;
+use miohttp::log;
 
 pub fn run(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
     
@@ -53,10 +53,10 @@ fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + '
                          
                                 Ok(mut file) => {
                          
-                                    let mut buffer: Vec<u8> = Vec::new();
+                                    let mut file_data: Vec<u8> = Vec::new();
                          
-                                    match file.read_to_end(&mut buffer) {
-                                        Ok(_) => Ok(buffer),
+                                    match file.read_to_end(&mut file_data) {
+                                        Ok(_) => Ok(file_data),
                                         Err(err) => Err(err),
                                     }
                                 },
@@ -69,7 +69,7 @@ fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + '
                 };
                 
                 println!("odpowiedź zwrotna");
-                
+            
                 response_data.send((response, callback));
             }
             
