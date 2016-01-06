@@ -8,13 +8,30 @@ use std::path::Path;
 use std::io;
 
 use chan::{Receiver, Sender};
-//use std::thread;
+use std::thread;
 //use std::time::Duration;
 
 use std::boxed::FnBox;
 
 pub fn run(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
     
+    for _ in 0..2 {
+        
+        let rx            = rx.clone();
+        let response_data = response_data.clone();
+        
+        thread::spawn(||{
+            worker(rx, response_data);
+        });
+    }
+    
+    //TODO - dodać monitoring działania workerów
+    
+}
+
+
+fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
+
     loop {
         
         match rx.recv() {
@@ -64,8 +81,6 @@ pub fn run(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 
         }
     }
 }
-
-
 /*
 pub fn process_request(request: request::Request) {
     

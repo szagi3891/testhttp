@@ -62,7 +62,7 @@ fn main() {
             odbiera clousera - uruchamia go
     */
     
-    let (tx_files_path, rx_files_path) = chan::sync(0);
+    let (tx_files_path, rx_files_path) = chan::async();
     let (tx_files_data, rx_files_data) = chan::sync(0);
     
     
@@ -76,13 +76,6 @@ fn main() {
         statichttp::run(rx_files_path, tx_files_data);
     });
     
-    /*
-        TODO - potencjalnie do zastosowania - możliwe wielu konsumerów
-
-        https://github.com/BurntSushi/chan              - github
-        http://burntsushi.net/rustdoc/chan/             - dokumentacja
-        https://github.com/BurntSushi/chan/issues/2     - przebrnąć
-    */
     
 	loop {
         
@@ -100,13 +93,9 @@ fn main() {
 					
 					Some(request) => {
 						
-                        
                         let path_str = "./static".to_owned() + request.path.trim();
                         
-                        //versia 1
-                        
                         println!("ścieżka do zaserwowania {}", path_str);
-                        
                         
                         tx_files_path.send((path_str, Box::new(move|data: Result<Vec<u8>, io::Error>|{
                             
@@ -122,7 +111,20 @@ fn main() {
                                 
                                 Err(err) => {
                                     
-                                    println!("error czytania pliku: {}", err);
+                                    match err.kind() {
+
+                                        io::ErrorKind::NotFound => {
+
+                                            let mess     = "Not fund".to_string();
+                                            let response = response::Response::create(response::Code::Code404, response::Type::Html, mess);
+                                            request.send(response);
+                                        }
+                                        _ => {
+
+                                            println!("errrrr {:?}", err);
+                                        }
+                                    }
+                                
                                 }
                             }
                         })));
@@ -132,7 +134,7 @@ fn main() {
 						
                         //TODO
                         println!("wyparował nadawca requestów");
-						//println!("error get from channel {:?}", err);
+                        return;
 					}
 				}
 			},
@@ -151,10 +153,9 @@ fn main() {
                         
                         //TODO
                         println!("wyparował nadawca requestów");
+                        return;
                     }
                 }
-                
-                //println!("odebrano dane pliku {:?}", files_data);
             }
 		}
 	}	
