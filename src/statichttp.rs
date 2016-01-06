@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::io;
 
-use chan::{Receiver, Sender};
+use chan::{Receiver, Sender, WaitGroup};
 use std::thread;
 //use std::time::Duration;
 
@@ -13,20 +13,29 @@ use std::boxed::FnBox;
 //use miohttp::response;
 use miohttp::log;
 
-pub fn run(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
-    
-    for _ in 0..2 {
+pub fn run(wg: WaitGroup, rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
+
+    let static_workers_no = 5;
+
+    for i in 0..static_workers_no {
         
+        wg.add(1);
+
+        let wg            = wg.clone();
         let rx            = rx.clone();
         let response_data = response_data.clone();
         
-        thread::spawn(||{
+        match thread::Builder::new().name(format!("StaticHttp worker #{}", i).to_string()).spawn(move ||{
             worker(rx, response_data);
-        });
+            wg.done();
+        }) {
+            Err(err) => panic!("Can't spawn statichttp worker #{}: {}", i, err),
+            Ok(_) => { },
+        };
     }
-    
+
     //TODO - dodać monitoring działania workerów
-    
+    println!("StaticHttp workers spawned: {}", static_workers_no);
 }
 
 
@@ -75,7 +84,7 @@ fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + '
             
             None => {
                 
-                println!("worker statichttp się zakończył");
+                println!("{} ends.", thread::current().name().unwrap());
                 return;
             }
         }
