@@ -296,7 +296,7 @@ fn transform_from_sending_to_user(mut stream: TcpStream, token: &Token, keep_ali
                                                     //eep connection
                         if keep_alive == true {
 
-                            log::info(format!("miohttp {} -> keep alive", token.as_usize()));
+                            log::debug(format!("miohttp {} -> keep alive", token.as_usize()));
                             
                             return Connection::make(stream, (ConnectionMode::ReadingRequest([0u8; 2048], 0)));
 

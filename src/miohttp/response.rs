@@ -1,3 +1,4 @@
+use std::fmt;
 use std::path::Path;
 
 pub enum Code {
@@ -28,13 +29,40 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn to_str(&self) -> &str {
+    fn to_str(&self) -> &str {
         match *self {
             Type::TextHtml => "text/html; charset=utf-8",
             Type::TextPlain => "text/plain",
             Type::ImageJpeg => "image/jpeg",
             Type::ImagePng => "image/png",
         }
+    }
+
+
+    pub fn create_from_path(path: &Path) -> Type {
+        
+        // TODO: Match on strings is slow, maybe some b-tree?
+        
+        match path.extension() {
+            
+            Some(ext) => match ext.to_str() {
+                Some("html") => Type::TextHtml,
+                Some("txt")  => Type::TextPlain,
+                Some("jpg")  => Type::ImageJpeg,
+                Some("png")  => Type::ImagePng,
+                Some(_)      => Type::TextHtml,
+                None         => Type::TextHtml,
+            },
+            
+            None => Type::TextHtml,
+        }
+    }
+
+}
+
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_str())
     }
 }
 
@@ -161,25 +189,5 @@ impl Response {
     
     "sfsfsd".to_owned() == "das"
     */
-}
-
-
-pub fn create_type_from_path(path: &Path) -> Type {
-    
-    // TODO: Match on strings is slow, maybe some b-tree?
-    
-    match path.extension() {
-        
-        Some(ext) => match ext.to_str() {
-            Some("html") => Type::TextHtml,
-            Some("txt")  => Type::TextPlain,
-            Some("jpg")  => Type::ImageJpeg,
-            Some("png")  => Type::ImagePng,
-            Some(_)      => Type::TextHtml,
-            None         => Type::TextHtml,
-        },
-        
-        None => Type::TextHtml,
-    }
 }
 

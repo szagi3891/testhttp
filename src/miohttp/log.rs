@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use std::thread;
 
 // https://en.wikipedia.org/wiki/Syslog#Severity_level
 /*
@@ -76,7 +77,7 @@ pub fn error(message: String) {
     let mut handle = stderr.lock();
 
     //handle.write(b"hello world").unwrap();
-    handle.write(format!("\x1B[1;31m{}\x1B[m\n", message).as_bytes()).unwrap();
+    handle.write(format!("\x1B[1;31m{:<20}: {}\x1B[m\n", thread::current().name().unwrap_or("<unnamed>"), message).as_bytes()).unwrap();
 
     //show(message) - trzeba na czerwono wyświeltić ten komuniakt - ale tylko w przypadku
     //  wyswietlania na ekran, bo do pliku albo do sysloga to be zkoloryzowania
@@ -84,7 +85,10 @@ pub fn error(message: String) {
 
 
 pub fn info(message: String) {
-    println!("{}", format!("\x1B[32m{}\x1B[39m", message));
+    println!("\x1B[32m{:<20}: {}\x1B[39m", thread::current().name().unwrap_or("<unnamed>"), message);
 }
 
+pub fn debug(message: String) {
+    println!("{:<20}: {}", thread::current().name().unwrap_or("<unnamed>"), message);
+}
 

@@ -10,8 +10,10 @@ extern crate chan;
 use std::{io, thread};
 use std::boxed::FnBox;
 use std::path::Path;
+use std::process;
 use simple_signal::{Signals, Signal};
-use miohttp::response;
+
+use miohttp::{response, log};
 
 mod async;
 mod miohttp;
@@ -30,16 +32,21 @@ fn main() {
     {
         let (tx_request, rx_request) = chan::async();       //channel::<request::Request>();
 
-        miohttp::server::MyHandler::new(&addres.to_string(), 4000, 4000, tx_request);
-        
+        match miohttp::server::MyHandler::new(&addres.to_string(), 4000, 4000, tx_request) {
+            Ok(_) => { },
+            Err(err) => {
+                // Return real OS error to shell
+                process::exit(err.raw_os_error().unwrap_or(-1));
+            }
+        }
 
         let (ctrl_c_tx1, ctrl_c_rx1) = chan::sync(0);
         let (ctrl_c_tx2, ctrl_c_rx2) = chan::sync(0);
 
         Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
 
-            println!("catch ctrl+c");
-            
+            log::debug(format!("Termination signal catched."));
+
             ctrl_c_tx1.send(());
                                             //oczekuj na zakończenie procedury wyłączania
             let _ = ctrl_c_rx2.recv();
@@ -79,7 +86,7 @@ fn main() {
 
         let wg = wait_group.clone();
 
-        match thread::Builder::new().name("StaticHttp master".to_string()).spawn(move || {
+        match thread::Builder::new().name("<StaticHttp master>".to_string()).spawn(move || {
             statichttp::run(wg, rx_files_path, tx_files_data);
         }) {
             Ok(join_handle) => join_handle,
@@ -93,7 +100,7 @@ fn main() {
 
                 ctrl_c_rx1.recv() => {
 
-                    println!("shutdown");
+                    log::info(format!("Shutting down!"));
                     ctrl_c_tx2.send(());
                     break;
                 },
@@ -106,7 +113,7 @@ fn main() {
                             
                             let path_src = "./static".to_owned() + request.path.trim();
                             
-                            println!("ścieżka do zaserwowania {}", &path_src);
+                            log::info(format!("Path requested: {}", &path_src));
                             
                             tx_files_path.send((path_src.clone(), Box::new(move|data: Result<Vec<u8>, io::Error>|{
                                 
@@ -115,14 +122,13 @@ fn main() {
                                     Ok(buffer) => {
                                         
                                         let buffer = buffer.to_owned();
-                                        
+
                                         let path         = Path::new(&path_src);
-                                        let content_type = response::create_type_from_path(&path);
+                                        let content_type = response::Type::create_from_path(&path);
                                         
-                                        println!("200, {}, {}", content_type.to_str(), request.path);
+                                        log::info(format!("200, {}, {}", content_type, request.path));
                                         
                                         let response = response::Response::create_from_buf(response::Code::Code200, content_type, buffer);
-                                        
                                         
                                         request.send(response);
                                     }
@@ -139,7 +145,7 @@ fn main() {
                                             }
                                             _ => {
 
-                                                println!("errrrr {:?}", err);
+                                                log::error(format!("errrrr {:?}", err));
                                             }
                                         }
 
@@ -159,7 +165,7 @@ fn main() {
 
                 rx_files_data.recv() -> data => {
 
-                    println!("odebrało dane z plikiem");
+                    log::debug(format!("Received file data"));
                     
                     match data {
                         
@@ -170,7 +176,7 @@ fn main() {
                         None => {
 
                             //TODO
-                            println!("wyparował nadawca requestów");
+                            log::info(format!("wyparował nadawca requestów"));
                             break;
                         }
                     }
@@ -181,8 +187,8 @@ fn main() {
     }
 
     // All channels dropped, wait for workers to end.
-    println!("Waiting for workers to end...");
+    log::debug(format!("Waiting for workers to end..."));
     wait_group.wait();
-    println!("Bye.");
+    log::info(format!("Bye."));
 }
 
