@@ -9,6 +9,7 @@ extern crate chan;
 
 use std::{io, thread};
 use std::boxed::FnBox;
+use std::path::Path;
 use simple_signal::{Signals, Signal};
 use miohttp::response;
 
@@ -103,23 +104,25 @@ fn main() {
                         
                         Some(request) => {
                             
-                            let path_str = "./static".to_owned() + request.path.trim();
-
-                            println!("ścieżka do zaserwowania {}", path_str);
-
-                            tx_files_path.send((path_str, Box::new(move|data: Result<Vec<u8>, io::Error>|{
+                            let path_src = "./static".to_owned() + request.path.trim();
+                            
+                            println!("ścieżka do zaserwowania {}", &path_src);
+                            
+                            tx_files_path.send((path_src.clone(), Box::new(move|data: Result<Vec<u8>, io::Error>|{
                                 
                                 match data {
                                     
                                     Ok(buffer) => {
-
+                                        
                                         let buffer = buffer.to_owned();
 
-                                        let content_type = response::Type::from_path(request.path.trim());
-
+                                        let path         = Path::new(&path_src);
+                                        let content_type = response::Type::create_from_path(&path);
+                                        
                                         println!("200, {}, {}", content_type, request.path);
-
+                                        
                                         let response = response::Response::create_from_buf(response::Code::Code200, content_type, buffer);
+                                        
                                         request.send(response);
                                     }
                                     
