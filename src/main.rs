@@ -28,14 +28,14 @@ fn main() {
 
     let wait_group = chan::WaitGroup::new();
     
-    let code_end = run(addres.to_owned(), &wait_group);
+    let exit_code = run(addres.to_owned(), &wait_group);
 
     // All channels dropped, wait for workers to end.
     log::debug(format!("Waiting for workers to end..."));
     wait_group.wait();
     log::info(format!("Bye."));
     
-    process::exit(code_end);
+    process::exit(exit_code);
 }
 
 
@@ -171,7 +171,7 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
 
                         //TODO
                         //println!("wyparował nadawca requestów");
-                        break;
+                        return 0;
                     }
                 }
             },
@@ -190,12 +190,10 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
 
                         //TODO
                         log::info(format!("wyparował nadawca requestów"));
-                        break;
+                        return 0;
                     }
                 }
             }
         }
     };
-    
-    0
 }
