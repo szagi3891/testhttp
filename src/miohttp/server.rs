@@ -1,5 +1,6 @@
 use std::thread;
 use std::collections::HashMap;
+use std::io;
 //use std::sync::mpsc;
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, Timeout};
 use mio::tcp::{TcpListener};
@@ -69,7 +70,7 @@ impl Handler for MyHandler {
 
 impl MyHandler {
 
-    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: chan::Sender<request::Request>) {
+    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: chan::Sender<request::Request>) -> Result<(), io::Error> {
 
         let mut tokens = TokenGen::new();
 
@@ -77,7 +78,13 @@ impl MyHandler {
 
         let addr = ip.parse().unwrap();
 
-        let server = TcpListener::bind(&addr).unwrap();
+        let server = match TcpListener::bind(&addr) {
+            Ok(server) => server,
+            Err(err) => {
+                log::error(format!("Unable to bind socket {}: {}", addr, err));
+                return Err(err);
+            }
+        };
 
         let token = tokens.get();
 
@@ -94,9 +101,10 @@ impl MyHandler {
         };
 
         thread::spawn(move || {
-
             event_loop.run(&mut inst).unwrap();
         });
+
+        return Ok(());
     }
 
     fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, response: response::Response) {

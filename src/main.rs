@@ -10,6 +10,7 @@ extern crate chan;
 use std::{io, thread};
 use std::boxed::FnBox;
 use std::path::Path;
+use std::process;
 use simple_signal::{Signals, Signal};
 use miohttp::response;
 
@@ -30,8 +31,13 @@ fn main() {
     {
         let (tx_request, rx_request) = chan::async();       //channel::<request::Request>();
 
-        miohttp::server::MyHandler::new(&addres.to_string(), 4000, 4000, tx_request);
-        
+        match miohttp::server::MyHandler::new(&addres.to_string(), 4000, 4000, tx_request) {
+            Ok(_) => { },
+            Err(err) => {
+                // Return real OS error to shell
+                process::exit(err.raw_os_error().unwrap_or(-1));
+            }
+        }
 
         let (ctrl_c_tx1, ctrl_c_rx1) = chan::sync(0);
         let (ctrl_c_tx2, ctrl_c_rx2) = chan::sync(0);
