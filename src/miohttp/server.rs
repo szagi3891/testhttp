@@ -43,7 +43,7 @@ impl Handler for MyHandler {
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, events: EventSet) {
 
-        log::info(format!("miohttp {} -> ready, {:?} (is server = {})", token.as_usize(), events, token == self.token));
+        log::debug(format!("miohttp {} -> ready, {:?} (is server = {})", token.as_usize(), events, token == self.token));
 
         if token == self.token {
             self.new_connection(event_loop);
@@ -100,11 +100,15 @@ impl MyHandler {
             timeout_writing : timeout_writing,
         };
 
-        thread::spawn(move || {
+        match thread::Builder::new().name("<EventLoop>".to_string()).spawn(move || {
             event_loop.run(&mut inst).unwrap();
-        });
-
-        return Ok(());
+        }) {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                log::error(format!("Can't spawn event loop: {}", err));
+                Err(err)
+            }
+        }
     }
 
     fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, response: response::Response) {
@@ -132,7 +136,7 @@ impl MyHandler {
 
             Some((_, _, _)) => {
                 
-                log::info(format!("miohttp {} -> timeout_trigger ok", token.as_usize()));
+                log::debug(format!("miohttp {} -> timeout_trigger ok", token.as_usize()));
             }
 
             None => {
@@ -196,9 +200,9 @@ impl MyHandler {
                 match request_opt {
                     
                     Some(request) => {
-                        println!("wysyłam kanałem z mio 1");
+                        log::debug(format!("Sending request through channel 1"));
                         let _ = self.send.send(request);
-                        println!("wysyłam kanałem z mio 2");
+                        log::debug(format!("Sending request through channel 2"));
                     }
 
                     None => {}
@@ -310,18 +314,18 @@ impl MyHandler {
         let (new_timer, timer_message) = self.set_timer(token, timeout, connection.get_timer_mode(), event_loop);
         
         
-        log::info(format!("miohttp {} -> set mode {}, {}, timer {}", token.as_usize(), connection.get_name(), mess_event, timer_message));
+        log::debug(format!("miohttp {} -> set mode {}, {}, timer {}", token.as_usize(), connection.get_name(), mess_event, timer_message));
         
         self.hash.insert(token.clone(), (connection, new_event, new_timer));
         
-        println!("count hasmapy after insert {}", self.hash.len());
+        log::debug(format!("count hasmapy after insert {}", self.hash.len()));
     }
     
     fn get_connection(&mut self, token: &Token) -> Option<(Connection, Event, Option<Timeout>)> {
 
         let res = self.hash.remove(&token);
         
-        println!("hashmap after decrement {}", self.hash.len());
+        log::debug(format!("hashmap after decrement {}", self.hash.len()));
         
         res
     }

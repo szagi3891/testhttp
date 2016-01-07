@@ -24,7 +24,7 @@ pub fn run(wg: WaitGroup, rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Er
         let rx            = rx.clone();
         let response_data = response_data.clone();
         
-        match thread::Builder::new().name(format!("StaticHttp worker #{}", i).to_string()).spawn(move ||{
+        match thread::Builder::new().name(format!("<Static worker #{}>", i).to_string()).spawn(move ||{
             worker(rx, response_data);
             wg.done();
         }) {
@@ -34,7 +34,7 @@ pub fn run(wg: WaitGroup, rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Er
     }
 
     //TODO - dodać monitoring działania workerów
-    println!("StaticHttp workers spawned: {}", static_workers_no);
+    log::info(format!("Workers spawned: {}", static_workers_no));
 }
 
 
@@ -48,7 +48,7 @@ fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + '
                 
                 let path = Path::new(&path_src);
                 
-                println!("plik do odczytania : {:?}", path);
+                log::debug(format!("Loading file {:?}", path));
 
                 let response = match fs::metadata(path) {
                     Ok(meta) => {
@@ -76,14 +76,14 @@ fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + '
                     Err(err) => Err(err), 
                 };
                 
-                println!("odpowiedź zwrotna");
+                log::debug(format!("Sending response."));
             
                 response_data.send((response, callback));
             }
             
             None => {
                 
-                println!("{} ends.", thread::current().name().unwrap());
+                log::debug(format!("Exiting."));
                 return;
             }
         }
