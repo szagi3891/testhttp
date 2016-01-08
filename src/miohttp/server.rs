@@ -308,7 +308,6 @@ impl MyHandler {
             match self.set_event(&connection, token, &old_event, &new_event, event_loop) {
                 Ok(str) => str,
                 Err(err) => {
-                    
                     log::error(format!("set_event: {}", err));
                     return;
                 }
