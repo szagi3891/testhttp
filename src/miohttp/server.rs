@@ -219,8 +219,8 @@ impl MyHandler {
     }
 
 
-    fn set_event(&mut self, connection: &Connection, token: &Token, old_event: &Event, new_event: &Event, event_loop: &mut EventLoop<MyHandler>) -> String {
-
+    fn set_event(&mut self, connection: &Connection, token: &Token, old_event: &Event, new_event: &Event, event_loop: &mut EventLoop<MyHandler>) -> Result<String, io::Error> {
+        
         let pool_opt = PollOpt::edge() | PollOpt::oneshot();
         
         let new_mode = match *new_event {
@@ -233,20 +233,20 @@ impl MyHandler {
         if *old_event == Event::Init {
         
             match new_mode {
-                None => format!("register: none"),
+                None => Ok(format!("register: none")),
                 Some(mode) => {
-                    event_loop.register(&connection.stream, token.clone(), mode, pool_opt).unwrap();
-                    format!("register: {:?}", mode)
+                    try!(event_loop.register(&connection.stream, token.clone(), mode, pool_opt));
+                    Ok(format!("register: {:?}", mode))
                 },
             }
         
         } else {
             
             match new_mode {
-                None => format!("reregister: none"),
+                None => Ok(format!("reregister: none")),
                 Some(mode) => {
-                    event_loop.reregister(&connection.stream, token.clone(), mode, pool_opt).unwrap();
-                    format!("reregister: {:?}", mode)
+                    try!(event_loop.reregister(&connection.stream, token.clone(), mode, pool_opt));
+                    Ok(format!("reregister: {:?}", mode))
                 },
             }
         }
@@ -305,7 +305,14 @@ impl MyHandler {
         let new_event = connection.get_event();
         
         let mess_event = if old_event != new_event {
-            self.set_event(&connection, token, &old_event, &new_event, event_loop)
+            match self.set_event(&connection, token, &old_event, &new_event, event_loop) {
+                Ok(str) => str,
+                Err(err) => {
+                    
+                    log::error(format!("set_event: {}", err));
+                    return;
+                }
+            }
         } else {
             "none".to_owned()
         };
