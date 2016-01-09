@@ -7,9 +7,14 @@ extern crate time;
 #[macro_use]
 extern crate chan;
 
-mod async;
-mod miohttp;
-mod app;
+
+// Module with macros defined should be stated first!
+#[macro_use]
+mod log;            //do zewnętrznego crates
+mod async;          //do zewnętrznego crates
+mod miohttp;        //do zewnętrznego crates
+
+mod app;            //przykładowa apka
 
 
 fn main() {

@@ -6,7 +6,7 @@ use miohttp;
 use std::{process, thread};
 use std::boxed::FnBox;
 use simple_signal::{Signals, Signal};
-use miohttp::log;
+use log;
 
 
 pub fn run_main() {
@@ -92,7 +92,7 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
 
                     Some(request) => {
                         
-                        worker::render_request(request, tx_files_path.clone());
+                        worker::render_request(request, &tx_files_path);
                     }
 
                     None => {

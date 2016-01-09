@@ -1,11 +1,12 @@
-use miohttp::{request, response, log};
+use log;
+use miohttp::{request, response};
 use chan::Sender;
 use std::boxed::FnBox;
 use std::path::Path;
 use std::io;
 
 
-pub fn render_request(request: request::Request, tx_files_path: Sender<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
+pub fn render_request(request: request::Request, tx_files_path: &Sender<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
     
     let path_src = "./static".to_owned() + request.path.trim();
 

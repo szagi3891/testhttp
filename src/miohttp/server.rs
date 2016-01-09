@@ -9,7 +9,7 @@ use chan;                                               //TODO - trzeba użyć 
 
 use miohttp::request;
 use miohttp::response;
-use miohttp::log;
+use log;
 use miohttp::connection::{Connection, TimerMode};
 use miohttp::token_gen::TokenGen;
 

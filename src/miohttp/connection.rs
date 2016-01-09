@@ -5,7 +5,7 @@ use httparse;
 use miohttp::server::{Event, MyHandler};
 use miohttp::request::{PreRequest, Request};
 use miohttp::response;
-use miohttp::log;
+use log;
 
 
 enum ConnectionMode {

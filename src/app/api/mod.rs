@@ -10,7 +10,7 @@ use std::boxed::FnBox;
 
 //use miohttp::request;
 //use miohttp::response;
-use miohttp::log;
+use log;
 
 pub fn run(wg: WaitGroup, rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
 
