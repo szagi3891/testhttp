@@ -6,9 +6,6 @@ use std::io;
 use chan::{Receiver, Sender, WaitGroup};
 use std::thread;
 
-
-//use miohttp::request;
-//use miohttp::response;
 use asynchttp::log;
 use asynchttp::async::Callback;
 

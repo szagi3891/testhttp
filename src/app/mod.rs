@@ -57,11 +57,10 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
     let (tx_files_data, rx_files_data) = chan::async();
     
     /*
-    pub type FilesData  = Result<Vec<u8>, io::Error>;
-    pub type CallbackFD = Callback<FilesData>;
+    use app::api;
     
-    let (tx_files_path, rx_files_path) = channel::<(String, CallbackFD)>();
-    let (tx_files_data, rx_files_data) = channel::<(FilesData, CallbackFD)>();
+    let (tx_files_path, rx_files_path) = channel::<(String, api::CallbackFD)>();
+    let (tx_files_data, rx_files_data) = channel::<(api::FilesData, api::CallbackFD)>();
     */
 
     let wg = wait_group.clone();
