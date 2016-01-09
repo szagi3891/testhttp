@@ -1,0 +1,127 @@
+api
+    getFile (path: String, callback: callback)          //callback wywoływany jest z daynymi odczytanymi z pliku
+    saveFile (path: String, dane: String, callback)     //callback nic nie przyjmuje, wywoływany po usunięciu pliku
+    removeFile (path: String, callback);                //callback nic nie przyjmuje, wywoływany po usunięciu pliku
+    
+    getDirList
+    mkDir
+    rmDir
+    
+    
+                    //subapi użytkownika korzysta z api dyskowego
+    session_id
+    
+    getUserBySession(session_id, callback)              //callback zwraca opcję na user_name
+    login(user, hasło, callback)                        //loguje, wywołuje callbacka z informacją czy udało się zalogować użytkownika
+    logout(user, callback)                              //wylogowanie użytkownika
+
+
+    /data
+        /szagi3891
+            /password.txt  -> zahaszowane hasło
+            /files
+                -> pliki użytkownika
+    
+    
+    
+    obiekt workera, posiada zaszyte w sobie informacje na temat kanałów, którymi można się skomunikować z api
+
+
+
+worker, totalnie asynchroniczny stan
+
+    getPage(request) -> generuje asynchronicznie odpowiedź
+    
+    if zalogowany
+        serwuj stronę
+    else
+        wyświetl formularz do logowania
+        potencjalnie wysyłaj requesty pod /ajax/login       login, hasło
+
+    serwujStronę(request)
+        
+        if /
+            rysuj index
+        else if /static
+            serwuj obrazek statyczny lub jakiś plik jsowy
+
+        
+........................................................
+
+budowa obiektu workera
+
+Worker::create(requesty, api_send, api_recv) -> Worker
+    
+    fn run() {
+        
+        
+        api_send_channel
+        
+        
+        loop {
+            
+            request.recv() -> req => {
+                
+                let session_id = req.get_session_id();
+                
+                let api_copy = api_send_channel.clone();
+                
+                api_send_channel.getLogged(session_id, fn(userName){
+                    
+                    match userName {
+                        Some(user_name) => {
+                            //przetwarzaj dalej - użytkownik jest zalogowany
+                            worker::render(req, api_copy, user_name);
+                        }
+                        None => {
+                            //wyświetl stronę do logownaia
+                        }
+                    }
+                });
+            }
+        }
+        
+        fn render(request, api_send_channel, user_name) {
+            
+            match request.url {
+                "/" => {
+                    render_index(request, api_send_channel, user_name, "/");
+                }
+                
+                "/item/*" => {
+                
+                }
+                
+                "/static/*/ => {
+                    podaj odpowiedni plik statyczny
+                }
+                
+                itd ...
+            }
+        }
+        
+        fn render_index(request, api_send_channel, user_name, path) {
+            
+            tutaj skupiamy się tylko na wyrysowaniu indexu
+            //weź listę wszystkich plików w tym katalogu
+            
+            getDirList(api_send_channel, path(user_name, path), fn(list) {
+                
+                let html_index = listę zamień na html-a odpowiedniego;
+                request.send(html_index);
+            });
+        }
+        
+        fn getFile(api_send_channel, path:String, callback) {
+            
+            api_send_channel.send(ApiRequest:GetFile(api_send_channel, callback))
+        }
+        
+        fn getDirList(api_send_channel, path:String, callback) {
+            
+            api_send_channel.send(ApiRequest:GetDirList(api_send_channel, callback))
+        }
+    }
+
+
+        

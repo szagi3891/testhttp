@@ -1,0 +1,134 @@
+
+budowanie html-a
+
+    resp_html = html::div([]);
+
+    
+    
+
+        statycznie można się zabezpieczyć na wypadek niewłaściwych typów
+    
+fn main() {
+
+        println!("Hello, world!");
+
+        trait AA {
+        };
+
+        struct node_A {
+                name : String
+        };
+
+        struct node_B {
+                name : String
+        };
+
+        impl AA for node_A {}
+
+        fn test<A:AA>(a: A) {
+        }
+
+        let zm1 = node_A{name : "333".to_owned()};
+
+        test(zm1);
+}
+
+/*
+
+module
+    html
+        
+        type Attr_name  = String
+        type Attr_title = String
+        type Attr_rel   = String
+        
+        triat Attr_Node_A {}
+        
+        impl Attr_Node_A for Attr_name {}
+        impl Attr_Node_A for Attr_title {}
+        
+        type struct Node_A {
+            hash: HashMap<Attr_Node_A, String>
+            child : [Block]                             Block - określa które elementy są blokowe
+        }
+        
+        div!
+                                            let div = html::div(atrybuty, nody);
+
+let header = div!({
+    A:Name  : "cosik",               //"name"
+    A:Title : "jakiś tytuł",        //"title"
+}, [
+    node1, node2, node3
+]);
+
+Node_A
+Node_Div
+
+triat Linear {}
+
+*/
+
+
+react.Div { 
+  className: "hello",
+  children: vec![react.Img { src: "world.jpg" }]
+}.render()
+
+node - attrybuty
+    atrybuty zdefiniować jako właściwości nod-a - może być zdefiniowany jako Option<String>
+
+https://github.com/camjackson/react-rs
+
+pub trait Component {
+    fn render(&self) -> String;
+}
+
+
+
+extern crate lazy_static;           ?????
+
+https://github.com/servo/string-cache
+
+
+domyślne wartości dla atrybutu
+
+fn main() {
+    println!("Hello, world!");
+
+        #[derive(Default,Debug)]
+        struct test {
+                field1 : Option<String>,
+                field2 : Option<String>,
+        }
+
+        let ff = test{
+                field1 : Some("cosik".to_owned()),
+                ..Default::default()
+        };
+
+        println!("lll {:?}", ff);
+}
+
+        let ff = test{
+                field1 : Some("cosik".to_owned()),
+                field2 : None,
+                ..Default::default()
+        };
+
+
+
+use std::default::Default;
+
+struct Point {
+    x: f64,
+    y: f64,
+}
+
+impl Default for Point {
+    fn default() -> Point {
+        Point { x: 0.0, y: 0.0 }
+    }
+}
+
+let point = Point::default();
