@@ -4,8 +4,8 @@ use std::io;
 //use std::sync::mpsc;
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, Timeout};
 use mio::tcp::{TcpListener};
-//use mio::util::Slab;                              //TODO - użyć tego modułu zamiast hashmapy
-use chan;
+//use mio::util::Slab;                                  //TODO - użyć tego modułu zamiast hashmapy
+use chan;                                               //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
 
 use miohttp::request;
 use miohttp::response;
@@ -19,7 +19,7 @@ pub struct MyHandler {
     server          : TcpListener,
     hash            : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
-    send            : chan::Sender<request::Request>,
+    send            : chan::Sender<request::Request>,   //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
     timeout_reading : u64,
     timeout_writing : u64,
 }

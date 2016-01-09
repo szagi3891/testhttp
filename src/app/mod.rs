@@ -1,15 +1,12 @@
-mod statichttp;
+mod api;
+mod worker;
 
 use chan;
 use miohttp;
-
-use std::{io, thread};
+use std::{process, thread};
 use std::boxed::FnBox;
-use std::path::Path;
-use std::process;
 use simple_signal::{Signals, Signal};
-
-use miohttp::{response, log};
+use miohttp::log;
 
 
 pub fn run_main() {
@@ -57,29 +54,6 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
         let _ = ctrl_c_rx2.recv();
     });
 
-    /*
-        workery
-            api
-
-        worker od plików
-
-        worker od bazy danych
-    */
-
-    /*
-
-        model uproszczony
-
-        worker plików
-            pytanie o plik - kanałem
-            odpowiedź o plik - kanałem, odpowiada clouserem do uruchomienia oraz danymi tego pliku
-            dane pliku współdzielone za pomocą ARC (tylko do odczytu)
-
-        proces workera ogólnego (w pełni asynchronicznego)
-            tworzy nowy obiekt api (z namiarami na kanały workera plików)
-            odbiera request - uruchamia główną metodę api
-            odbiera clousera - uruchamia go
-    */
 
     let (tx_files_path, rx_files_path) = chan::async();
     let (tx_files_data, rx_files_data) = chan::async();
@@ -92,13 +66,15 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
     let wg = wait_group.clone();
 
     match thread::Builder::new().name("<StaticHttp master>".to_string()).spawn(move || {
-        statichttp::run(wg, rx_files_path, tx_files_data);
+        api::run(wg, rx_files_path, tx_files_data);
     }) {
         Ok(join_handle) => join_handle,
         Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
     };
 
-
+    
+    //chan::Sender<request::Request>,
+    
     loop {
 
         chan_select! {
@@ -115,48 +91,8 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
                 match to_handle {
 
                     Some(request) => {
-
-                        let path_src = "./static".to_owned() + request.path.trim();
-
-                        log::info(format!("Path requested: {}", &path_src));
-
-                        tx_files_path.send((path_src.clone(), Box::new(move|data: Result<Vec<u8>, io::Error>|{
-
-                            match data {
-
-                                Ok(buffer) => {
-
-                                    let buffer = buffer.to_owned();
-
-                                    let path         = Path::new(&path_src);
-                                    let content_type = response::Type::create_from_path(&path);
-
-                                    log::info(format!("200, {}, {}", content_type, request.path));
-
-                                    let response = response::Response::create_from_buf(response::Code::Code200, content_type, buffer);
-
-                                    request.send(response);
-                                }
-
-                                Err(err) => {
-
-                                    match err.kind() {
-
-                                        io::ErrorKind::NotFound => {
-
-                                            let mess     = "Not fund".to_string();
-                                            let response = response::Response::create(response::Code::Code404, response::Type::TextHtml, mess);
-                                            request.send(response);
-                                        }
-                                        _ => {
-
-                                            log::error(format!("errrrr {:?}", err));
-                                        }
-                                    }
-
-                                }
-                            }
-                        })));
+                        
+                        worker::render_request(request, tx_files_path.clone());
                     }
 
                     None => {
@@ -171,9 +107,9 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
             rx_files_data.recv() -> data => {
 
                 log::debug(format!("Received file data"));
-
+                
                 match data {
-
+                    
                     Some((result, callback)) => {
                         callback.call_box((result,));
                     }
