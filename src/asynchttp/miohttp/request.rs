@@ -4,7 +4,7 @@ use mio;
 use httparse;
 use std::io::{Error, ErrorKind};
 
-use miohttp::response;
+use asynchttp::miohttp::response;
 
 
 #[derive(Debug)]

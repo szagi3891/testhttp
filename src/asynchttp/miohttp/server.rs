@@ -7,11 +7,11 @@ use mio::tcp::{TcpListener};
 //use mio::util::Slab;                                  //TODO - użyć tego modułu zamiast hashmapy
 use chan;                                               //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
 
-use miohttp::request;
-use miohttp::response;
-use log;
-use miohttp::connection::{Connection, TimerMode};
-use miohttp::token_gen::TokenGen;
+use asynchttp::miohttp::request;
+use asynchttp::miohttp::response;
+use asynchttp::log;
+use asynchttp::miohttp::connection::{Connection, TimerMode};
+use asynchttp::miohttp::token_gen::TokenGen;
 
 // Define a handler to process the events
 pub struct MyHandler {

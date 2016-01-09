@@ -1,5 +1,5 @@
-use log;
-use miohttp::{request, response};
+use asynchttp::log;
+use asynchttp::miohttp::{request, response};
 use chan::Sender;
 use std::boxed::FnBox;
 use std::path::Path;

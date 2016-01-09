@@ -2,11 +2,10 @@ mod api;
 mod worker;
 
 use chan;
-use miohttp;
+use asynchttp::{miohttp,log};
 use std::{process, thread};
 use std::boxed::FnBox;
 use simple_signal::{Signals, Signal};
-use log;
 
 
 pub fn run_main() {

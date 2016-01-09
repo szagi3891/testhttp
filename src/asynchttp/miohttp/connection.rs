@@ -2,10 +2,10 @@ use mio::{EventLoop, Token, EventSet, TryRead, TryWrite};
 use mio::tcp::{TcpStream};
 use httparse;
 
-use miohttp::server::{Event, MyHandler};
-use miohttp::request::{PreRequest, Request};
-use miohttp::response;
-use log;
+use asynchttp::miohttp::server::{Event, MyHandler};
+use asynchttp::miohttp::request::{PreRequest, Request};
+use asynchttp::miohttp::response;
+use asynchttp::log;
 
 
 enum ConnectionMode {
