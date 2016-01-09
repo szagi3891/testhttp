@@ -1,18 +1,23 @@
 use asynchttp::log;
 use asynchttp::miohttp::{request, response};
+use asynchttp::async::{self, Callback};
 use chan::Sender;
-use std::boxed::FnBox;
 use std::path::Path;
 use std::io;
 
 
-pub fn render_request(request: request::Request, tx_files_path: &Sender<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
+pub type FilesData  = Result<Vec<u8>, io::Error>;
+pub type CallbackFD = Callback<FilesData>;
+
+
+pub fn render_request(request: request::Request, tx_files_path: &Sender<(String, CallbackFD)>) {
     
     let path_src = "./static".to_owned() + request.path.trim();
 
     log::info(format!("Path requested: {}", &path_src));
 
-    tx_files_path.send((path_src.clone(), Box::new(move|data: Result<Vec<u8>, io::Error>|{
+    //tx_files_path.send((path_src.clone(), async::new(|data: FilesData|{
+    tx_files_path.send((path_src.clone(), Box::new(move|data: FilesData|{
 
         match data {
 

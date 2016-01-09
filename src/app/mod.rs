@@ -4,7 +4,6 @@ mod worker;
 use chan;
 use asynchttp::{miohttp,log};
 use std::{process, thread};
-use std::boxed::FnBox;
 use simple_signal::{Signals, Signal};
 
 
@@ -56,10 +55,13 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
 
     let (tx_files_path, rx_files_path) = chan::async();
     let (tx_files_data, rx_files_data) = chan::async();
-
+    
     /*
-    let (tx_files_path, rx_files_path) = channel::<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>();
-    let (tx_files_data, rx_files_data) = channel::<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>();
+    pub type FilesData  = Result<Vec<u8>, io::Error>;
+    pub type CallbackFD = Callback<FilesData>;
+    
+    let (tx_files_path, rx_files_path) = channel::<(String, CallbackFD)>();
+    let (tx_files_data, rx_files_data) = channel::<(FilesData, CallbackFD)>();
     */
 
     let wg = wait_group.clone();

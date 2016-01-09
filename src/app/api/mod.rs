@@ -6,14 +6,18 @@ use std::io;
 use chan::{Receiver, Sender, WaitGroup};
 use std::thread;
 
-use std::boxed::FnBox;
 
 //use miohttp::request;
 //use miohttp::response;
 use asynchttp::log;
+use asynchttp::async::Callback;
 
 
-pub fn run(wg: WaitGroup, rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
+pub type FilesData  = Result<Vec<u8>, io::Error>;
+pub type CallbackFD = Callback<FilesData>;
+
+
+pub fn run(wg: WaitGroup, rx: Receiver<(String, CallbackFD)>, response_data: Sender<(FilesData, CallbackFD)>) {
 
     let static_workers_no = 5;
 
@@ -39,7 +43,7 @@ pub fn run(wg: WaitGroup, rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Er
 }
 
 
-fn worker(rx: Receiver<(String, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>, response_data: Sender<(Result<Vec<u8>, io::Error>, Box<FnBox(Result<Vec<u8>, io::Error>) + Send + 'static + Sync>)>) {
+fn worker(rx: Receiver<(String, CallbackFD)>, response_data: Sender<(FilesData, CallbackFD)>) {
 
     loop {
         
