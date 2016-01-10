@@ -17,3 +17,24 @@ pub fn spawn<F, T>(f: F) -> JoinHandle<T> where
     Builder::new().spawn(f)
 }
 */
+  
+/*
+
+let builder = createTaskBuilder(||{
+    
+    //ten clouser odpalany jest w momencie gdy zamknięte zostały wszystkie taski
+});
+
+builder ma jedną refernację do licznika tasków (który jest obiektem Arc)
+
+gdy builder pójdzie w niepamięć, i gdy spadnie ilość tasków do zera, to wtedy odpalany jest clouser
+
+
+
+mio server
+    on może odpowiadać za licznik tasków
+
+request.get_task()      -> referencja do taska
+
+
+*/

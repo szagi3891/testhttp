@@ -36,12 +36,31 @@ fn run(addres: String) -> i32 {
         
     match spawn(thread_name, move ||{
         
+        let tx_request = tx_request.clone();
+        
         miohttp::server::MyHandler::new(&addres, 4000, 4000, tx_request);
+        
+        //tutaj trzeba odebrać błąd, a następnie go odpowiednio sformatować i wyrzucić w loga
         
     }) {
         Ok(join_handle) => join_handle,
         Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
     };
+    
+    
+    
+    /*
+    
+        zarządca
+        jeśli pod rząd nie może uruchomić programu 3 razy, to fail
+        
+        manager::create(3)      -- twórz 3 procesy potomkowe
+
+        manager.shoutdown();
+
+        w przypadku gdy poleci panic, to wznawiaj taki proces ...
+    */
+    
     
     
     // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
@@ -63,16 +82,21 @@ fn run(addres: String) -> i32 {
     
                                 //np. 4 workery
     
-    let thread_name = "<worker>".to_owned();
-    
-    match spawn(thread_name, move ||{
-        run_worker(rx_request, tx_files_path, rx_files_data);
-    }) {
-        Ok(join_handle) => join_handle,
-        Err(err) => panic!("Can't spawn api spawner: {}", err),
-    };
-    
-                    
+    for _ in 0..4 {
+        
+        let thread_name = "<worker>".to_owned();
+        
+        let rx_request    = rx_request.clone();
+        let tx_files_path = tx_files_path.clone();
+        let rx_files_data = rx_files_data.clone();
+
+        match spawn(thread_name, move ||{
+            run_worker(rx_request, tx_files_path, rx_files_data);
+        }) {
+            Ok(join_handle) => join_handle,
+            Err(err) => panic!("Can't spawn api spawner: {}", err),
+        };
+    }
     
     
     
