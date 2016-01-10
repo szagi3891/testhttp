@@ -127,7 +127,7 @@ fn run(addres: String) -> i32 {
 
 
 
-fn run_worker(rx_request: chan::Receiver<request::Request>, tx_files_path: chan::Sender<(String, api::CallbackFD)>, rx_files_data: chan::Receiver<(api::FilesData, api::CallbackFD)>) {
+fn run_worker(rx_request: chan::Receiver<request::Request>, tx_files_path: chan::Sender<api::Request>, rx_files_data: chan::Receiver<api::Response>) {
     
     loop {
 
@@ -157,7 +157,7 @@ fn run_worker(rx_request: chan::Receiver<request::Request>, tx_files_path: chan:
                 
                 match data {
                     
-                    Some((result, callback)) => {
+                    Some(api::Response::GetFile(result, callback)) => {
                         callback.call_box((result,));
                     }
 

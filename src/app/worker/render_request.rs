@@ -6,7 +6,7 @@ use std::io;
 use app::api;
 
 
-pub fn render_request(request: request::Request, tx_files_path: &Sender<(String, api::CallbackFD)>) {
+pub fn render_request(request: request::Request, tx_files_path: &Sender<api::Request>) {
     
     
     let path_src = "./static".to_owned() + request.path.trim();
@@ -29,7 +29,10 @@ pub fn render_request(request: request::Request, tx_files_path: &Sender<(String,
     */
     
     //tx_files_path.send((path_src.clone(), async::new(request.task(), |data: FilesData|{
-    tx_files_path.send((path_src.clone(), Box::new(move|data: api::FilesData|{
+    
+    let path = path_src.clone();
+    
+    tx_files_path.send(api::Request::GetFile(path, Box::new(move|data: api::FilesData|{
 
         match data {
 

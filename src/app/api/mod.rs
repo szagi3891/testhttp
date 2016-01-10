@@ -13,7 +13,16 @@ pub type FilesData  = Result<Vec<u8>, io::Error>;
 pub type CallbackFD = Callback<FilesData>;
 
 
-pub fn run(rx: Receiver<(String, CallbackFD)>, response_data: Sender<(FilesData, CallbackFD)>) {
+pub enum Request {
+    GetFile(String, CallbackFD),        //get file content
+}
+
+pub enum Response {
+    GetFile(FilesData, CallbackFD),     //get file content
+}
+
+
+pub fn run(rx: Receiver<Request>, response_data: Sender<Response>) {
 
     let static_workers_no = 5;
 
@@ -37,13 +46,13 @@ pub fn run(rx: Receiver<(String, CallbackFD)>, response_data: Sender<(FilesData,
 }
 
 
-fn worker(rx: Receiver<(String, CallbackFD)>, response_data: Sender<(FilesData, CallbackFD)>) {
+fn worker(rx: Receiver<Request>, response_data: Sender<Response>) {
 
     loop {
         
         match rx.recv() {
 
-            Some((path_src, callback)) => {
+            Some(Request::GetFile(path_src, callback)) => {
                 
                 let path = Path::new(&path_src);
                 
@@ -77,7 +86,7 @@ fn worker(rx: Receiver<(String, CallbackFD)>, response_data: Sender<(FilesData, 
                 
                 log::debug(format!("Sending response."));
             
-                response_data.send((response, callback));
+                response_data.send(Response::GetFile(response, callback));
             }
             
             None => {
