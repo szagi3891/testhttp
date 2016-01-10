@@ -6,7 +6,7 @@ use std::io;
 use app::api;
 
 
-pub fn render_request(request: request::Request, tx_files_path: &Sender<api::Request>) {
+pub fn render_request(request: request::Request, tx_api_request: &Sender<api::Request>) {
     
     
     let path_src = "./static".to_owned() + request.path.trim();
@@ -14,25 +14,9 @@ pub fn render_request(request: request::Request, tx_files_path: &Sender<api::Req
     
     
     
-    //tutaj
-    
-    //kanał może przyjmować tylko "taski" typ
-    //do stworzenia nowego tasku, potrzebny jest identyfikator tasku
-    //request.task() - pobieramy nowy obiekt, zwiększa się licznik referencji z taskami
-    //obiekt requestu do api
-        //taskLicznik, enumRequestu
-    
-    /*
-    
-    api::Request(task_count.clone(), api::Request::GetFile(path_src.clone(), Callback(move|data: api::FilesData|{
-    });
-    */
-    
-    //tx_files_path.send((path_src.clone(), async::new(request.task(), |data: FilesData|{
-    
     let path = path_src.clone();
     
-    tx_files_path.send(api::Request::GetFile(path, Box::new(move|data: api::FilesData|{
+    tx_api_request.send(api::Request::GetFile(path, Box::new(move|data: api::FilesData|{
 
         match data {
 

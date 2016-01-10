@@ -159,7 +159,7 @@ fn run_worker(rx_request: chan::Receiver<request::Request>, tx_api_request: chan
                         log::debug(format!("Received file data"));
                         callback.call_box((result,));
                     }
-
+                    
                     None => {
 
                         //TODO
