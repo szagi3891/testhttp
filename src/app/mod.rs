@@ -1,8 +1,9 @@
 mod api;
 mod worker;
 
-use chan;
+use chan::{self};
 use asynchttp::{miohttp,log};
+use asynchttp::miohttp::request;
 use std::{process};
 use simple_signal::{Signals, Signal};
 use asynchttp::async::{spawn};
@@ -12,14 +13,11 @@ pub fn run_main() {
     let addres = "0.0.0.0:2222";
     
     println!("server running - {}", &addres);
-
-    let wait_group = chan::WaitGroup::new();
     
-    let exit_code = run(addres.to_owned(), &wait_group);
+    let exit_code = run(addres.to_owned());
 
     // All channels dropped, wait for workers to end.
     log::debug(format!("Waiting for workers to end..."));
-    wait_group.wait();
     log::info(format!("Bye."));
     
     process::exit(exit_code);
@@ -28,18 +26,56 @@ pub fn run_main() {
 
     // Scope for channels, after which they are dropped, so all threads begins to end.
 
-fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
+fn run(addres: String) -> i32 {
+    
     
     let (tx_request, rx_request) = chan::async();       //channel::<request::Request>();
-
-    match miohttp::server::MyHandler::new(&addres, 4000, 4000, tx_request) {
-        Ok(_) => { },
-        Err(err) => {
-            // Return real OS error to shell
-            return err.raw_os_error().unwrap_or(-1)
-        }
-    }
-
+    
+    
+    let thread_name = "<EventLoop>".to_owned();
+        
+    match spawn(thread_name, move ||{
+        
+        miohttp::server::MyHandler::new(&addres, 4000, 4000, tx_request);
+        
+    }) {
+        Ok(join_handle) => join_handle,
+        Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
+    };
+    
+    
+    // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
+    
+    let (tx_files_path, rx_files_path) = chan::async();         //<(String, api::CallbackFD)>
+    let (tx_files_data, rx_files_data) = chan::async();         //<(api::FilesData, api::CallbackFD)>
+    
+    
+    let thread_name = "<api>".to_owned();
+    
+    match spawn(thread_name, move ||{
+        api::run(rx_files_path, tx_files_data);
+    }) {
+        Ok(join_handle) => join_handle,
+        Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
+    };
+    
+    
+    
+                                //np. 4 workery
+    
+    let thread_name = "<worker>".to_owned();
+    
+    match spawn(thread_name, move ||{
+        run_worker(rx_request, tx_files_path, rx_files_data);
+    }) {
+        Ok(join_handle) => join_handle,
+        Err(err) => panic!("Can't spawn api spawner: {}", err),
+    };
+    
+                    
+    
+    
+    
     let (ctrl_c_tx1, ctrl_c_rx1) = chan::sync(0);
     let (ctrl_c_tx2, ctrl_c_rx2) = chan::sync(0);
 
@@ -53,34 +89,25 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
     });
 
 
-    let (tx_files_path, rx_files_path) = chan::async();         //<(String, api::CallbackFD)>
-    let (tx_files_data, rx_files_data) = chan::async();         //<(api::FilesData, api::CallbackFD)>
     
-    
-    let wg = wait_group.clone();
-    
-    let thread_name = "<StaticHttp master>".to_owned();
-    
-    match spawn(thread_name, move ||{
-        api::run(wg, rx_files_path, tx_files_data);
-    }) {
-        Ok(join_handle) => join_handle,
-        Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
-    };
+                //główna pętla sterująca podwątkami
+    loop {
+        
+        let _ = ctrl_c_rx1.recv();
 
-    
-    //chan::Sender<request::Request>,
+        log::info(format!("Shutting down!"));
+        ctrl_c_tx2.send(());
+        return 0;
+    }
+}
+
+
+
+fn run_worker(rx_request: chan::Receiver<request::Request>, tx_files_path: chan::Sender<(String, api::CallbackFD)>, rx_files_data: chan::Receiver<(api::FilesData, api::CallbackFD)>) {
     
     loop {
 
         chan_select! {
-
-            ctrl_c_rx1.recv() => {
-
-                log::info(format!("Shutting down!"));
-                ctrl_c_tx2.send(());
-                return 0;
-            },
 
             rx_request.recv() -> to_handle => {
 
@@ -95,7 +122,7 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
 
                         //TODO
                         //println!("wyparował nadawca requestów");
-                        return 0;
+                        return;
                     }
                 }
             },
@@ -114,10 +141,12 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
 
                         //TODO
                         log::info(format!("wyparował nadawca requestów"));
-                        return 0;
+                        return;
                     }
                 }
             }
         }
     };
 }
+
+

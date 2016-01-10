@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::io;
 
-use chan::{Receiver, Sender, WaitGroup};
+use chan::{Receiver, Sender};
 
 use asynchttp::log;
 use asynchttp::async::{spawn, Callback};
@@ -13,15 +13,12 @@ pub type FilesData  = Result<Vec<u8>, io::Error>;
 pub type CallbackFD = Callback<FilesData>;
 
 
-pub fn run(wg: WaitGroup, rx: Receiver<(String, CallbackFD)>, response_data: Sender<(FilesData, CallbackFD)>) {
+pub fn run(rx: Receiver<(String, CallbackFD)>, response_data: Sender<(FilesData, CallbackFD)>) {
 
     let static_workers_no = 5;
 
     for i in 0..static_workers_no {
         
-        wg.add(1);
-
-        let wg            = wg.clone();
         let rx            = rx.clone();
         let response_data = response_data.clone();
         
@@ -29,7 +26,6 @@ pub fn run(wg: WaitGroup, rx: Receiver<(String, CallbackFD)>, response_data: Sen
         
         match spawn(thread_name, move ||{
             worker(rx, response_data);
-            wg.done();
         }) {
             Err(err) => panic!("Can't spawn statichttp worker #{}: {}", i, err),
             Ok(_) => { },

@@ -11,7 +11,6 @@ use asynchttp::miohttp::response;
 use asynchttp::log;
 use asynchttp::miohttp::connection::{Connection, TimerMode};
 use asynchttp::miohttp::token_gen::TokenGen;
-use asynchttp::async::{spawn};
 
 // Define a handler to process the events
 pub struct MyHandler {
@@ -71,7 +70,7 @@ impl Handler for MyHandler {
 impl MyHandler {
 
     pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: chan::Sender<request::Request>) -> Result<(), io::Error> {
-
+        
         let mut tokens = TokenGen::new();
 
         let mut event_loop = EventLoop::new().unwrap();
@@ -87,7 +86,7 @@ impl MyHandler {
         };
 
         let token = tokens.get();
-
+        
         event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
 
         let mut inst = MyHandler{
@@ -100,18 +99,9 @@ impl MyHandler {
             timeout_writing : timeout_writing,
         };
         
+        event_loop.run(&mut inst).unwrap();
         
-        let thread_name = "<EventLoop>".to_owned();
-        
-        match spawn(thread_name, move ||{
-            event_loop.run(&mut inst).unwrap();
-        }) {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                log::error(format!("Can't spawn event loop: {}", err));
-                Err(err)
-            }
-        }
+        Ok(())
     }
 
     fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler>, token: Token, response: response::Response) {
