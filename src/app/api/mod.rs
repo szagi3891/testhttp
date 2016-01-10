@@ -22,19 +22,19 @@ pub enum Response {
 }
 
 
-pub fn run(rx: Receiver<Request>, response_data: Sender<Response>) {
+pub fn run(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) {
 
     let static_workers_no = 5;
 
     for i in 0..static_workers_no {
         
-        let rx            = rx.clone();
-        let response_data = response_data.clone();
+        let rx_api_request  = rx_api_request.clone();
+        let tx_api_response = tx_api_response.clone();
         
         let thread_name = format!("<Static worker #{}>", i).to_owned();
         
         match spawn(thread_name, move ||{
-            worker(rx, response_data);
+            worker(rx_api_request, tx_api_response);
         }) {
             Err(err) => panic!("Can't spawn statichttp worker #{}: {}", i, err),
             Ok(_) => { },
@@ -46,47 +46,15 @@ pub fn run(rx: Receiver<Request>, response_data: Sender<Response>) {
 }
 
 
-fn worker(rx: Receiver<Request>, response_data: Sender<Response>) {
+fn worker(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) {
 
     loop {
         
-        match rx.recv() {
+        match rx_api_request.recv() {
 
             Some(Request::GetFile(path_src, callback)) => {
                 
-                let path = Path::new(&path_src);
-                
-                log::debug(format!("Loading file {:?}", path));
-
-                let response = match fs::metadata(path) {
-                    Ok(meta) => {
-                        // FIXME: Need to set a limit of max bytes read as na option maybe?
-                        if meta.len() > 1_000_000 {
-                            log::error(format!("File {:?} is too big to serve", path));
-                            Err(io::Error::new(io::ErrorKind::InvalidData, "Static file too big"))
-                        } else {
-                            match File::open(path) {
-                         
-                                Ok(mut file) => {
-                         
-                                    let mut file_data: Vec<u8> = Vec::new();
-                         
-                                    match file.read_to_end(&mut file_data) {
-                                        Ok(_) => Ok(file_data),
-                                        Err(err) => Err(err),
-                                    }
-                                },
-                                
-                                Err(err) => Err(err),
-                            }
-                        }
-                    }
-                    Err(err) => Err(err), 
-                };
-                
-                log::debug(format!("Sending response."));
-            
-                response_data.send(Response::GetFile(response, callback));
+                get_file(path_src, callback, &tx_api_response);
             }
             
             None => {
@@ -97,6 +65,46 @@ fn worker(rx: Receiver<Request>, response_data: Sender<Response>) {
         }
     }
 }
+
+
+fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Sender<Response>) {
+    
+    let path = Path::new(&path_src);
+
+    log::debug(format!("Loading file {:?}", path));
+
+    let response = match fs::metadata(path) {
+        Ok(meta) => {
+            // FIXME: Need to set a limit of max bytes read as na option maybe?
+            if meta.len() > 1_000_000 {
+                log::error(format!("File {:?} is too big to serve", path));
+                Err(io::Error::new(io::ErrorKind::InvalidData, "Static file too big"))
+            } else {
+                match File::open(path) {
+
+                    Ok(mut file) => {
+
+                        let mut file_data: Vec<u8> = Vec::new();
+
+                        match file.read_to_end(&mut file_data) {
+                            Ok(_) => Ok(file_data),
+                            Err(err) => Err(err),
+                        }
+                    },
+
+                    Err(err) => Err(err),
+                }
+            }
+        }
+        Err(err) => Err(err), 
+    };
+
+    log::debug(format!("Sending response."));
+
+    tx_api_response.send(Response::GetFile(response, callback));
+}
+
+
 /*
 pub fn process_request(request: request::Request) {
     

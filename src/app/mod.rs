@@ -24,12 +24,11 @@ pub fn run_main() {
 }
 
 
-    // Scope for channels, after which they are dropped, so all threads begins to end.
 
 fn run(addres: String) -> i32 {
     
     
-    let (tx_request, rx_request) = chan::async();       //channel::<request::Request>();
+    let (tx_request, rx_request) = chan::async();
     
     
     let thread_name = "<EventLoop>".to_owned();
@@ -65,14 +64,14 @@ fn run(addres: String) -> i32 {
     
     // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
     
-    let (tx_files_path, rx_files_path) = chan::async();         //<(String, api::CallbackFD)>
-    let (tx_files_data, rx_files_data) = chan::async();         //<(api::FilesData, api::CallbackFD)>
+    let (tx_api_request , rx_api_request) = chan::async();         //<(String, api::CallbackFD)>
+    let (tx_api_response, rx_api_response) = chan::async();         //<(api::FilesData, api::CallbackFD)>
     
     
     let thread_name = "<api>".to_owned();
     
     match spawn(thread_name, move ||{
-        api::run(rx_files_path, tx_files_data);
+        api::run(rx_api_request, tx_api_response);
     }) {
         Ok(join_handle) => join_handle,
         Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
@@ -86,12 +85,12 @@ fn run(addres: String) -> i32 {
         
         let thread_name = "<worker>".to_owned();
         
-        let rx_request    = rx_request.clone();
-        let tx_files_path = tx_files_path.clone();
-        let rx_files_data = rx_files_data.clone();
+        let rx_request      = rx_request.clone();
+        let tx_api_request  = tx_api_request.clone();
+        let rx_api_response = rx_api_response.clone();
 
         match spawn(thread_name, move ||{
-            run_worker(rx_request, tx_files_path, rx_files_data);
+            run_worker(rx_request, tx_api_request, rx_api_response);
         }) {
             Ok(join_handle) => join_handle,
             Err(err) => panic!("Can't spawn api spawner: {}", err),
@@ -127,7 +126,7 @@ fn run(addres: String) -> i32 {
 
 
 
-fn run_worker(rx_request: chan::Receiver<request::Request>, tx_files_path: chan::Sender<api::Request>, rx_files_data: chan::Receiver<api::Response>) {
+fn run_worker(rx_request: chan::Receiver<request::Request>, tx_api_request: chan::Sender<api::Request>, rx_api_response: chan::Receiver<api::Response>) {
     
     loop {
 
@@ -139,7 +138,7 @@ fn run_worker(rx_request: chan::Receiver<request::Request>, tx_files_path: chan:
 
                     Some(request) => {
                         
-                        worker::render_request(request, &tx_files_path);
+                        worker::render_request(request, &tx_api_request);
                     }
 
                     None => {
@@ -151,13 +150,13 @@ fn run_worker(rx_request: chan::Receiver<request::Request>, tx_files_path: chan:
                 }
             },
 
-            rx_files_data.recv() -> data => {
-
-                log::debug(format!("Received file data"));
+            rx_api_response.recv() -> data => {
                 
                 match data {
                     
                     Some(api::Response::GetFile(result, callback)) => {
+                        
+                        log::debug(format!("Received file data"));
                         callback.call_box((result,));
                     }
 
