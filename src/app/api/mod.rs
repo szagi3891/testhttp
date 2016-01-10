@@ -4,10 +4,9 @@ use std::path::Path;
 use std::io;
 
 use chan::{Receiver, Sender, WaitGroup};
-use std::thread;
 
 use asynchttp::log;
-use asynchttp::async::Callback;
+use asynchttp::async::{spawn, Callback};
 
 
 pub type FilesData  = Result<Vec<u8>, io::Error>;
@@ -26,7 +25,9 @@ pub fn run(wg: WaitGroup, rx: Receiver<(String, CallbackFD)>, response_data: Sen
         let rx            = rx.clone();
         let response_data = response_data.clone();
         
-        match thread::Builder::new().name(format!("<Static worker #{}>", i).to_string()).spawn(move ||{
+        let thread_name = format!("<Static worker #{}>", i).to_owned();
+        
+        match spawn(thread_name, move ||{
             worker(rx, response_data);
             wg.done();
         }) {
@@ -96,7 +97,7 @@ pub fn process_request(request: request::Request) {
     
     thread::spawn(move || {
         
-        let path_str = "./static".to_string() + request.path.trim();
+        let path_str = "./static".to_owned() + request.path.trim();
         let path     = Path::new(&path_str);
         
         //TODO - trzeba zabezpieczyć żeby requesty nie mogły wychodzić poza główny katalog
@@ -131,7 +132,7 @@ pub fn process_request(request: request::Request) {
                     
                     io::ErrorKind::NotFound => {
                         
-                        let mess     = "Not fund".to_string();
+                        let mess     = "Not fund".to_owned();
                         let response = response::Response::create(response::Code::Code404, response::Type::Html, mess);
                         request.send(response);
                     }

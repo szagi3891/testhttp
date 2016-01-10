@@ -1,4 +1,3 @@
-use std::thread;
 use std::collections::HashMap;
 use std::io;
 //use std::sync::mpsc;
@@ -12,6 +11,7 @@ use asynchttp::miohttp::response;
 use asynchttp::log;
 use asynchttp::miohttp::connection::{Connection, TimerMode};
 use asynchttp::miohttp::token_gen::TokenGen;
+use asynchttp::async::{spawn};
 
 // Define a handler to process the events
 pub struct MyHandler {
@@ -99,8 +99,11 @@ impl MyHandler {
             timeout_reading : timeout_reading,
             timeout_writing : timeout_writing,
         };
-
-        match thread::Builder::new().name("<EventLoop>".to_string()).spawn(move || {
+        
+        
+        let thread_name = "<EventLoop>".to_owned();
+        
+        match spawn(thread_name, move ||{
             event_loop.run(&mut inst).unwrap();
         }) {
             Ok(_) => Ok(()),

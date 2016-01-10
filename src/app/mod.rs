@@ -3,9 +3,9 @@ mod worker;
 
 use chan;
 use asynchttp::{miohttp,log};
-use std::{process, thread};
+use std::{process};
 use simple_signal::{Signals, Signal};
-
+use asynchttp::async::{spawn};
 
 pub fn run_main() {
         
@@ -53,19 +53,15 @@ fn run(addres: String, wait_group: &chan::WaitGroup) -> i32 {
     });
 
 
-    let (tx_files_path, rx_files_path) = chan::async();
-    let (tx_files_data, rx_files_data) = chan::async();
+    let (tx_files_path, rx_files_path) = chan::async();         //<(String, api::CallbackFD)>
+    let (tx_files_data, rx_files_data) = chan::async();         //<(api::FilesData, api::CallbackFD)>
     
-    /*
-    use app::api;
     
-    let (tx_files_path, rx_files_path) = channel::<(String, api::CallbackFD)>();
-    let (tx_files_data, rx_files_data) = channel::<(api::FilesData, api::CallbackFD)>();
-    */
-
     let wg = wait_group.clone();
-
-    match thread::Builder::new().name("<StaticHttp master>".to_string()).spawn(move || {
+    
+    let thread_name = "<StaticHttp master>".to_owned();
+    
+    match spawn(thread_name, move ||{
         api::run(wg, rx_files_path, tx_files_data);
     }) {
         Ok(join_handle) => join_handle,

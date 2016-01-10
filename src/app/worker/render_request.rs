@@ -37,7 +37,7 @@ pub fn render_request(request: request::Request, tx_files_path: &Sender<(String,
 
                     io::ErrorKind::NotFound => {
 
-                        let mess     = "Not fund".to_string();
+                        let mess     = "Not fund".to_owned();
                         let response = response::Response::create(response::Code::Code404, response::Type::TextHtml, mess);
                         request.send(response);
                     }
