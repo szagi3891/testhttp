@@ -14,7 +14,8 @@ pub fn spawn<F, T>(name: String, block: F) -> Result<JoinHandle<T>>
     thread::Builder::new().name(name).spawn(block)
 }
 
-
+            //TODO - do uruchomienia
+/*
 struct TaskJobEnd {
     job: Option<Box<Fn() + Send + 'static + Sync>>,
 }
@@ -46,65 +47,79 @@ impl Task {
         }
     }
     
-    /*
-    pub fn copy() -> Task {
-    }
-    */
+    //pub fn copy() -> Task {}
 }
+*/
 
-
-struct Manager {
+pub struct Manager {
     name   : String,
-    len    : u8,
-    count  : u8,
+    len    : u32,
+    count  : u32,
     map    : HashMap<i32, i32>,
-    create : Box<Fn() + Send + 'static + Sync>,
+    create : Box<Fn(String) + Send + 'static + Sync>,
 }
 
 impl Manager {
     
-    fn new(name: String, len: u8, create: Box<Fn() + Send + 'static + Sync>) -> Manager {
+    pub fn new(name: String, len: u32, create: Box<Fn(String) + Send + 'static + Sync>) -> Manager {
         
-        let instance = Manager {
+        let mut instance = Manager {
             name   : name,
             len    : len,
             count  : 0,
             map    : HashMap::new(),
             create : create,
-        }
+        };
+        
+        println!("!!!create");
+        
+        instance.refresh();
+        
+        instance
     }
     
-    fn refresh(&self) {
+    fn refresh(&mut self) {
         
         loop {
             
+            println!("!!!loop");
+            
             if self.len > self.count {
                 
-                //TODO - dostawienie instnacji
-                //nowy kanał terminaotra
-                //odpalenie kanału z tym argumentem
+                let thread_name = self.name.clone();
+                
+                self.spawn(thread_name);      //TODO - trzeba będzie tworzyć nazwę nowego procesu
             
             } else if self.len < self.count {
                 
-                //TODO - odjąć instancji
-                //wystarczy zwolnić kanał terminatora
+                //TODO - odjąć instancji - wystarczy zwolnić kanał terminatora i poczekać aż się proces zakończy
+                
+                panic!("TODO - trzeba wyłączyć nadmiarową ilość wątków");
                 
             } else {
                 
-                //dobra ilość
+                //a good amount
                 return;
             }
             
             
         }
-        
-        for _ in 0..inst.len {
-            inst.spawn();
-        }
-        
+
     }
     
-    fn spawn(&self) {
+    fn spawn(&mut self, name: String) {
+        
+        println!("!!!soawn");
+        //let box create = self.create;
+        //create();
+        
+        match &self.create {
+            f => f(name),
+        }
+        
+        //self.create.call();
+        self.count = self.count + 1;
+        
         
     }
 }
@@ -131,6 +146,27 @@ impl Manager {
     
     //tx_files_path.send((path_src.clone(), async::new(request.task(), |data: FilesData|{
     
+
+/*
+#![feature(unboxed_closures, box_syntax)]
+#![allow(unstable)]
+
+fn anyfunc<'a, Args, Ret, F>(closure: F) -> Box<Fn<Args, Ret> + 'a>
+where F: Fn<Args, Ret> + 'a {
+    box closure
+}
+
+fn main(){
+    let celebrate = anyfunc(|&: num: i64| {
+        println!("Feels great to implement C++ std::function in {} lines.", num)
+    });
+    let lucy_number = anyfunc(|&: num: i64| {
+        println!("My lucky number is {}", num)
+    });
+    let func = if std::rand::random() { celebrate } else { lucy_number };
+    func(25)
+}
+*/
 
 /*
 pub fn spawn<F, T>(f: F) -> JoinHandle<T> where
