@@ -3,7 +3,7 @@ use std::thread::{self, JoinHandle};
 use std::io::Result;
 use std::sync::{Arc, RwLock};
 use std::mem::replace as mem_replace;
-
+use std::collections::HashMap;
 
 pub type Callback<T> = Box<FnBox(T) + Send + 'static + Sync>;
 
@@ -53,6 +53,68 @@ impl Task {
 }
 
 
+struct Manager {
+    name   : String,
+    len    : u8,
+    count  : u8,
+    map    : HashMap<i32, i32>,
+    create : Box<Fn() + Send + 'static + Sync>,
+}
+
+impl Manager {
+    
+    fn new(name: String, len: u8, create: Box<Fn() + Send + 'static + Sync>) -> Manager {
+        
+        let instance = Manager {
+            name   : name,
+            len    : len,
+            count  : 0,
+            map    : HashMap::new(),
+            create : create,
+        }
+    }
+    
+    fn refresh(&self) {
+        
+        loop {
+            
+            if self.len > self.count {
+                
+                //TODO - dostawienie instnacji
+                //nowy kanał terminaotra
+                //odpalenie kanału z tym argumentem
+            
+            } else if self.len < self.count {
+                
+                //TODO - odjąć instancji
+                //wystarczy zwolnić kanał terminatora
+                
+            } else {
+                
+                //dobra ilość
+                return;
+            }
+            
+            
+        }
+        
+        for _ in 0..inst.len {
+            inst.spawn();
+        }
+        
+    }
+    
+    fn spawn(&self) {
+        
+    }
+}
+
+
+
+   
+//id -> kanal
+    
+    
     //tutaj
     
     //kanał może przyjmować tylko "taski" typ
