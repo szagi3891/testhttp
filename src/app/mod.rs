@@ -123,7 +123,6 @@ fn run(addres: String) -> i32 {
     }
     
     
-    
     let (ctrl_c_tx1, ctrl_c_rx1) = chan::sync(0);
     let (ctrl_c_tx2, ctrl_c_rx2) = chan::sync(0);
 
