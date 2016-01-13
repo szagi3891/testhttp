@@ -79,34 +79,25 @@ fn run(addres: String) -> i32 {
     
     
     
-    /*
-    let manager_workers = {
-        
+    let manager_workers =  Manager::new("worker".to_owned(), 4, Box::new(move|thread_name: String|{
+            
+        //let thread_name = "<worker>".to_owned();
+
         let rx_request      = rx_request.clone();
         let tx_api_request  = tx_api_request.clone();
         let rx_api_response = rx_api_response.clone();
-        
-        Manager::new("worker".to_owned(), 4, Box::new(move|thread_name: String|{
-            
-            //let thread_name = "<worker>".to_owned();
-            
-            let rx_request      = rx_request.clone();
-            let tx_api_request  = tx_api_request.clone();
-            let rx_api_response = rx_api_response.clone();
-            
-            match spawn(thread_name, move ||{
-                run_worker(rx_request, tx_api_request, rx_api_response);
-            }) {
-                Ok(join_handle) => join_handle,
-                Err(err) => panic!("Can't spawn api spawner: {}", err),
-            };
-        }))
-    };
-    */
 
-                                //np. 4 workery
+        match spawn(thread_name, move ||{
+            run_worker(rx_request, tx_api_request, rx_api_response);
+        }) {
+            Ok(join_handle) => join_handle,
+            Err(err) => panic!("Can't spawn api spawner: {}", err),
+        };
+    }));
     
-    for i in 0..20 {
+                                //np. 4 workery
+    /*
+    for _ in 0..20 {
         
         let thread_name = format!("<worker #{}>", i);
         
@@ -121,6 +112,8 @@ fn run(addres: String) -> i32 {
             Err(err) => panic!("Can't spawn api spawner: {}", err),
         };
     }
+    */
+    
     
     
     let (ctrl_c_tx1, ctrl_c_rx1) = chan::sync(0);
