@@ -106,9 +106,9 @@ fn run(addres: String) -> i32 {
 
                                 //np. 4 workery
     
-    for _ in 0..4 {
+    for i in 0..20 {
         
-        let thread_name = "<worker>".to_owned();
+        let thread_name = format!("<worker #{}>", i);
         
         let rx_request      = rx_request.clone();
         let tx_api_request  = tx_api_request.clone();

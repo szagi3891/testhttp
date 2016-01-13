@@ -1,0 +1,35 @@
+http://mahkoh.github.io/comm/doc/comm/index.html
+
+https://github.com/mahkoh/comm/blob/master/src/mpmc/bounded/imp.rs
+
+
+
+https://github.com/carllerche/mio/blob/master/src/util/mpmc_bounded_queue.rs
+http://www.1024cores.net/home/lock-free-algorithms/introduction
+
+
+SPSC - ciekawa implementacja
+https://github.com/polyfractal/bounded-spsc-queue
+
+
+do spróbowania:
+https://crates.io/crates/many2many/
+
+
+ciekawe - bez dokumentacji
+https://github.com/crhino/canal
+
+
+kolejka
+https://github.com/fuchsnj/rust_pubsub
+
+
+
+
+powiadomienia o zmianach na dysku
+https://github.com/passcod/rsnotify
+
+
+asynchroniczne io ?
+https://crates.io/crates/libaio/
+
