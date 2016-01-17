@@ -9,3 +9,6 @@ simple-signal = "1.0.4"
 httparse = "1.1.0"
 time = "0.1"
 chan = "0.1.14"
+
+[dependencies.comm]
+git = "https://github.com/mahkoh/comm"
