@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::io;
 
-use chan::{Receiver, Sender};
+use comm::mpmc::bounded::Channel;
 
 use asynchttp::log;
 use asynchttp::async::{spawn, Callback};
@@ -22,12 +22,12 @@ pub enum Response {
 }
 
 
-pub fn run(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) {
+pub fn run(rx_api_request: Channel<'static, Request>, tx_api_response: Channel<'static, Response>) {
 
     let static_workers_no = 5;
 
     for i in 0..static_workers_no {
-        
+
         let rx_api_request  = rx_api_request.clone();
         let tx_api_response = tx_api_response.clone();
         
@@ -46,20 +46,20 @@ pub fn run(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>)
 }
 
 
-fn worker(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) {
+fn worker(rx_api_request: Channel<Request>, tx_api_response: Channel<Response>) {
 
     loop {
         
-        match rx_api_request.recv() {
+        match rx_api_request.recv_sync() {
 
-            Some(Request::GetFile(path_src, callback)) => {
+            Ok(Request::GetFile(path_src, callback)) => {
                 
                 get_file(path_src, callback, &tx_api_response);
             }
             
-            None => {
+            Err(err) => {
                 
-                log::debug(format!("Exiting."));
+                log::debug(format!("rx_api_request channel error: {:?}", err));
                 return;
             }
         }
@@ -67,7 +67,7 @@ fn worker(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) 
 }
 
 
-fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Sender<Response>) {
+fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Channel<Response>) {
     
     let path = Path::new(&path_src);
 
@@ -101,7 +101,7 @@ fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Sender<Res
 
     log::debug(format!("Sending response."));
 
-    tx_api_response.send(Response::GetFile(response, callback));
+    tx_api_response.send_sync(Response::GetFile(response, callback));
 }
 
 

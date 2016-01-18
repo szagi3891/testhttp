@@ -4,7 +4,7 @@ use std::io;
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, Timeout};
 use mio::tcp::{TcpListener};
 //use mio::util::Slab;                                  //TODO - użyć tego modułu zamiast hashmapy
-use chan;                                               //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
+use comm::mpmc::bounded::Channel;                       //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
 
 use asynchttp::miohttp::request;
 use asynchttp::miohttp::response;
@@ -13,12 +13,12 @@ use asynchttp::miohttp::connection::{Connection, TimerMode};
 use asynchttp::miohttp::token_gen::TokenGen;
 
 // Define a handler to process the events
-pub struct MyHandler {
+pub struct MyHandler<'a> {
     token           : Token,
     server          : TcpListener,
     hash            : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
-    send            : chan::Sender<request::Request>,   //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
+    send            : Channel<'a, request::Request>,   //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
     timeout_reading : u64,
     timeout_writing : u64,
 }
@@ -35,7 +35,7 @@ pub enum Event {
 }
 
 
-impl Handler for MyHandler {
+impl<'a> Handler for MyHandler<'a> {
 
     type Timeout = Token;
     type Message = (Token, response::Response);
@@ -67,9 +67,9 @@ impl Handler for MyHandler {
 }
 
 
-impl MyHandler {
+impl<'a> MyHandler<'a> {
 
-    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: chan::Sender<request::Request>) -> Result<(), io::Error> {
+    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: Channel<request::Request>) -> Result<(), io::Error> {
         
         let mut tokens = TokenGen::new();
 
@@ -194,7 +194,7 @@ impl MyHandler {
                     
                     Some(request) => {
                         log::debug(format!("Sending request through channel 1"));
-                        let _ = self.send.send(request);
+                        let _ = self.send.send_async(request);
                         log::debug(format!("Sending request through channel 2"));
                     }
 
