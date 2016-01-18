@@ -1,0 +1,6 @@
+[package]
+name = "test_mutex_chan"
+version = "0.1.0"
+authors = ["szagi3891 <szeligagrzegorz@gmail.com>"]
+
+[dependencies]
