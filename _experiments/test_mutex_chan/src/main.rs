@@ -4,6 +4,8 @@ use std::thread;
 struct Channel<T> {
     buffor : Vec
     //tablica z recivierami
+        //reciver
+        //informacja o tym czy jest gotowy do przyjęcia danych
 }
 
 struct Sender {
@@ -38,6 +40,32 @@ fn make_chan() -> (Sender, Recivier) {
     
     (chan.sender(), chan.recivier())
 }
+
+
+/*
+    
+    w przypadku selecta, wystarczyłoby żeby schowek na daną, dało się podmienić na inny kanał który miałby taką samą sygnaturę
+    typów jak kanał pierwotny
+
+    tryb wysyłania (sender)
+    
+        lock na channels
+            próbuj przepychać dane do oczekujących kanałów
+            na schowkach rób try_lock
+
+    tryb sprawdzania (reciver)
+        
+        lock na channels
+
+            oznacz że ten kanał na którym jest wykonywane sprawdzanie, oczekuje na dane
+            
+            próbuj przepychać dane do oczekujących kanałów (czyli w trybie recevera)
+
+        lock na schowek odbiorcy
+            jeśli są dane to ok
+        jeśli nie, to zwolnij mutex i czekaj
+    
+*/
 
 
 
