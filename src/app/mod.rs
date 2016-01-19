@@ -68,11 +68,11 @@ fn run(addres: String) -> i32 {
         let api_request  = api_request.clone();
         let api_response = api_response.clone();
         
-        let manager_api = Manager::new("api".to_owned(), 2, Box::new(move|thread_name: String|{
+        let manager_api = Manager::new("api".to_owned(), 1, Box::new(move|thread_name: String|{
 
             let rx_api_request  = api_request.clone();
             let tx_api_response = api_response.clone();
-            
+
             match spawn(thread_name, move ||{
                 api::run(rx_api_request, tx_api_response);
             }) {
