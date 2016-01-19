@@ -87,7 +87,10 @@ fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Channel<Re
                         let mut file_data: Vec<u8> = Vec::new();
 
                         match file.read_to_end(&mut file_data) {
-                            Ok(_) => Ok(file_data),
+                            Ok(_) => {
+                                log::debug(format!("Sending response ({} bytes).", file_data.len()));
+                                Ok(file_data)
+                            }
                             Err(err) => Err(err),
                         }
                     },
@@ -99,7 +102,6 @@ fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Channel<Re
         Err(err) => Err(err), 
     };
 
-    log::debug(format!("Sending response."));
 
     tx_api_response.send_sync(Response::GetFile(response, callback));
 }

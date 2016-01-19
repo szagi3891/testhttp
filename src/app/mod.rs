@@ -29,12 +29,13 @@ pub fn run_main() {
 
 fn run(addres: String) -> i32 {
     
-    //let (request_producer, request_consumer) = comm::mpmc::bounded::new(100);       // performance problems with nthreads > cores
+    let request_channel = comm::mpmc::bounded::Channel::new(100);       // performance problems with nthreads > cores
     //let (request_producer, request_consumer) = comm::spmc::bounded_fast::new(100);  // unsafe
-    let (request_producer, request_consumer) = comm::spmc::unbounded::new();          // buffer overflow
+    //let (request_producer, request_consumer) = comm::spmc::unbounded::new();          // buffer overflow
 
     let thread_name = "<EventLoop>".to_owned();
 
+    let request_producer = request_channel.clone();
     match spawn(thread_name, move ||{
         
         miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer);
@@ -88,7 +89,7 @@ fn run(addres: String) -> i32 {
         
         let thread_name = "<worker>".to_owned();
        
-        let request_consumer = request_consumer.clone();
+        let request_consumer = request_channel.clone();
         let tx_api_request   = api_request.clone();
         let rx_api_response  = api_response.clone();
 
@@ -130,7 +131,7 @@ fn run(addres: String) -> i32 {
 
 
 
-fn run_worker<'a>(rx_request: comm::spmc::unbounded::Consumer<'a, request::Request>, tx_api_request: comm::mpmc::bounded::Channel<'a, api::Request>, rx_api_response: comm::mpmc::bounded::Channel<'a, api::Response>) {
+fn run_worker<'a>(rx_request: comm::mpmc::bounded::Channel<'a, request::Request>, tx_api_request: comm::mpmc::bounded::Channel<'a, api::Request>, rx_api_response: comm::mpmc::bounded::Channel<'a, api::Response>) {
     
     let select = Select::new();
     select.add(&rx_request);

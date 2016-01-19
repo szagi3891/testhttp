@@ -18,7 +18,7 @@ pub struct MyHandler<'a> {
     server          : TcpListener,
     hash            : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
-    send            : comm::spmc::unbounded::Producer<'a, request::Request>,   //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
+    channel         : comm::mpmc::bounded::Channel<'a, request::Request>,   //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
     timeout_reading : u64,
     timeout_writing : u64,
 }
@@ -69,7 +69,7 @@ impl<'a> Handler for MyHandler<'a> {
 
 impl<'a> MyHandler<'a> {
 
-    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: comm::spmc::unbounded::Producer<request::Request>) -> Result<(), io::Error> {
+    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: comm::mpmc::bounded::Channel<'a, request::Request>) -> Result<(), io::Error> {
         
         let mut tokens = TokenGen::new();
 
@@ -94,7 +94,7 @@ impl<'a> MyHandler<'a> {
             server          : server,
             hash            : HashMap::new(),
             tokens          : tokens,
-            send            : tx,
+            channel         : tx,
             timeout_reading : timeout_reading,
             timeout_writing : timeout_writing,
         };
@@ -194,7 +194,7 @@ impl<'a> MyHandler<'a> {
                     
                     Some(request) => {
                         log::debug(format!("Sending request through channel 1"));
-                        let _ = self.send.send(request);
+                        let _ = self.channel.send_sync(request);
                         log::debug(format!("Sending request through channel 2"));
                     }
 
