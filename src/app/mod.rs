@@ -9,6 +9,7 @@ use comm::select::{Select, Selectable};
 use asynchttp::{miohttp,log};
 use asynchttp::async::{spawn};
 use asynchttp::miohttp::{request, channels};
+use asynchttp::async::Manager;
 
 
 pub fn run_main() {
@@ -49,16 +50,10 @@ fn run(addres: String) -> i32 {
     };
     
     
-    
     /*
-    
-        zarządca
-        jeśli pod rząd nie może uruchomić programu 3 razy, to fail
+        TODO - zarządca
         
-        manager::create(3)      -- twórz 3 procesy potomkowe
-
-        manager.shoutdown();
-
+        jeśli pod rząd nie może uruchomić programu 3 razy, to fail
         w przypadku gdy poleci panic, to wznawiaj taki proces ...
     */
     
@@ -70,43 +65,29 @@ fn run(addres: String) -> i32 {
     let api_response = comm::mpmc::bounded::Channel::new(100);        //<(api::FilesData, api::CallbackFD)>
     
     {
-        let thread_name = "<api>".to_owned();
-       
-        let rx_api_request = api_request.clone();
-        let tx_api_response = api_response.clone();
+        let api_request  = api_request.clone();
+        let api_response = api_response.clone();
+        
+        let manager_api = Manager::new("api".to_owned(), 2, Box::new(move|thread_name: String|{
 
-        match spawn(thread_name, move ||{
-            api::run(rx_api_request, tx_api_response);
-        }) {
-            Ok(join_handle) => join_handle,
-            Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
-        };
+            let rx_api_request  = api_request.clone();
+            let tx_api_response = api_response.clone();
+            
+            match spawn(thread_name, move ||{
+                api::run(rx_api_request, tx_api_response);
+            }) {
+                Ok(join_handle) => join_handle,
+                Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
+            };
+        }));
     }
     
     
-    /*
-    let manager_workers =  Manager::new("worker".to_owned(), 4, Box::new(move|thread_name: String|{
-            
-        //let thread_name = "<worker>".to_owned();
-
-        let rx_request      = rx_request.clone();
-        let tx_api_request  = tx_api_request.clone();
-        let rx_api_response = rx_api_response.clone();
-
-        match spawn(thread_name, move ||{
-            run_worker(rx_request, tx_api_request, rx_api_response);
-        }) {
-            Ok(join_handle) => join_handle,
-            Err(err) => panic!("Can't spawn api spawner: {}", err),
-        };
-    }));
-    */
     
-                                //np. 4 workery
-    for _ in 0..20 {
+    //TODO - nazwę wątku wzbogacić o licznik
+    
+    let manager_workers = Manager::new("worker".to_owned(), 4, Box::new(move|thread_name: String|{
         
-        let thread_name = "<worker>".to_owned();
-       
         let request_consumer = request_channel.clone();
         let tx_api_request   = api_request.clone();
         let rx_api_response  = api_response.clone();
@@ -117,24 +98,22 @@ fn run(addres: String) -> i32 {
             Ok(join_handle) => join_handle,
             Err(err) => panic!("Can't spawn api spawner: {}", err),
         };
-    }
-    
+    }));
     
     
     let (sigterm_sender,  sigterm_receiver ) = comm::spsc::one_space::new();
     let (shutdown_sender, shutdown_receiver) = comm::spsc::one_space::new();
+    
+    Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
 
-    {
-        Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
+        log::debug(format!("Termination signal catched."));
 
-            log::debug(format!("Termination signal catched."));
+        sigterm_sender.send(());
 
-            sigterm_sender.send(());
-
-            // oczekuj na zakończenie procedury wyłączania
-            let _ = shutdown_receiver.recv_sync();
-        });
-    }
+        // oczekuj na zakończenie procedury wyłączania
+        let _ = shutdown_receiver.recv_sync();
+    });
+    
     
     // główna pętla sterująca podwątkami
     loop {
@@ -142,6 +121,12 @@ fn run(addres: String) -> i32 {
         let _ = sigterm_receiver.recv_sync();
 
         log::info(format!("Shutting down!"));
+        
+        //TODO - czekaj aż wsystkie taski się zakończą ...
+        
+        //TODO - manager_api --> off
+        //TODO - manager_workers -> off
+        
         shutdown_sender.send(());
         return 0;
     }

@@ -78,11 +78,13 @@ impl Manager {
         instance
     }
     
+    pub fn shoutdown(&mut self) {
+        
+    }
+    
     fn refresh(&mut self) {
         
         loop {
-            
-            println!("!!!loop");
             
             if self.len > self.count {
                 
@@ -92,8 +94,6 @@ impl Manager {
             
             } else if self.len < self.count {
                 
-                //TODO - odjąć instancji - wystarczy zwolnić kanał terminatora i poczekać aż się proces zakończy
-                
                 panic!("TODO - trzeba wyłączyć nadmiarową ilość wątków");
                 
             } else {
@@ -101,26 +101,24 @@ impl Manager {
                 //a good amount
                 return;
             }
-            
-            
         }
-
     }
     
     fn spawn(&mut self, name: String) {
         
-        println!("!!!soawn");
-        //let box create = self.create;
-        //create();
-        
         match &self.create {
-            f => f(name),
+            f => {
+                f(name)
+                /*
+                match f(name) => {
+                    Ok(join_handle) => {},
+                    Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
+                };
+                */
+            }
         }
         
-        //self.create.call();
         self.count = self.count + 1;
-        
-        
     }
 }
 
