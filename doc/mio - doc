@@ -7,3 +7,31 @@ https://nbaksalyar.github.io/2015/07/10/writing-chat-in-rust.html
 
 http://hoverbear.org/2015/03/03/getting-acquainted-with-mio/
 
+
+
+https://www.gitbook.com/book/wycats/mio-book/details
+
+
+https://github.com/housleyjk/ws-rs
+	do sprawdzenia biblioteka dotycząca websocketów
+
+https://wycats.gitbooks.io/mio-book/content/index.html
+
+	książka o mio
+
+
+
+
+        uruchamianie przykładów z repozytorium
+cargo run --example threaded
+
+
+			kilka wątków nasłuchujących na jednym lisinerze
+https://github.com/tailhook/rotor-http/blob/master/examples/threaded.rs
+
+
+
+
+
+    
+    

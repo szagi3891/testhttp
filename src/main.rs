@@ -1,4 +1,5 @@
 #![feature(fnbox)]
+#![feature(unboxed_closures)]
 
 extern crate mio;
 extern crate simple_signal;

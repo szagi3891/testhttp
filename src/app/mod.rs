@@ -10,6 +10,7 @@ use asynchttp::{miohttp,log};
 use asynchttp::async::{spawn};
 use asynchttp::miohttp::{request, channels};
 
+
 pub fn run_main() {
         
     let addres = "0.0.0.0:2222";
@@ -83,16 +84,33 @@ fn run(addres: String) -> i32 {
     }
     
     
-                                //np. 4 workery
+    /*
+    let manager_workers =  Manager::new("worker".to_owned(), 4, Box::new(move|thread_name: String|{
+            
+        //let thread_name = "<worker>".to_owned();
+
+        let rx_request      = rx_request.clone();
+        let tx_api_request  = tx_api_request.clone();
+        let rx_api_response = rx_api_response.clone();
+
+        match spawn(thread_name, move ||{
+            run_worker(rx_request, tx_api_request, rx_api_response);
+        }) {
+            Ok(join_handle) => join_handle,
+            Err(err) => panic!("Can't spawn api spawner: {}", err),
+        };
+    }));
+    */
     
-    for _ in 0..4 {
+                                //np. 4 workery
+    for _ in 0..20 {
         
         let thread_name = "<worker>".to_owned();
        
         let request_consumer = request_channel.clone();
         let tx_api_request   = api_request.clone();
         let rx_api_response  = api_response.clone();
-
+        
         match spawn(thread_name, move ||{
             run_worker(request_consumer, tx_api_request, rx_api_response);
         }) {

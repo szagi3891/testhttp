@@ -1,0 +1,100 @@
+http://mahkoh.github.io/comm/doc/comm/index.html
+https://github.com/mahkoh/comm/blob/master/src/mpmc/bounded/imp.rs
+
+
+
+https://github.com/carllerche/mio/blob/master/src/util/mpmc_bounded_queue.rs
+http://www.1024cores.net/home/lock-free-algorithms/introduction
+
+
+SPSC - ciekawa implementacja
+https://github.com/polyfractal/bounded-spsc-queue
+
+
+do spróbowania:
+https://crates.io/crates/many2many/
+
+
+ciekawe - bez dokumentacji
+https://github.com/crhino/canal
+
+
+kolejka
+https://github.com/fuchsnj/rust_pubsub
+
+
+
+
+powiadomienia o zmianach na dysku
+https://github.com/passcod/rsnotify
+
+
+asynchroniczne io ?
+https://crates.io/crates/libaio/
+
+
+
+
+http://mahkoh.github.io/comm/doc/comm/
+let select = Select::new();
+for recv in &channels {
+    select.add(recv);
+}
+let first_ready = select.wait(&mut [0])[0];
+for recv in &channels {
+    if first_ready == recv.id() {
+        println!("First ready: {}", recv.recv_sync().unwrap());
+        return;
+    }
+}
+
+
+
+
+            operujemy tylko na asynchronicznych kanałach
+                (jedyny synchroniczny kanał którego użyjemy to jest kanał do łapania sygnału ctrl+c)
+
+kanał<T1>
+kanał<T2>
+
+enum Result {
+    Result1(T1),
+    Result2(T2),
+}
+
+let list = Vec![kanal1.map(naResult1), kanal2.map(naResult2)];
+
+    naResult1 : fn(T1) -> Result
+    naResult2 : fn (T2) -> Result
+
+
+let newChannel = makeNewChannel(list);
+
+loop {
+    
+    match newChannel.recv() {
+        Result1(result) => {
+            //dane z pierwszego kanału      - pod warunkiem że funkcje mapujące kanał są prawidłowe
+        },
+        Result2(result) => {
+            //dane z drugiego kanału
+        }
+    }
+    
+    
+                                            - wersja asynchroniczna callbackowa
+    
+    newChannel.recv(|result|{
+        
+        match result {
+            Result1(result) => {
+                //dane z pierwszego kanału      - pod warunkiem że funkcje mapujące kanał są prawidłowe
+            },
+            Result2(result) => {
+                //dane z drugiego kanału
+            },
+        }
+    });
+}
+
+
