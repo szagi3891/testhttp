@@ -8,7 +8,7 @@ use comm::select::{Select, Selectable};
 
 use asynchttp::{miohttp,log};
 use asynchttp::async::{spawn};
-use asynchttp::miohttp::request;
+use asynchttp::miohttp::{request, channels};
 
 pub fn run_main() {
         
@@ -29,7 +29,7 @@ pub fn run_main() {
 
 fn run(addres: String) -> i32 {
     
-    let request_channel = comm::mpmc::bounded::Channel::new(100);       // performance problems with nthreads > cores
+    let request_channel = channels::RequestChannel::new(100);       // performance problems with nthreads > cores
     //let (request_producer, request_consumer) = comm::spmc::bounded_fast::new(100);  // unsafe
     //let (request_producer, request_consumer) = comm::spmc::unbounded::new();          // buffer overflow
 
