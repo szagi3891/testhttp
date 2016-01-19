@@ -3,12 +3,12 @@ mod worker;
 
 use std::process;
 use simple_signal::{Signals, Signal};
-use comm::mpmc::bounded::Channel;
+use comm;
 use comm::select::{Select, Selectable};
 
 use asynchttp::{miohttp,log};
 use asynchttp::async::{spawn};
-use asynchttp::miohttp::request;
+use asynchttp::miohttp::{request, channels};
 
 pub fn run_main() {
         
@@ -29,17 +29,16 @@ pub fn run_main() {
 
 fn run(addres: String) -> i32 {
     
-    
-    let request = Channel::new(100);
-    
-    
+    let request_channel = channels::RequestChannel::new(100);       // performance problems with nthreads > cores
+    //let (request_producer, request_consumer) = comm::spmc::bounded_fast::new(100);  // unsafe
+    //let (request_producer, request_consumer) = comm::spmc::unbounded::new();          // buffer overflow
+
     let thread_name = "<EventLoop>".to_owned();
-        
-    let tx_request = request.clone();
-        
+
+    let request_producer = request_channel.clone();
     match spawn(thread_name, move ||{
         
-        miohttp::server::MyHandler::new(&addres, 4000, 4000, tx_request);
+        miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer);
         
         //tutaj trzeba odebrać błąd, a następnie go odpowiednio sformatować i wyrzucić w loga
         
@@ -66,8 +65,8 @@ fn run(addres: String) -> i32 {
     
     // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
     
-    let api_request  = Channel::new(100);        //<(String, api::CallbackFD)>
-    let api_response = Channel::new(100);        //<(api::FilesData, api::CallbackFD)>
+    let api_request  = comm::mpmc::bounded::Channel::new(100);        //<(String, api::CallbackFD)>
+    let api_response = comm::mpmc::bounded::Channel::new(100);        //<(api::FilesData, api::CallbackFD)>
     
     {
         let thread_name = "<api>".to_owned();
@@ -89,13 +88,13 @@ fn run(addres: String) -> i32 {
     for _ in 0..4 {
         
         let thread_name = "<worker>".to_owned();
-        
-        let rx_request      = request.clone();
-        let tx_api_request  = api_request.clone();
-        let rx_api_response = api_response.clone();
+       
+        let request_consumer = request_channel.clone();
+        let tx_api_request   = api_request.clone();
+        let rx_api_response  = api_response.clone();
 
         match spawn(thread_name, move ||{
-            run_worker(rx_request, tx_api_request, rx_api_response);
+            run_worker(request_consumer, tx_api_request, rx_api_response);
         }) {
             Ok(join_handle) => join_handle,
             Err(err) => panic!("Can't spawn api spawner: {}", err),
@@ -104,37 +103,35 @@ fn run(addres: String) -> i32 {
     
     
     
-    let ctrl_c1 = Channel::new(1);
-    let ctrl_c2 = Channel::new(1);
+    let (sigterm_sender,  sigterm_receiver ) = comm::spsc::one_space::new();
+    let (shutdown_sender, shutdown_receiver) = comm::spsc::one_space::new();
 
     {
-        let ctrl_c1 = ctrl_c1.clone();
-        let ctrl_c2 = ctrl_c2.clone();
         Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
 
             log::debug(format!("Termination signal catched."));
 
-            ctrl_c1.send_async(());
+            sigterm_sender.send(());
 
             // oczekuj na zakończenie procedury wyłączania
-            let _ = ctrl_c2.recv_sync();
+            let _ = shutdown_receiver.recv_sync();
         });
     }
     
     // główna pętla sterująca podwątkami
     loop {
         
-        let _ = ctrl_c1.recv_sync();
+        let _ = sigterm_receiver.recv_sync();
 
         log::info(format!("Shutting down!"));
-        ctrl_c2.send_sync(());
+        shutdown_sender.send(());
         return 0;
     }
 }
 
 
 
-fn run_worker<'a>(rx_request: Channel<'a, request::Request>, tx_api_request: Channel<'a, api::Request>, rx_api_response: Channel<'a, api::Response>) {
+fn run_worker<'a>(rx_request: comm::mpmc::bounded::Channel<'a, request::Request>, tx_api_request: comm::mpmc::bounded::Channel<'a, api::Request>, rx_api_response: comm::mpmc::bounded::Channel<'a, api::Response>) {
     
     let select = Select::new();
     select.add(&rx_request);
