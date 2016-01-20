@@ -105,8 +105,8 @@ fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &ApiRespons
         Err(err) => Err(err), 
     };
 
-
     tx_api_response.send_sync(Response::GetFile(response, callback));
+    log::debug(format!("Response sent."));
 }
 
 
