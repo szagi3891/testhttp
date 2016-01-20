@@ -3,13 +3,15 @@ mod worker;
 
 use std::process;
 use simple_signal::{Signals, Signal};
-use comm;
+use comm::spsc::one_space;
 use comm::select::{Select, Selectable};
 
 use asynchttp::{miohttp,log};
 use asynchttp::async::{spawn};
 use asynchttp::miohttp::{channels};
 use asynchttp::async::Manager;
+
+use app::api::{ApiRequestChannel, ApiResponseChannel};
 
 
 pub fn run_main() {
@@ -58,8 +60,8 @@ fn run(addres: String) -> i32 {
     
     // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
     
-    let api_request  = comm::mpmc::bounded::Channel::new(100);        //<(String, api::CallbackFD)>
-    let api_response = comm::mpmc::bounded::Channel::new(100);        //<(api::FilesData, api::CallbackFD)>
+    let api_request  = ApiRequestChannel::new(100);     //<(String, api::CallbackFD)>
+    let api_response = ApiResponseChannel::new(100);    //<(api::FilesData, api::CallbackFD)>
     
     {
         let api_request  = api_request.clone();
@@ -98,8 +100,8 @@ fn run(addres: String) -> i32 {
     }));
     
     
-    let (sigterm_sender,  sigterm_receiver ) = comm::spsc::one_space::new();
-    let (shutdown_sender, shutdown_receiver) = comm::spsc::one_space::new();
+    let (sigterm_sender,  sigterm_receiver ) = one_space::new();
+    let (shutdown_sender, shutdown_receiver) = one_space::new();
     
     Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
 
@@ -136,7 +138,7 @@ fn run(addres: String) -> i32 {
 
 
 
-fn run_worker<'a>(rx_request: channels::RequestConsumer<'a>, tx_api_request: comm::mpmc::bounded::Channel<'a, api::Request>, rx_api_response: comm::mpmc::bounded::Channel<'a, api::Response>) {
+fn run_worker<'a>(rx_request: channels::RequestConsumer<'a>, tx_api_request: ApiRequestChannel<'a>, rx_api_response: ApiResponseChannel<'a>) {
     
     let select = Select::new();
     select.add(&rx_request);

@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::io;
 
-use comm::mpmc::bounded::Channel;
+use comm;
 
 use asynchttp::log;
 use asynchttp::async::{spawn, Callback};
@@ -11,7 +11,6 @@ use asynchttp::async::{spawn, Callback};
 
 pub type FilesData  = Result<Vec<u8>, io::Error>;
 pub type CallbackFD = Callback<FilesData>;
-
 
 pub enum Request {
     GetFile(String, CallbackFD),        //get file content
@@ -22,7 +21,11 @@ pub enum Response {
 }
 
 
-pub fn run(rx_api_request: Channel<'static, Request>, tx_api_response: Channel<'static, Response>) {
+pub type ApiRequestChannel<'a>  = comm::mpmc::bounded::Channel<'a, Request>;
+pub type ApiResponseChannel<'a> = comm::mpmc::bounded::Channel<'a, Response>;
+
+
+pub fn run(rx_api_request: ApiRequestChannel<'static>, tx_api_response: ApiResponseChannel<'static>) {
 
     let static_workers_no = 5;
 
@@ -46,7 +49,7 @@ pub fn run(rx_api_request: Channel<'static, Request>, tx_api_response: Channel<'
 }
 
 
-fn worker(rx_api_request: Channel<Request>, tx_api_response: Channel<Response>) {
+fn worker(rx_api_request: ApiRequestChannel, tx_api_response: ApiResponseChannel) {
 
     loop {
         
@@ -67,7 +70,7 @@ fn worker(rx_api_request: Channel<Request>, tx_api_response: Channel<Response>) 
 }
 
 
-fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Channel<Response>) {
+fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &ApiResponseChannel) {
     
     let path = Path::new(&path_src);
 
