@@ -8,7 +8,7 @@ use comm::select::{Select, Selectable};
 
 use asynchttp::{miohttp,log};
 use asynchttp::async::{spawn};
-use asynchttp::miohttp::{request, channels};
+use asynchttp::miohttp::{channels};
 use asynchttp::async::Manager;
 
 
@@ -31,13 +31,10 @@ pub fn run_main() {
 
 fn run(addres: String) -> i32 {
     
-    let request_channel = channels::RequestChannel::new(100);       // performance problems with nthreads > cores
-    //let (request_producer, request_consumer) = comm::spmc::bounded_fast::new(100);  // unsafe
-    //let (request_producer, request_consumer) = comm::spmc::unbounded::new();          // buffer overflow
+    let (request_producer, request_consumer) = channels::new_request_channel();
 
     let thread_name = "<EventLoop>".to_owned();
 
-    let request_producer = request_channel.clone();
     match spawn(thread_name, move ||{
         
         miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer);
@@ -88,7 +85,7 @@ fn run(addres: String) -> i32 {
     
     let manager_workers = Manager::new("worker".to_owned(), 4, Box::new(move|thread_name: String|{
         
-        let request_consumer = request_channel.clone();
+        let request_consumer = request_consumer.clone();
         let tx_api_request   = api_request.clone();
         let rx_api_response  = api_response.clone();
         
@@ -108,10 +105,15 @@ fn run(addres: String) -> i32 {
 
         log::debug(format!("Termination signal catched."));
 
-        sigterm_sender.send(());
-
-        // oczekuj na zakończenie procedury wyłączania
-        let _ = shutdown_receiver.recv_sync();
+        match sigterm_sender.send(()) {
+            Ok(_) => {
+                // oczekuj na zakończenie procedury wyłączania
+                let _ = shutdown_receiver.recv_sync();
+            }
+            Err(err) => {
+                log::error(format!("Can't tell server to shutdown: {:?}", err));
+            }
+        }
     });
     
     
@@ -127,14 +129,14 @@ fn run(addres: String) -> i32 {
         //TODO - manager_api --> off
         //TODO - manager_workers -> off
         
-        shutdown_sender.send(());
+        let _ = shutdown_sender.send(());
         return 0;
     }
 }
 
 
 
-fn run_worker<'a>(rx_request: comm::mpmc::bounded::Channel<'a, request::Request>, tx_api_request: comm::mpmc::bounded::Channel<'a, api::Request>, rx_api_response: comm::mpmc::bounded::Channel<'a, api::Response>) {
+fn run_worker<'a>(rx_request: channels::RequestConsumer<'a>, tx_api_request: comm::mpmc::bounded::Channel<'a, api::Request>, rx_api_response: comm::mpmc::bounded::Channel<'a, api::Response>) {
     
     let select = Select::new();
     select.add(&rx_request);
