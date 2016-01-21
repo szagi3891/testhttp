@@ -159,7 +159,6 @@ fn run_worker<'a>(rx_request: channels::RequestConsumer<'a>, tx_api_request: Api
                     Err(err) => {
                         // recv_async returns only "Empty" error.
                         log::debug(format!("Request already handled by someone else."));
-                        return;
                     }
                 }
             }
@@ -177,7 +176,6 @@ fn run_worker<'a>(rx_request: channels::RequestConsumer<'a>, tx_api_request: Api
                     Err(_) => {
                         // recv_async returns only "Empty" error.
                         log::debug(format!("Response already handled by someone else."));
-                        return;
                     }
                 }
             }
