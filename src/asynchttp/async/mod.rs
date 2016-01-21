@@ -88,7 +88,7 @@ impl Manager {
             
             if self.len > self.count {
                 
-                let thread_name = self.name.clone();
+                let thread_name = format!("{} #{}", self.name.clone(), self.count);
                 
                 self.spawn(thread_name);      //TODO - trzeba będzie tworzyć nazwę nowego procesu
             

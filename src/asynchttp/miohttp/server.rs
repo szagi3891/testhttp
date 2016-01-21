@@ -5,7 +5,7 @@ use mio::{Token, EventLoop, EventSet, PollOpt, Handler, Timeout};
 use mio::tcp::{TcpListener};
 //use mio::util::Slab;                 //TODO - użyć tego modułu zamiast hashmapy
 
-use asynchttp::miohttp::request;
+//use asynchttp::miohttp::request;
 use asynchttp::miohttp::response;
 use asynchttp::miohttp::channels;
 use asynchttp::log;
@@ -18,7 +18,7 @@ pub struct MyHandler<'a> {
     server          : TcpListener,
     hash            : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
-    channel         : channels::RequestChannel<'a>,   //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
+    channel         : channels::RequestProducer<'a>,   //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
     timeout_reading : u64,
     timeout_writing : u64,
 }
@@ -69,7 +69,7 @@ impl<'a> Handler for MyHandler<'a> {
 
 impl<'a> MyHandler<'a> {
 
-    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: channels::RequestChannel<'a>) -> Result<(), io::Error> {
+    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: channels::RequestProducer<'a>) -> Result<(), io::Error> {
         
         let mut tokens = TokenGen::new();
 
@@ -194,7 +194,7 @@ impl<'a> MyHandler<'a> {
                     
                     Some(request) => {
                         log::debug(format!("Sending request through channel 1"));
-                        let _ = self.channel.send_sync(request);
+                        let _ = self.channel.send(request);
                         log::debug(format!("Sending request through channel 2"));
                     }
 

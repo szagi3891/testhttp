@@ -3,13 +3,15 @@ mod worker;
 
 use std::process;
 use simple_signal::{Signals, Signal};
-use comm;
+use comm::spsc::one_space;
 use comm::select::{Select, Selectable};
 
 use asynchttp::{miohttp,log};
 use asynchttp::async::{spawn};
-use asynchttp::miohttp::{request, channels};
+use asynchttp::miohttp::{channels};
 use asynchttp::async::Manager;
+
+use app::api::{ApiRequestChannel, ApiResponseChannel};
 
 
 pub fn run_main() {
@@ -31,13 +33,10 @@ pub fn run_main() {
 
 fn run(addres: String) -> i32 {
     
-    let request_channel = channels::RequestChannel::new(100);       // performance problems with nthreads > cores
-    //let (request_producer, request_consumer) = comm::spmc::bounded_fast::new(100);  // unsafe
-    //let (request_producer, request_consumer) = comm::spmc::unbounded::new();          // buffer overflow
+    let (request_producer, request_consumer) = channels::new_request_channel();
 
     let thread_name = "<EventLoop>".to_owned();
 
-    let request_producer = request_channel.clone();
     match spawn(thread_name, move ||{
         
         miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer);
@@ -61,8 +60,8 @@ fn run(addres: String) -> i32 {
     
     // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
     
-    let api_request  = comm::mpmc::bounded::Channel::new(100);        //<(String, api::CallbackFD)>
-    let api_response = comm::mpmc::bounded::Channel::new(100);        //<(api::FilesData, api::CallbackFD)>
+    let api_request  = ApiRequestChannel::new(100);     //<(String, api::CallbackFD)>
+    let api_response = ApiResponseChannel::new(100);    //<(api::FilesData, api::CallbackFD)>
     
     {
         let api_request  = api_request.clone();
@@ -88,7 +87,7 @@ fn run(addres: String) -> i32 {
     
     let manager_workers = Manager::new("worker".to_owned(), 4, Box::new(move|thread_name: String|{
         
-        let request_consumer = request_channel.clone();
+        let request_consumer = request_consumer.clone();
         let tx_api_request   = api_request.clone();
         let rx_api_response  = api_response.clone();
         
@@ -101,17 +100,22 @@ fn run(addres: String) -> i32 {
     }));
     
     
-    let (sigterm_sender,  sigterm_receiver ) = comm::spsc::one_space::new();
-    let (shutdown_sender, shutdown_receiver) = comm::spsc::one_space::new();
+    let (sigterm_sender,  sigterm_receiver ) = one_space::new();
+    let (shutdown_sender, shutdown_receiver) = one_space::new();
     
     Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
 
         log::debug(format!("Termination signal catched."));
 
-        sigterm_sender.send(());
-
-        // oczekuj na zakończenie procedury wyłączania
-        let _ = shutdown_receiver.recv_sync();
+        match sigterm_sender.send(()) {
+            Ok(_) => {
+                // oczekuj na zakończenie procedury wyłączania
+                let _ = shutdown_receiver.recv_sync();
+            }
+            Err(err) => {
+                log::error(format!("Can't tell server to shutdown: {:?}", err));
+            }
+        }
     });
     
     
@@ -127,14 +131,14 @@ fn run(addres: String) -> i32 {
         //TODO - manager_api --> off
         //TODO - manager_workers -> off
         
-        shutdown_sender.send(());
+        let _ = shutdown_sender.send(());
         return 0;
     }
 }
 
 
 
-fn run_worker<'a>(rx_request: comm::mpmc::bounded::Channel<'a, request::Request>, tx_api_request: comm::mpmc::bounded::Channel<'a, api::Request>, rx_api_response: comm::mpmc::bounded::Channel<'a, api::Response>) {
+fn run_worker<'a>(rx_request: channels::RequestConsumer<'a>, tx_api_request: ApiRequestChannel<'a>, rx_api_response: ApiResponseChannel<'a>) {
     
     let select = Select::new();
     select.add(&rx_request);
@@ -142,9 +146,10 @@ fn run_worker<'a>(rx_request: comm::mpmc::bounded::Channel<'a, request::Request>
 
     loop {
         for &mut id in select.wait(&mut [0, 0]) {
+
             if id == rx_request.id() {
 
-                match rx_request.recv_sync() {
+                match rx_request.recv_async() {
 
                     Ok(request) => {
                         
@@ -152,17 +157,16 @@ fn run_worker<'a>(rx_request: comm::mpmc::bounded::Channel<'a, request::Request>
                     }
 
                     Err(err) => {
-
-                        //TODO
-                        println!("ex_request channel error: {:?}", err);
+                        // recv_async returns only "Empty" error.
+                        log::debug(format!("Request already handled by someone else."));
                         return;
                     }
                 }
             }
 
             else if id == rx_api_response.id() {
-                
-                match rx_api_response.recv_sync() {
+
+                match rx_api_response.recv_async() {
                     
                     Ok(api::Response::GetFile(result, callback)) => {
                         
@@ -170,10 +174,9 @@ fn run_worker<'a>(rx_request: comm::mpmc::bounded::Channel<'a, request::Request>
                         callback.call_box((result,));
                     }
                     
-                    Err(err) => {
-
-                        //TODO
-                        log::info(format!("rx_api_response channel error: {:?}", err));
+                    Err(_) => {
+                        // recv_async returns only "Empty" error.
+                        log::debug(format!("Response already handled by someone else."));
                         return;
                     }
                 }
