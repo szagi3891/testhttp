@@ -18,6 +18,8 @@ pub fn render_request(request: request::Request, tx_api_request: &Channel<api::R
     
     tx_api_request.send_sync(api::Request::GetFile(path, Box::new(move|data: api::FilesData|{
 
+        log::debug(format!("Invoked request's callback in response"));
+
         match data {
 
             Ok(buffer) => {
@@ -41,7 +43,8 @@ pub fn render_request(request: request::Request, tx_api_request: &Channel<api::R
                     io::ErrorKind::NotFound => {
 
                         let mess     = "Not found".to_owned();
-                        let response = response::Response::create(response::Code::Code404, response::Type::TextHtml, mess);
+                        let response = response::Response::create(response::Code::Code404, response::Type::TextHtml, mess.clone());
+                        log::debug(format!("404, {}, {}. {:?} ", response::Type::TextHtml, request.path, err));
                         request.send(response);
                     }
                     _ => {

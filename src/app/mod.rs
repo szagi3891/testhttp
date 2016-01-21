@@ -146,9 +146,10 @@ fn run_worker<'a>(rx_request: channels::RequestConsumer<'a>, tx_api_request: Api
 
     loop {
         for &mut id in select.wait(&mut [0, 0]) {
+
             if id == rx_request.id() {
 
-                match rx_request.recv_sync() {
+                match rx_request.recv_async() {
 
                     Ok(request) => {
                         
@@ -156,17 +157,16 @@ fn run_worker<'a>(rx_request: channels::RequestConsumer<'a>, tx_api_request: Api
                     }
 
                     Err(err) => {
-
-                        //TODO
-                        println!("ex_request channel error: {:?}", err);
+                        // recv_async returns only "Empty" error.
+                        log::debug(format!("Request already handled by someone else."));
                         return;
                     }
                 }
             }
 
             else if id == rx_api_response.id() {
-                
-                match rx_api_response.recv_sync() {
+
+                match rx_api_response.recv_async() {
                     
                     Ok(api::Response::GetFile(result, callback)) => {
                         
@@ -174,10 +174,9 @@ fn run_worker<'a>(rx_request: channels::RequestConsumer<'a>, tx_api_request: Api
                         callback.call_box((result,));
                     }
                     
-                    Err(err) => {
-
-                        //TODO
-                        log::info(format!("rx_api_response channel error: {:?}", err));
+                    Err(_) => {
+                        // recv_async returns only "Empty" error.
+                        log::debug(format!("Response already handled by someone else."));
                         return;
                     }
                 }
