@@ -5,6 +5,8 @@ use std::sync::{Arc, RwLock};
 use std::mem::replace as mem_replace;
 use std::collections::HashMap;
 
+use asynchttp::log;
+
 pub type Callback<T> = Box<FnBox(T) + Send + 'static + Sync>;
 
 
@@ -63,6 +65,8 @@ impl Manager {
     
     pub fn new(name: String, len: u32, create: Box<Fn(String) + Send + 'static + Sync>) -> Manager {
         
+        log::debug(format!("Starting {} manager with {} thread(s).", name, len));
+
         let mut instance = Manager {
             name   : name,
             len    : len,
@@ -71,14 +75,12 @@ impl Manager {
             create : create,
         };
         
-        println!("!!!create");
-        
         instance.refresh();
         
         instance
     }
     
-    pub fn shoutdown(&mut self) {
+    pub fn shutdown(&mut self) {
         
     }
     
@@ -88,7 +90,7 @@ impl Manager {
             
             if self.len > self.count {
                 
-                let thread_name = format!("{} #{}", self.name.clone(), self.count);
+                let thread_name = format!("<{} #{}>", self.name.clone(), self.count);
                 
                 self.spawn(thread_name);      //TODO - trzeba będzie tworzyć nazwę nowego procesu
             
