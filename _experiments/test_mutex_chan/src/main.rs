@@ -16,7 +16,7 @@ impl<T> SuperMutex<T> {
         }
     }
     
-    fn save(&mut self, new_value: T) {
+    fn save(&self, new_value: T) {
         
         let mut value = self.mutex.lock().unwrap();
         *value = Some(new_value);
@@ -25,7 +25,7 @@ impl<T> SuperMutex<T> {
         //notify_all?
     }
     
-    fn get(&mut self) -> T {
+    fn get(&self) -> T {
         
         let mut value_opt = self.mutex.lock().unwrap();
         
