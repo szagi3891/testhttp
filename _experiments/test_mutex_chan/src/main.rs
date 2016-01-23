@@ -2,17 +2,49 @@ use std::sync::{Arc, Mutex, Condvar};
 use std::thread;
 
 struct SuperMutex<T> {
-    mutex : Mutex<T>,
+    mutex : Mutex<Option<T>>,
     cond  : Condvar,
 }
 
 impl<T> SuperMutex<T> {
     
-    fn new(value: T) -> SuperMutex<T> {
+    fn new() -> SuperMutex<T> {
         
         SuperMutex{
-            mutex : Mutex::new(value),
+            mutex : Mutex::new(None),
             cond  : Condvar::new(),
+        }
+    }
+    
+    fn save(&mut self, new_value: T) {
+        
+        let mut value = self.mutex.lock().unwrap();
+        *value = Some(new_value);
+        self.cond.notify_one();
+        
+        //notify_all?
+    }
+    
+    fn get(&mut self) -> T {
+        
+        let mut value_opt = self.mutex.lock().unwrap();
+        
+        loop {
+            
+            let value = value_opt.take();
+            
+            match value {
+
+                Some(value) => {
+                    return value;
+                }
+                
+                None => {
+                    println!("dalej pusta wartość w schowku, czekam dalej");
+                }
+            }
+            
+            value_opt = self.cond.wait(value_opt).unwrap();
         }
     }
 }
@@ -21,40 +53,23 @@ fn main() {
     
     println!("test ...");
     
-    //trzeba stworzyć super mutex ...
-    
-    let mu = Arc::new(SuperMutex::new(false));
-    let mu2 = mu.clone();
+    let mut mu1 = Arc::new(SuperMutex::new());
+    let mut mu2 = mu1.clone();
+    let mut mu3 = mu1.clone();
     
     thread::spawn(move|| {
-        let mut value = mu2.lock().unwrap();
-        value.save(true);
+        mu2.save("value thread1");
     });
     
-    
-    let value = mu.lock().unwrap();
-    while value.get() != true {
-        value.wait().unwrap();
-    }
-    
-    
-    
-    let pair = Arc::new((Mutex::new(false), Condvar::new()));
-    let pair2 = pair.clone();
-
-    // Inside of our lock, spawn a new thread, and then wait for it to start
     thread::spawn(move|| {
-        let &(ref lock, ref cvar) = &*pair2;
-        let mut started = lock.lock().unwrap();
-        *started = true;
-        cvar.notify_one();
+        mu3.save("value thread2");
     });
-
-    // wait for the thread to start up
-    let &(ref lock, ref cvar) = &*pair;
-    let mut started = lock.lock().unwrap();
-    while !*started {
-        started = cvar.wait(started).unwrap();
-    }
     
+    let value_from_thread = mu1.get();
+    println!("odebrana wartość z wątku {}", value_from_thread);
+    
+    let value_from_thread = mu1.get();
+    println!("odebrana wartość z wątku {}", value_from_thread);
 }
+
+
