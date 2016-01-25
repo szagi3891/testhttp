@@ -1,22 +1,54 @@
+use std::sync::{Arc, Mutex, Condvar};
+
 fn chan() {
 }
 
-struct In {
-    query : Arc<Mutex<StateQuery>>,
+struct In<T: Sized> {
+    query : Arc<Mutex<StateQuery<T>>>,
 }
 
-struct StateQuery {
-    list : Vec<Sender>,
+struct StateQuery<T: Sized> {
+    list : Vec<SenderIn<T>>,
 }
 
-struct Sender {
-    query : Arc<Mutex<In>>,
-    chan  : Arc<Mutex<StateChan>>,
+
+struct Sender<T: Sized,R: Sized> {
+    query : Arc<Mutex<StateQuery<T>>>,
+    chan  : Arc<Mutex<StateChan<R>>>,
 }
 
-struct StateChan {
-    name : String
+trait SenderIn<T: Sized> {
+    fn send(self, T);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
 }
+
+/*
+trait SenderOut {
+}
+*/
+
+struct StateChan<R: Sized> {
+    mutex : Mutex<Option<R>>,
+    cond  : Condvar,
+}
+
+/*
+impl<R> StateChan<R> {
+    
+    fn new() -> Arc<StateChan<R>> {
+        Arc::new(StateChan{
+            mutex : Mutex::new(),
+            cond  : Condvar::new(),
+        })
+    }
+    
+    fn save() {
+    }
+    
+    fn get() -> R {
+        
+    }
+}
+*/
 
 //in
 //stan
