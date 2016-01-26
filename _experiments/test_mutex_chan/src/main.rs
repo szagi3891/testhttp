@@ -1,20 +1,20 @@
 use std::sync::{Arc, Mutex, Condvar};
 use std::collections::LinkedList;
 
-fn chan<T>() -> (Sender<T>, Arc<Receiver<T>>) {
+fn chan<'a, T: 'a>() -> (Sender<T>, Arc<Receiver<'a, T>>) {
     
     let query : Arc<Mutex<StateQuery<T>>> = StateQuery::new();
     let receiver : Arc<Receiver<T>>       = Receiver::new();
     let sender                            = Sender::new(query.clone());
     
-    let transport = Transport {
+    let transport : Transport<'a, T, T> = Transport {
         query    : query.clone(),
         receiver : receiver.clone(),
         transform : createIdentity::<T>(),      //funkcja przejścia
     };
         
     {
-        let inner = receiver.mutex.lock().unwrap();
+        let mut inner = receiver.mutex.lock().unwrap();
         inner.list.push(Box::new(transport));
     }
     
@@ -54,9 +54,9 @@ fn createIdentity<T>() -> Box<Fn(T) -> T> {
     })
 }
 
-struct Transport<T,R> {
+struct Transport<'a, T, R> {
     query     : Arc<Mutex<StateQuery<T>>>,
-    receiver  : Arc<Receiver<R>>,
+    receiver  : Arc<Receiver<'a, R>>,
     transform : Box<Fn(T) -> R>,
 }
     
@@ -68,34 +68,34 @@ trait TransportOut<R> {
     fn ready(self);
 }
 
-struct Receiver<R> {
-    mutex : Mutex<ReceiverInner<R>>,
+struct Receiver<'a, R> {
+    mutex : Mutex<ReceiverInner<'a, R>>,
     cond  : Condvar,
 }
 
 //TODO - dodać implementacja TransportOut dla Receiver
 
-impl<R,T> TransportOut<R> for Transport<T,R> {
+impl<'a, R, T> TransportOut<R> for Transport<'a, T, R> {
     fn ready(self) {
     }
 }
 
-impl<R> Receiver<R> {
+impl<'a, R> Receiver<'a, R> {
     
-    fn new() -> Arc<Receiver<R>> {
+    fn new() -> Arc<Receiver<'a, R>> {
         Arc::new(Receiver{
             mutex : Mutex::new(ReceiverInner::new()),
             cond  : Condvar::new(),
         })
     }
 }
-   
-struct ReceiverInner<R> {
-    list  : Vec<Box<TransportOut<R>>>,
+
+struct ReceiverInner<'a, R> {
+    list  : Vec<Box<TransportOut<R> + 'a>>,
 }
 
-impl<R> ReceiverInner<R> {
-    fn new() -> ReceiverInner<R> {
+impl<'a, R> ReceiverInner<'a, R> {
+    fn new() -> ReceiverInner<'a, R> {
         
         ReceiverInner{
             list  : Vec::new(),
