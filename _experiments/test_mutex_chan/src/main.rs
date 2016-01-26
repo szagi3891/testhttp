@@ -74,7 +74,12 @@ struct Receiver<R> {
 }
 
 //TODO - dodać implementacja TransportOut dla Receiver
-    
+
+impl TransportOut<R> for Transport<T,R> {
+    fn ready(self) {
+    }
+}
+
 impl<R> Receiver<R> {
     
     fn new() -> Arc<Receiver<R>> {
