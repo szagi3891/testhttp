@@ -1,11 +1,37 @@
 use std::sync::{Arc, Mutex, Condvar};
 use std::collections::LinkedList;
 
-fn chan() {
+fn chan<T>() -> (Sender<T>, Receiver<T>) {
+    
+    let query : Arc<Mutex<StateQuery<T>>> = StateQuery::new();
+    let receiver : Arc<Receiver<T>>       = Receiver::new();
+    let sender                            = Sender::new(query.clone());
+    
+    let transport = Transport {
+        query    : query.clone(),
+        receiver : receiver.clone(),
+        transform : createIdentity::<T>(),      //funkcja przejścia
+    };
+        
+    {
+        let inner = receiver.mutex.lock().unwrap();
+        inner.list.push(Box::new(transport));
+    }
+    
+    (sender, receiver)
 }
 
 struct Sender<T> {
     query : Arc<Mutex<StateQuery<T>>>,
+}
+
+impl<T> Sender<T> {
+    
+    fn new(query: Arc<Mutex<StateQuery<T>>>) -> Sender<T> {
+        Sender {
+            query : query
+        }
+    }
 }
 
 struct StateQuery<T> {
@@ -13,12 +39,27 @@ struct StateQuery<T> {
     list : Vec<Box<TransportIn<T>>>,
 }
 
-
-struct Transport<T,R> {
-    query    : Arc<Mutex<StateQuery<T>>>,
-    receiver : Arc<Mutex<Receiver<R>>>,
+impl<T> StateQuery<T> {
+    fn new() -> Arc<Mutex<StateQuery<T>>> {
+        Arc::new(Mutex::new(StateQuery {
+            //list : Vec::new<Box<TransportIn<T>>>(),
+            list : Vec::new(),
+        }))
+    }
 }
 
+fn createIdentity<T>() -> Box<Fn(T) -> T> {
+    Box::new(|argin: T| -> T {
+        argin
+    })
+}
+
+struct Transport<T,R> {
+    query     : Arc<Mutex<StateQuery<T>>>,
+    receiver  : Arc<Receiver<R>>,
+    transform : Box<Fn(T) -> R>,
+}
+    
 trait TransportIn<T> {      //T:Sized
     fn send(self, T);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
 }
@@ -32,10 +73,8 @@ struct Receiver<R> {
     cond  : Condvar,
 }
 
-struct ReceiverInner<R> {
-    list  : Vec<Box<TransportOut<R>>>,
-}
-
+//TODO - dodać implementacja TransportOut dla Receiver
+    
 impl<R> Receiver<R> {
     
     fn new() -> Arc<Receiver<R>> {
@@ -44,14 +83,10 @@ impl<R> Receiver<R> {
             cond  : Condvar::new(),
         })
     }
-    
-    /*
-    fn save() {
-    }
-    
-    fn get() -> R {   
-    }
-    */
+}
+   
+struct ReceiverInner<R> {
+    list  : Vec<Box<TransportOut<R>>>,
 }
 
 impl<R> ReceiverInner<R> {
@@ -70,6 +105,8 @@ impl<R> ReceiverInner<R> {
 
 
 fn main() {
+    
+    let ch = chan::<String>();
     
     println!("test ... zx");
 }
