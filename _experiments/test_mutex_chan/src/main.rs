@@ -54,7 +54,7 @@ fn createIdentity<T>() -> Box<Fn(T) -> T> {
     })
 }
 
-struct Transport<'a, T: 'a, R: 'a> {
+struct Transport<'a, T, R> {
     query     : Arc<Mutex<StateQuery<T>>>,
     receiver  : Arc<Receiver<'a, R>>,
     transform : Box<Fn(T) -> R>,
@@ -89,7 +89,7 @@ impl<'a, R> Receiver<'a, R> {
         })
     }
 }
-   
+
 struct ReceiverInner<'a, R> {
     list  : Vec<Box<TransportOut<R> + 'a>>,
 }
