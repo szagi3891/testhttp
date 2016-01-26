@@ -1,0 +1,101 @@
+main.rs:
+
+	app::run_main()
+
+
+app:
+
+	run_main()
+	run(address)
+	run_worker(rx_request, tx_api_request, rx_api_response)
+
+	api:
+		enum Request (GetFile)
+		enum Response (GetFile)
+		ApiRequestChannel
+		ApiResponseChannel
+
+		run(rx_api_request, tx_api_response)
+		worker(rx_api_request, tx_api_response)
+		get_file(path, callback, tx_api_response)
+
+	worker:
+		render_request(request, tx_api_request)
+
+asynchttp:
+
+	log: (...)
+
+	async:
+		spawn(name, block)
+
+		Manager::new(name, len, create_function)
+		Manager::refresh()
+		Manager::spawn(name)
+
+	miohttp:
+
+		token_gen:
+			TokenGen::new()
+			TokenGen::get()
+
+		request:
+			PreRequest::new(req)
+			PreRequest::bind(token, resp_channel)
+
+			Request::is_header_set(name, value)
+			Request::send(response)
+
+		response:
+			Code (200, 400, 404, 500)
+
+			Type (TextHtml, TextPlain, ImageJpeg, ImagePng)
+			Type::create_from_path(path)
+
+			Response::append_string(line)
+			Response::create_headers(code, type, length)
+			Response::create(code, type, body)
+			Response::create_from_buf(code, type, body)
+
+		connection:
+			ConnectionMode (ReadingRequest, WaitingForServerResponse, SendingResponsem Close)
+			TimerMode (In, Out, None)
+
+			Connection (TcpStream, mode)
+			Connection::new(tcpstream)
+			Connection::make(tcpstream, mode)
+			Connection::replace_mode(mode)
+			Connection::in_state_close()
+			Connection::send_data_to_user(token, response)
+			Connection::get_event()
+			Connection::get_timer_mode()
+			Connection::get_name()
+			Connection::ready()
+			Connection::transform()
+
+			transform_from_waiting_for_user(tcpstream, eventset, buf, done, event_loop, token)
+			transform_from_sending_to_user(tcpstream, token, keep_alive, eventset, str, done)
+
+		server:
+			MyHandler (token, server, hash, tokens, channel)
+			Event (init, Write, Read, None)
+			
+			Myhandler::ready(event_loop, token, eventset)
+			Myhandler::notify(event_loop, msg)
+			Myhandler::timeout(event_loop, token)
+
+			MyHandler::new(ip, tx_request)
+			Myhandler::send_data_to_user(event_loop, token, respone)
+			timeout_trigger(token)
+			new_connection(event_loop)
+			socket_ready(event_loop, token, eventset)
+			set_event(connection, token, old_event, new_event)
+			set_timer(token, timeout, timer_mode, event_loop)
+			insert_connection(token, connection, old_event, timeout, event_loop)
+			get_connection(token)
+
+		channels:
+			RequestProducer
+			RequestConsumer
+			new_request_channel()
+

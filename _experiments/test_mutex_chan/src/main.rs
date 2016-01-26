@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex, Condvar};
 use std::collections::LinkedList;
 
-fn chan<T>() -> (Sender<T>, Receiver<T>) {
+fn chan<T>() -> (Sender<T>, Arc<Receiver<T>>) {
     
     let query : Arc<Mutex<StateQuery<T>>> = StateQuery::new();
     let receiver : Arc<Receiver<T>>       = Receiver::new();
@@ -75,7 +75,7 @@ struct Receiver<R> {
 
 //TODO - dodać implementacja TransportOut dla Receiver
 
-impl TransportOut<R> for Transport<T,R> {
+impl<R,T> TransportOut<R> for Transport<T,R> {
     fn ready(self) {
     }
 }
