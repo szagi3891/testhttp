@@ -1,18 +1,16 @@
 use std::sync::{Arc, Mutex, Condvar};
-use std::collections::LinkedList;
 
 
-fn chan<T>() -> (Sender<T>, Arc<Receiver<T>>) {     //where T : Write {
+fn chan<T: 'static>() -> (Sender<T>, Arc<Receiver<T>>) {
     
     let query : Arc<Mutex<StateQuery<T>>> = StateQuery::new();
     let receiver : Arc<Receiver<T>>       = Receiver::new();
     let sender                            = Sender::new(query.clone());
     
-    //let transport : Transport<T, T> = Transport {
     let transport = Transport {
         query    : query.clone(),
         receiver : receiver.clone(),
-        transform : createIdentity::<T>(),      //funkcja przejścia
+        transform : createIdentity::<T>(),
     };
         
     {
@@ -37,14 +35,12 @@ impl<T> Sender<T> {
 }
 
 struct StateQuery<T> {
-    //list : LinkedList<Box<TransportIn<T>>>,
     list : Vec<Box<TransportIn<T>>>,
 }
 
 impl<T> StateQuery<T> {
     fn new() -> Arc<Mutex<StateQuery<T>>> {
         Arc::new(Mutex::new(StateQuery {
-            //list : Vec::new<Box<TransportIn<T>>>(),
             list : Vec::new(),
         }))
     }
@@ -62,7 +58,7 @@ struct Transport<T, R> {
     transform : Box<Fn(T) -> R>,
 }
     
-trait TransportIn<T> {      //T:Sized
+trait TransportIn<T> {
     fn send(self, T);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
 }
 
