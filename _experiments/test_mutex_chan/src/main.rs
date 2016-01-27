@@ -1,16 +1,16 @@
 use std::sync::{Arc, Mutex, Condvar};
-use std::collections::LinkedList;
 
-fn chan<'a, T: 'a>() -> (Sender<T>, Arc<Receiver<'a, T>>) {
+
+fn chan<T: 'static>() -> (Sender<T>, Arc<Receiver<T>>) {
     
     let query : Arc<Mutex<StateQuery<T>>> = StateQuery::new();
     let receiver : Arc<Receiver<T>>       = Receiver::new();
     let sender                            = Sender::new(query.clone());
     
-    let transport : Transport<'a, T, T> = Transport {
+    let transport = Transport {
         query    : query.clone(),
         receiver : receiver.clone(),
-        transform : createIdentity::<T>(),      //funkcja przejścia
+        transform : createIdentity::<T>(),
     };
         
     {
@@ -35,14 +35,12 @@ impl<T> Sender<T> {
 }
 
 struct StateQuery<T> {
-    //list : LinkedList<Box<TransportIn<T>>>,
     list : Vec<Box<TransportIn<T>>>,
 }
 
 impl<T> StateQuery<T> {
     fn new() -> Arc<Mutex<StateQuery<T>>> {
         Arc::new(Mutex::new(StateQuery {
-            //list : Vec::new<Box<TransportIn<T>>>(),
             list : Vec::new(),
         }))
     }
@@ -54,13 +52,13 @@ fn createIdentity<T>() -> Box<Fn(T) -> T> {
     })
 }
 
-struct Transport<'a, T, R> {
+struct Transport<T, R> {
     query     : Arc<Mutex<StateQuery<T>>>,
-    receiver  : Arc<Receiver<'a, R>>,
+    receiver  : Arc<Receiver<R>>,
     transform : Box<Fn(T) -> R>,
 }
     
-trait TransportIn<T> {      //T:Sized
+trait TransportIn<T> {
     fn send(self, T);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
 }
 
@@ -68,21 +66,21 @@ trait TransportOut<R> {
     fn ready(self);
 }
 
-struct Receiver<'a, R> {
-    mutex : Mutex<ReceiverInner<'a, R>>,
+struct Receiver<R> {
+    mutex : Mutex<ReceiverInner<R>>,
     cond  : Condvar,
 }
 
 //TODO - dodać implementacja TransportOut dla Receiver
 
-impl<'a, R, T> TransportOut<R> for Transport<'a, T, R> {
+impl<R, T> TransportOut<R> for Transport<T, R> {
     fn ready(self) {
     }
 }
 
-impl<'a, R> Receiver<'a, R> {
+impl<R> Receiver<R> {
     
-    fn new() -> Arc<Receiver<'a, R>> {
+    fn new() -> Arc<Receiver<R>> {
         Arc::new(Receiver{
             mutex : Mutex::new(ReceiverInner::new()),
             cond  : Condvar::new(),
@@ -90,12 +88,12 @@ impl<'a, R> Receiver<'a, R> {
     }
 }
 
-struct ReceiverInner<'a, R> {
-    list  : Vec<Box<TransportOut<R> + 'a>>,
+struct ReceiverInner<R> {
+    list  : Vec<Box<TransportOut<R>>>,
 }
 
-impl<'a, R> ReceiverInner<'a, R> {
-    fn new() -> ReceiverInner<'a, R> {
+impl<R> ReceiverInner<R> {
+    fn new() -> ReceiverInner<R> {
         
         ReceiverInner{
             list  : Vec::new(),
@@ -111,7 +109,7 @@ impl<'a, R> ReceiverInner<'a, R> {
 
 fn main() {
     
-    let ch = chan::<String>();
+    let ch = chan::<u32>();
     
     println!("test ... zx");
 }
