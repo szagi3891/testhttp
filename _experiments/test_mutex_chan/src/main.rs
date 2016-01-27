@@ -1,13 +1,15 @@
 use std::sync::{Arc, Mutex, Condvar};
 use std::collections::LinkedList;
 
-fn chan<T>() -> (Sender<T>, Arc<Receiver<T>>) {
+
+fn chan<T>() -> (Sender<T>, Arc<Receiver<T>>) {     //where T : Write {
     
     let query : Arc<Mutex<StateQuery<T>>> = StateQuery::new();
     let receiver : Arc<Receiver<T>>       = Receiver::new();
     let sender                            = Sender::new(query.clone());
     
-    let transport : Transport<T, T> = Transport {
+    //let transport : Transport<T, T> = Transport {
+    let transport = Transport {
         query    : query.clone(),
         receiver : receiver.clone(),
         transform : createIdentity::<T>(),      //funkcja przejścia
@@ -111,7 +113,7 @@ impl<R> ReceiverInner<R> {
 
 fn main() {
     
-    let ch = chan::<String>();
+    let ch = chan::<u32>();
     
     println!("test ... zx");
 }
