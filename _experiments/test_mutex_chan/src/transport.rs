@@ -4,11 +4,11 @@ use receiver::Receiver;
 use outvalue::Outvalue;
 
 
-pub trait TransportIn<T> {
+pub trait TransportIn<T> : Sized {
     fn send(self, T);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
 }
 
-pub trait TransportOut<R> {
+pub trait TransportOut<R> : Sized {
     fn ready(self);
 }
 
