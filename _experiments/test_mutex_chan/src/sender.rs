@@ -21,8 +21,6 @@ impl<T> Sender<T> {
         
         query_inner.values.push(value);
         
-        if query_inner.values.len() > 0 {
-            
-        }
+        query_inner.sending();
     }
 }
