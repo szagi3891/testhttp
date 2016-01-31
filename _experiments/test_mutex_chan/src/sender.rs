@@ -15,11 +15,11 @@ impl<T> Sender<T> {
         }
     }
     
-    fn send(&self, value: Box<T>) {
+    pub fn send(&self, value: T) {
         
         let mut query_inner = self.query.lock().unwrap();
         
-        query_inner.values.push(value);
+        query_inner.values.push(Box::new(value));
         
         query_inner.sending();
     }

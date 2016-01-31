@@ -24,16 +24,19 @@ impl<T> Query<T> {
             
             match (self.senders.pop(), self.values.pop()) {
                 
-                (Some(sender), Some(value)) => {
+                (Some(mut sender), Some(value)) => {
                     sender.send(value);
+                    //sender.send_test();
                 },
                 
                 (Some(sender), None) => {
                     self.senders.push(sender);
+                    return;
                 }, 
                 
                 (None, Some(value)) => {
                     self.values.push(value);
+                    return;
                 },
                 
                 (None, None) => {

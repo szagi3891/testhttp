@@ -35,18 +35,14 @@ fn main () {
 
 
 use std::sync::{Arc, Mutex};
-use std::collections::LinkedList;
-use std::collections::vec_deque::VecDeque;
 
-
-pub trait TransportIn<T> {
-    fn send(self, T);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
+pub trait TransportIn<T>  {
+    fn send(self, T);
 }
 
-
 pub struct Transport<T, R> {
-    pub query  : Arc<Mutex<LinkedList<T>>>,
-    pub query2 : Arc<Mutex<LinkedList<R>>>,
+    pub query  : Arc<Mutex<Vec<T>>>,
+    pub query2 : Arc<Mutex<Vec<R>>>,
 }
 
 impl<T, R> TransportIn<T> for Transport<T, R> {
@@ -59,22 +55,20 @@ impl<T, R> TransportIn<T> for Transport<T, R> {
 
 fn chan<T: 'static>(val:T) {
     
-    let mut list : VecDeque<Box<TransportIn<T>>> = VecDeque::new();
+    let mut list : Vec<Box<TransportIn<T>>> = Vec::new();
     
     let trans: Box<Transport<T,T>> = Box::new(Transport{
-        query : Arc::new(Mutex::new(LinkedList::new())),
-        query2 : Arc::new(Mutex::new(LinkedList::new())),
+        query : Arc::new(Mutex::new(Vec::new())),
+        query2 : Arc::new(Mutex::new(Vec::new())),
     });
     
-    //list.push_back(Box::new(trans));
-    trans.send(val);
+    list.push(trans);
     
-    //list.push_back(1);
+    list.pop().unwrap().send(val);
 }
 
 fn main() {
     
-    //chan::<i32>(32);
     chan(32);
     
     println!("Hello, list world! 2");

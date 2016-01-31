@@ -55,7 +55,9 @@ fn createIdentity<T>() -> Box<Fn(T) -> T> {
 
 fn main() {
     
-    let ch = chan::<u32>();
+    let (sender, recivier) = chan::<u32>();
+    
+    sender.send(32);
     
     println!("test ... zx");
 }
