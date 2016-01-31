@@ -3,7 +3,7 @@ use transport::TransportIn;
 
 
 pub struct Query<T> {
-    pub values  : T,
+    pub values  : Vec<Box<T>>,
     pub senders : Vec<Box<TransportIn<T>>>,
 }
 
@@ -15,7 +15,6 @@ impl<T> Query<T> {
             senders : Vec::new(),
         }))
     }
-    
     
                         //wysyłanie
     

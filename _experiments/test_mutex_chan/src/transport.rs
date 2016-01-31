@@ -4,11 +4,11 @@ use receiver::Receiver;
 use outvalue::Outvalue;
 
 
-pub trait TransportIn<T> : Sized {
-    fn send(self, T);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
+pub trait TransportIn<T> {
+    fn send(self, Box<T>);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
 }
 
-pub trait TransportOut<R> : Sized {
+pub trait TransportOut<R> {
     fn ready(self);
 }
 
@@ -24,7 +24,7 @@ pub struct Transport<T, R> {
 
 impl<T, R> TransportIn<T> for Transport<T, R> {
     
-    fn send(self, value: T) {
+    fn send(self, value: Box<T>) {
         
         println!("wysyłam transportem wartość");
     }

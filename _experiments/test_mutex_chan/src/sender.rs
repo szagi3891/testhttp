@@ -15,7 +15,7 @@ impl<T> Sender<T> {
         }
     }
     
-    fn send(&self, value: T) {
+    fn send(&self, value: Box<T>) {
         
         let mut query_inner = self.query.lock().unwrap();
         
