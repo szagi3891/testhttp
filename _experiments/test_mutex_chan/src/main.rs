@@ -1,50 +1,48 @@
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::{Arc, Mutex};
+
+mod sender;
+mod query;
+mod transport;
+mod receiver;
+mod outvalue;
+
+use sender::Sender;
+use receiver::Receiver;
+use query::Query;
+use transport::Transport;
+use outvalue::Outvalue;
+//Sender
+//Query
+//Transport
+//Receiver
 
 
-fn chan<T: 'static>() -> (Sender<T>, Arc<Receiver<T>>) {
+//TODO - vec zamienić na kolejkę (potrzebne metody shift i pop)
+//TODO - przy tworzeniu pierwszego transportu, trzeba obsłużyć klonowanie receiver-a
+
+
+fn chan<T: 'static>() -> (Sender<T>, Receiver<T>) {
     
-    let query : Arc<Mutex<StateQuery<T>>> = StateQuery::new();
-    let receiver : Arc<Receiver<T>>       = Receiver::new();
-    let sender                            = Sender::new(query.clone());
+    let query : Arc<Mutex<Query<T>>> = Query::new();
+    let outvalue                     = Outvalue::new();
+    let receiver : Receiver<T>       = Receiver::new(outvalue.clone());
+    let sender                       = Sender::new(query.clone());
     
     let transport = Transport {
-        query    : query.clone(),
-        receiver : receiver.clone(),
+        query    : query,
+        outvalue : outvalue.clone(),
         transform : createIdentity::<T>(),
     };
         
     {
-        let mut inner = receiver.mutex.lock().unwrap();
+        let mut inner = outvalue.lock().unwrap();
         inner.list.push(Box::new(transport));
     }
     
     (sender, receiver)
 }
 
-struct Sender<T> {
-    query : Arc<Mutex<StateQuery<T>>>,
-}
 
-impl<T> Sender<T> {
-    
-    fn new(query: Arc<Mutex<StateQuery<T>>>) -> Sender<T> {
-        Sender {
-            query : query
-        }
-    }
-}
-
-struct StateQuery<T> {
-    list : Vec<Box<TransportIn<T>>>,
-}
-
-impl<T> StateQuery<T> {
-    fn new() -> Arc<Mutex<StateQuery<T>>> {
-        Arc::new(Mutex::new(StateQuery {
-            list : Vec::new(),
-        }))
-    }
-}
 
 fn createIdentity<T>() -> Box<Fn(T) -> T> {
     Box::new(|argin: T| -> T {
@@ -52,59 +50,7 @@ fn createIdentity<T>() -> Box<Fn(T) -> T> {
     })
 }
 
-struct Transport<T, R> {
-    query     : Arc<Mutex<StateQuery<T>>>,
-    receiver  : Arc<Receiver<R>>,
-    transform : Box<Fn(T) -> R>,
-}
-    
-trait TransportIn<T> {
-    fn send(self, T);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
-}
 
-trait TransportOut<R> {
-    fn ready(self);
-}
-
-struct Receiver<R> {
-    mutex : Mutex<ReceiverInner<R>>,
-    cond  : Condvar,
-}
-
-//TODO - dodać implementacja TransportOut dla Receiver
-
-impl<R, T> TransportOut<R> for Transport<T, R> {
-    fn ready(self) {
-    }
-}
-
-impl<R> Receiver<R> {
-    
-    fn new() -> Arc<Receiver<R>> {
-        Arc::new(Receiver{
-            mutex : Mutex::new(ReceiverInner::new()),
-            cond  : Condvar::new(),
-        })
-    }
-}
-
-struct ReceiverInner<R> {
-    list  : Vec<Box<TransportOut<R>>>,
-}
-
-impl<R> ReceiverInner<R> {
-    fn new() -> ReceiverInner<R> {
-        
-        ReceiverInner{
-            list  : Vec::new(),
-        }
-    }
-}
-
-//Sender
-//StateQuery
-//Transport
-//Receiver
 
 
 fn main() {
