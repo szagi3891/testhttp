@@ -5,7 +5,6 @@ use outvalue::Outvalue;
 
 
 pub trait TransportIn<T> {
-    //fn send_test(&self);
     fn send(self : Box<Self>, Box<T>);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
 }
 
@@ -25,11 +24,6 @@ pub struct Transport<T, R> {
 
 impl<T, R> TransportIn<T> for Transport<T, R> {
     
-    /*
-    fn send_test(&self) {
-        println!("testowe wysyłanie");
-    }*/
-        
     fn send(self: Box<Self>, value: Box<T>) {
         
         println!("wysyłam transportem wartość");

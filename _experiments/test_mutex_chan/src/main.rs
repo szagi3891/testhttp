@@ -1,4 +1,8 @@
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::io;
+use std::io::prelude::*;
+
 
 mod sender;
 mod query;
@@ -11,9 +15,11 @@ use receiver::Receiver;
 use query::Query;
 use transport::Transport;
 use outvalue::Outvalue;
+
 //Sender
 //Query
 //Transport
+//Valueout
 //Receiver
 
 
@@ -59,5 +65,28 @@ fn main() {
     
     sender.send(32);
     
+    //odpalić wątek
+    //w wątku spróbować pobrać wartość z tego kanału
+    
     println!("test ... zx");
+    
+    let recivier = Arc::new(recivier);
+    
+    thread::spawn(move||{
+        
+        println!("hej");
+        
+        let from_channel = recivier.get();
+        
+        println!("wartość z kanału: {}", from_channel);
+    });
+    
+        
+                                //czekaj na ctrl+C
+    let stdin = io::stdin();
+    for line in stdin.lock().lines() {
+        //println!("{}", line.unwrap());
+    }
+    
 }
+
