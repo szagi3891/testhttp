@@ -1,5 +1,5 @@
-use std::sync::{Arc, Mutex};
-
+use std::sync::{Arc, Mutex, MutexGuard};
+    
 use query::Query;
 
 
@@ -21,6 +21,70 @@ impl<T> Sender<T> {
         
         query_inner.values.push(Box::new(value));
         
-        query_inner.sending();
+        sending(query_inner);
+        //query_inner.sending();
     }
 }
+               
+fn sending<T>(mut query: MutexGuard<Query<T>>) {
+    
+    loop {
+
+        match (query.senders.pop(), query.values.pop()) {
+
+            (Some(mut sender), Some(value)) => {
+                
+                //sender, value);
+                sender.send(value);
+                
+                //sender.send_test();
+            },
+            
+            (Some(sender), None) => {
+                query.senders.push(sender);
+                return;
+            }, 
+
+            (None, Some(value)) => {
+                query.values.push(value);
+                return;
+            },
+
+            (None, None) => {
+                return;
+            }
+        }
+    }
+}
+               
+
+                        //wysyłanie
+/*
+    pub fn sending(&mut self) {
+        
+        loop {
+            
+            match (self.senders.pop(), self.values.pop()) {
+                
+                (Some(mut sender), Some(value)) => {
+                    sender, value);
+                    //sender.send_test();
+                },
+                
+                (Some(sender), None) => {
+                    self.senders.push(sender);
+                    return;
+                }, 
+                
+                (None, Some(value)) => {
+                    self.values.push(value);
+                    return;
+                },
+                
+                (None, None) => {
+                    return;
+                }
+            }
+        }
+    }
+*/

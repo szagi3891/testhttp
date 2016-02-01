@@ -36,8 +36,26 @@ fn main () {
 
 use std::sync::{Arc, Mutex};
 
+struct Rrrr {
+    name : String
+}
+
+impl Rrrr {
+    fn new(name: String) -> Box<Rrrr> {
+        Box::new(Rrrr{name : name})
+    }
+}
+
+impl Box<Rrrr> {
+    fn hello(self) {
+        println!("cześć wszystkim, nazywam się: {}", self.name)
+    }
+}
+
+
+
 pub trait TransportIn<T>  {
-    fn send(self, T);
+    fn send(&mut self, T);
 }
 
 pub struct Transport<T, R> {
@@ -47,7 +65,7 @@ pub struct Transport<T, R> {
 
 impl<T, R> TransportIn<T> for Transport<T, R> {
     
-    fn send(self, value: T) {
+    fn send(&mut self, value: T) {
         
         println!("wysyłam transportem wartość");
     }
@@ -64,7 +82,10 @@ fn chan<T: 'static>(val:T) {
     
     list.push(trans);
     
-    list.pop().unwrap().send(val);
+    {
+        let mut transport = list.pop().unwrap();
+        transport.send(val);
+    }
 }
 
 fn main() {
