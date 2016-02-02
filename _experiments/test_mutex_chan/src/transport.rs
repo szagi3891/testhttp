@@ -9,7 +9,7 @@ pub trait TransportIn<T> {
 }
 
 pub trait TransportOut<R> {
-    fn ready(self);
+    fn ready(self : Box<Self>);
 }
 
 
@@ -33,7 +33,9 @@ impl<T, R> TransportIn<T> for Transport<T, R> {
 
 impl<T, R> TransportOut<R> for Transport<T, R> {
     
-    fn ready(self) {
+    fn ready(self: Box<Self>) {
+        
+        println!("zgłoszenie gotowości odbioru");
     }
 }
 
