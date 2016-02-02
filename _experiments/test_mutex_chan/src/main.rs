@@ -27,7 +27,7 @@ use outvalue::Outvalue;
 //TODO - przy tworzeniu pierwszego transportu, trzeba obsłużyć klonowanie receiver-a
 
 
-fn chan<T: 'static>() -> (Sender<T>, Receiver<T>) {
+fn chan<T: 'static + Send>() -> (Sender<T>, Receiver<T>) {
     
     let query : Arc<Mutex<Query<T>>> = Query::new();
     let outvalue                     = Outvalue::new();
@@ -50,7 +50,7 @@ fn chan<T: 'static>() -> (Sender<T>, Receiver<T>) {
 
 
 
-fn createIdentity<T>() -> Box<Fn(T) -> T> {
+fn createIdentity<T>() -> Box<Fn(T) -> T + Send> {
     Box::new(|argin: T| -> T {
         argin
     })

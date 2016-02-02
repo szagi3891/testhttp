@@ -17,7 +17,7 @@ pub trait TransportOut<R> {
 pub struct Transport<T, R> {
     pub query     : Arc<Mutex<Query<T>>>,
     pub outvalue  : Arc<Mutex<Outvalue<R>>>,
-    pub transform : Box<Fn(T) -> R>,
+    pub transform : Box<Fn(T) -> R + Send>,
 }
     
 

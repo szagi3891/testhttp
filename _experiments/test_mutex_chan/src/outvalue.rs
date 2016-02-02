@@ -4,7 +4,7 @@ use transport::TransportOut;
 
 pub struct Outvalue<R> {
     pub value : Option<R>,
-    pub list  : Vec<Box<TransportOut<R>>>,
+    pub list  : Vec<Box<TransportOut<R> + Send>>,
 }
 
 impl<R> Outvalue<R> {
