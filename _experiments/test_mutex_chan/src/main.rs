@@ -61,32 +61,45 @@ fn createIdentity<T>() -> Box<Fn(T) -> T + Send> {
 
 fn main() {
     
-    let (sender, recivier) = chan::<u32>();
+    let (sender, mut recivier) = chan::<u32>();
     
+    
+    println!("wysyłam");
     sender.send(32);
-    
-    //odpalić wątek
-    //w wątku spróbować pobrać wartość z tego kanału
-    
-    println!("test ... zx");
-    
-    let recivier = Arc::new(recivier);
+    println!("wysłałem");
     
     thread::spawn(move||{
         
-        println!("hej");
-        
+        println!("odbieram");
         let from_channel = recivier.get();
-        
         println!("wartość z kanału: {}", from_channel);
     });
     
         
                                 //czekaj na ctrl+C
     let stdin = io::stdin();
-    for line in stdin.lock().lines() {
+    for _ in stdin.lock().lines() {     //line
         //println!("{}", line.unwrap());
     }
     
 }
 
+
+        
+/*
+use std::thread;
+
+trait Foo {
+    fn foo(&self);
+}
+
+struct Baz {
+    pub data : Box<Foo + Send>
+}
+
+fn Bar(baz : Baz) {
+    thread::spawn(move || {baz.data.foo()});
+}
+
+fn main() {}
+*/

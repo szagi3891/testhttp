@@ -34,6 +34,7 @@ impl<R> Receiver<R> {
                 }
                 
                 None => {
+                    
                     println!("dalej pusta wartość w schowku, czekam dalej");
                 }
             }
