@@ -1,9 +1,7 @@
-use std;
 use std::collections::HashMap;
 use mio;
 use httparse;
 use std::io::{Error, ErrorKind};
-use std::fmt;
 
 use asynchttp::miohttp::response;
 use asynchttp::miohttp::httpstr;
@@ -23,36 +21,15 @@ impl PreRequest {
 
             (Some(method), Some(path), Some(version)) => {
 
-                let mut headers : HashMap<httpstr::HeaderName, httpstr::HeaderValue> = HashMap::new();
-
-                /*for header in req.headers {
-
-                    let key   = header.name.to_owned();
-
-                    let value = match std::str::from_utf8(header.value) {
-                        Ok(value) => value.to_owned(),
-                        Err(err) => {
-                            return Err(Error::new(ErrorKind::InvalidInput, format!("header {}, error utf8 sequence: {}", key, err)))
-                        }
-                    };
-
-                    match headers.insert(Box::new(key.clone()), value) {
-                        None => {}      //insert ok
-                        Some(_) => {
-                            return Err(Error::new(ErrorKind::InvalidInput, format!("double header: {}", &key)));
-                        }
-                    };
-                }*/
-
-                let mut pr = PreRequest{
+                let mut pre_request = PreRequest{
                     method  : [0; httpstr::METHOD_NAME_LENGTH],
                     path    : [0; httpstr::PATH_LENGTH],
                     version : version,
                     headers : HashMap::new(),
                 };
 
-                httpstr::copy(&method.as_bytes(), &mut pr.method);
-                httpstr::copy(&path.as_bytes(), &mut pr.path);
+                httpstr::copy(&method.as_bytes(), &mut pre_request.method);
+                httpstr::copy(&path.as_bytes(), &mut pre_request.path);
 
                 for header in req.headers {
                     let mut key = [0u8; httpstr::HEADER_NAME_LENGTH];
@@ -60,10 +37,10 @@ impl PreRequest {
                     httpstr::copy(&header.name.as_bytes(), &mut key);
                     httpstr::copy(&header.value, &mut value);
 
-                    pr.headers.insert(key, value);
+                    pre_request.headers.insert(key, value);
                 }
 
-                Ok(pr)
+                Ok(pre_request)
             }
             _ => {
 
