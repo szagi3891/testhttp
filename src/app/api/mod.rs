@@ -6,7 +6,7 @@ use std::io;
 use comm;
 
 use asynchttp::log;
-use asynchttp::async::{spawn, Callback};
+use asynchttp::async::{spawn, Callback, Manager};
 
 
 pub type FilesData  = Result<Vec<u8>, io::Error>;
@@ -27,25 +27,19 @@ pub type ApiResponseChannel<'a> = comm::mpmc::bounded::Channel<'a, Response>;
 
 pub fn run(rx_api_request: ApiRequestChannel<'static>, tx_api_response: ApiResponseChannel<'static>) {
 
-    let static_workers_no = 5;
-
-    for i in 0..static_workers_no {
-
+    let manager_static_workers = Manager::new("static worker".to_owned(), 5, Box::new(move|thread_name| {
         let rx_api_request  = rx_api_request.clone();
         let tx_api_response = tx_api_response.clone();
         
-        let thread_name = format!("<Static worker #{}>", i).to_owned();
-        
-        match spawn(thread_name, move ||{
+        match spawn(thread_name.to_owned(), move ||{
             worker(rx_api_request, tx_api_response);
         }) {
-            Err(err) => panic!("Can't spawn statichttp worker #{}: {}", i, err),
-            Ok(_) => { },
+                Ok(join_handle) => join_handle,
+                Err(err) => panic!("Can't spawn {}: {}", thread_name, err),
         };
-    }
+    }));
 
     //TODO - dodać monitoring działania workerów
-    log::info(format!("Workers spawned: {}", static_workers_no));
 }
 
 

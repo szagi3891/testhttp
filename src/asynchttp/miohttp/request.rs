@@ -3,16 +3,16 @@ use std::collections::HashMap;
 use mio;
 use httparse;
 use std::io::{Error, ErrorKind};
+use std::fmt;
 
 use asynchttp::miohttp::response;
+use asynchttp::miohttp::httpstr;
 
-
-#[derive(Debug)]
 pub struct PreRequest {
-    method : String,
-    path : String,
+    method : httpstr::MethodName,
+    path : httpstr::Path,
     version : u8,
-    headers : HashMap<Box<String>, String>,
+    headers : HashMap<httpstr::HeaderName, httpstr::HeaderValue>,
 }
 
 impl PreRequest {
@@ -23,9 +23,9 @@ impl PreRequest {
 
             (Some(method), Some(path), Some(version)) => {
 
-                let mut headers = HashMap::new();
+                let mut headers : HashMap<httpstr::HeaderName, httpstr::HeaderValue> = HashMap::new();
 
-                for header in req.headers {
+                /*for header in req.headers {
 
                     let key   = header.name.to_owned();
 
@@ -42,14 +42,28 @@ impl PreRequest {
                             return Err(Error::new(ErrorKind::InvalidInput, format!("double header: {}", &key)));
                         }
                     };
+                }*/
+
+                let mut pr = PreRequest{
+                    method  : [0; httpstr::METHOD_NAME_LENGTH],
+                    path    : [0; httpstr::PATH_LENGTH],
+                    version : version,
+                    headers : HashMap::new(),
+                };
+
+                httpstr::copy(&method.as_bytes(), &mut pr.method);
+                httpstr::copy(&path.as_bytes(), &mut pr.path);
+
+                for header in req.headers {
+                    let mut key = [0u8; httpstr::HEADER_NAME_LENGTH];
+                    let mut value = [0u8; httpstr::HEADER_VALUE_LENGTH];
+                    httpstr::copy(&header.name.as_bytes(), &mut key);
+                    httpstr::copy(&header.value, &mut value);
+
+                    pr.headers.insert(key, value);
                 }
 
-                Ok(PreRequest{
-                    method  : method.to_owned(),
-                    path    : path.to_owned(),
-                    version : version,
-                    headers : headers,
-                })
+                Ok(pr)
             }
             _ => {
 
@@ -75,13 +89,12 @@ impl PreRequest {
 
 
 
-#[derive(Debug)]
 pub struct Request {
     is_send     : bool,
-    pub method  : String,
-    pub path    : String,
+    pub method  : httpstr::MethodName,
+    pub path    : httpstr::Path,
     pub version : u8,
-    headers     : HashMap<Box<String>, String>,
+    headers     : HashMap<httpstr::HeaderName, httpstr::HeaderValue>,
     token       : mio::Token,
     resp_chanel : mio::Sender<(mio::Token, response::Response)>,
 }
@@ -97,10 +110,10 @@ impl Request {
 
     pub fn is_header_set(&self, name: &str, value: &str) -> bool {
         
-        match self.headers.get(&Box::new(name.to_owned())) {
+        match self.headers.get(name.as_bytes()) {
             
             Some(get_value) => {
-                get_value == value.trim()
+                httpstr::eq(get_value, value.trim().as_bytes())
             }
             
             None => false

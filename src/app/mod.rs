@@ -23,7 +23,8 @@ pub fn run_main() {
     let exit_code = run(addres.to_owned());
 
     // All channels dropped, wait for workers to end.
-    log::debug(format!("Waiting for workers to end..."));
+    //log::debug(format!("Waiting for workers to end..."));
+
     log::info(format!("Bye."));
     
     process::exit(exit_code);
@@ -72,11 +73,11 @@ fn run(addres: String) -> i32 {
             let rx_api_request  = api_request.clone();
             let tx_api_response = api_response.clone();
 
-            match spawn(thread_name, move ||{
+            match spawn(thread_name.to_owned(), move ||{
                 api::run(rx_api_request, tx_api_response);
             }) {
                 Ok(join_handle) => join_handle,
-                Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
+                Err(err) => panic!("Can't spawn {}: {}", thread_name, err),
             };
         }));
     }

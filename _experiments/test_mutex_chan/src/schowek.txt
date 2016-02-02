@@ -1,0 +1,39 @@
+struktura nadawca -> odbiorca
+
+
+send, recv = new()
+
+
+send.save(wartosc)
+    powoduje zapisanie wartości oraz samozjedzenie nadawcy
+    
+
+recv.get()
+    zwraca wartość oraz zwraca nadawcę, którego możemy potem znowu innemu wątkowi przekazać i znowu nam da za jego momocą kolejną wartość
+    
+    
+    
+
+możliwe stany
+
+wątek1 : sender
+wątek2 : reciver
+gdzieś zmutexowany stan
+
+
+
+wątek2 : reciver
+gdzieś zmutexowany stan oraz sender
+
+
+
+
+nejlepiej żeby sender istniał tylko wtedy gdy reciver jest w stanie oczekiwania na dane
+
+
+
+
+najważniejszy problem
+
+gdy reciver przechodzi w tryb blokowania i czeka na dane
+    trzeba ustawić w stanie 

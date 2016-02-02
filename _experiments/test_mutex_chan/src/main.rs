@@ -1,122 +1,117 @@
 use std::sync::{Arc, Mutex, Condvar};
-use std::thread;
+use std::collections::LinkedList;
 
-struct Channel<T> {
-    buffor : Vec
-    //tablica z recivierami
-        //reciver
-        //informacja o tym czy jest gotowy do przyjęcia danych
+fn chan<'a, T: 'a>() -> (Sender<T>, Arc<Receiver<'a, T>>) {
+    
+    let query : Arc<Mutex<StateQuery<T>>> = StateQuery::new();
+    let receiver : Arc<Receiver<T>>       = Receiver::new();
+    let sender                            = Sender::new(query.clone());
+    
+    let transport : Transport<'a, T, T> = Transport {
+        query    : query.clone(),
+        receiver : receiver.clone(),
+        transform : createIdentity::<T>(),      //funkcja przejścia
+    };
+        
+    {
+        let mut inner = receiver.mutex.lock().unwrap();
+        inner.list.push(Box::new(transport));
+    }
+    
+    (sender, receiver)
 }
 
-struct Sender {
-    chan : Arc<Mutex<Channel>>
-}
-/*
-    sender wysyłając, blokuje cały Channel
-    następnie dokłada do bufora,
-    potem sprawdza, czy są jakieś oczekujące na dane kanały, jeśli są, to próbuje je wszystkie zasilić danymi
-*/
-
-struct Recivier<T> {
-    chan : Arc<Mutex<Channel<T>>>
-    data : Arc<(Mutex(T), Condvar())>       //do synchronizacji wątków, czyli wskrzeszenie czekającego zaraz po pojawieniu się danej
+struct Sender<T> {
+    query : Arc<Mutex<StateQuery<T>>>,
 }
 
-impl Recivier {
-    reciv() -> T {
+impl<T> Sender<T> {
+    
+    fn new(query: Arc<Mutex<StateQuery<T>>>) -> Sender<T> {
+        Sender {
+            query : query
+        }
     }
 }
 
-fn make_chan() -> (Sender, Recivier) {
-    
-    let chan = Channel{
-    };
-    
-    //dwie kopie tego samego recivier-a się tworzy
-    //pierwsza kopia trafia do tablicy z recivierami tego kanału
-    //druga kopia idzie do uzytkownika końcowego
-    
-    //dobrze by było, jeśli druga kopia przy niszczeniu, powodowałaby usuwanie pierwszej kopi z kanału
-    
-    (chan.sender(), chan.recivier())
+struct StateQuery<T> {
+    //list : LinkedList<Box<TransportIn<T>>>,
+    list : Vec<Box<TransportIn<T>>>,
 }
 
+impl<T> StateQuery<T> {
+    fn new() -> Arc<Mutex<StateQuery<T>>> {
+        Arc::new(Mutex::new(StateQuery {
+            //list : Vec::new<Box<TransportIn<T>>>(),
+            list : Vec::new(),
+        }))
+    }
+}
 
-/*
+fn createIdentity<T>() -> Box<Fn(T) -> T> {
+    Box::new(|argin: T| -> T {
+        argin
+    })
+}
+
+struct Transport<'a, T, R> {
+    query     : Arc<Mutex<StateQuery<T>>>,
+    receiver  : Arc<Receiver<'a, R>>,
+    transform : Box<Fn(T) -> R>,
+}
     
-    w przypadku selecta, wystarczyłoby żeby schowek na daną, dało się podmienić na inny kanał który miałby taką samą sygnaturę
-    typów jak kanał pierwotny
+trait TransportIn<T> {      //T:Sized
+    fn send(self, T);       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
+}
 
-    tryb wysyłania (sender)
+trait TransportOut<R> {
+    fn ready(self);
+}
+
+struct Receiver<'a, R> {
+    mutex : Mutex<ReceiverInner<'a, R>>,
+    cond  : Condvar,
+}
+
+//TODO - dodać implementacja TransportOut dla Receiver
+
+impl<'a, R, T> TransportOut<R> for Transport<'a, T, R> {
+    fn ready(self) {
+    }
+}
+
+impl<'a, R> Receiver<'a, R> {
     
-        lock na channels
-            próbuj przepychać dane do oczekujących kanałów
-            na schowkach rób try_lock
+    fn new() -> Arc<Receiver<'a, R>> {
+        Arc::new(Receiver{
+            mutex : Mutex::new(ReceiverInner::new()),
+            cond  : Condvar::new(),
+        })
+    }
+}
 
-    tryb sprawdzania (reciver)
+struct ReceiverInner<'a, R> {
+    list  : Vec<Box<TransportOut<R> + 'a>>,
+}
+
+impl<'a, R> ReceiverInner<'a, R> {
+    fn new() -> ReceiverInner<'a, R> {
         
-        lock na channels
+        ReceiverInner{
+            list  : Vec::new(),
+        }
+    }
+}
 
-            oznacz że ten kanał na którym jest wykonywane sprawdzanie, oczekuje na dane
-            
-            próbuj przepychać dane do oczekujących kanałów (czyli w trybie recevera)
-
-        lock na schowek odbiorcy
-            jeśli są dane to ok
-        jeśli nie, to zwolnij mutex i czekaj
-    
-*/
-
+//Sender
+//StateQuery
+//Transport
+//Receiver
 
 
 fn main() {
     
-    /*
-    let (tx, rx) = chan::new();
+    let ch = chan::<String>();
     
-    
-    struktura
-        save (T) - zapisanie w schowek kanałowy
-    
-    
-    struct Channel {
-        bufor   []
-    }
-
-    struct Recivier {
-        data : Arc(Mutex(data)) <T>         -> data.save(T) -> Option<T>, zapis danej do kanału
-    }
-    
-    struct Sender {
-        ref : klon na schowek
-    }
-    
-    wysyłając dane, sender robi locka, a następnie próbuje włożyć dane do schowka
-    */
-    
-    
-    println!("Hello, world!");
-    
-    let pair = Arc::new((Mutex::new(false), Condvar::new()));
-    let pair2 = pair.clone();
-
-    // Inside of our lock, spawn a new thread, and then wait for it to start
-    thread::spawn(move|| {
-        let &(ref lock, ref cvar) = &*pair2;
-        let mut started = lock.lock().unwrap();
-        *started = true;
-        println!("wysyłam notify");
-        cvar.notify_one();
-    });
-    
-    
-    // wait for the thread to start up
-    let &(ref lock, ref cvar) = &*pair;
-    let mut started = lock.lock().unwrap();
-    
-    while !*started {
-        started = cvar.wait(started).unwrap();
-    }
-
-    println!("dalej");
+    println!("test ... zx");
 }
