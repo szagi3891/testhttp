@@ -8,6 +8,7 @@ mio = "0.5.0"
 simple-signal = "1.0.4"
 httparse = "1.1.0"
 time = "0.1"
+inlinable_string = "0.1.0"
 
 [dependencies.comm]
 git = "https://github.com/mahkoh/comm"

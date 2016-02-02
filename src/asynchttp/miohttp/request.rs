@@ -1,16 +1,17 @@
+use std::io::{Error, ErrorKind};
+use std::ops::Deref;
 use std::collections::HashMap;
 use mio;
 use httparse;
-use std::io::{Error, ErrorKind};
+use inlinable_string::{InlinableString, StringExt};
 
 use asynchttp::miohttp::response;
-use asynchttp::miohttp::httpstr;
 
 pub struct PreRequest {
-    method : httpstr::MethodName,
-    path : httpstr::Path,
+    method : InlinableString,
+    path : InlinableString,
     version : u8,
-    headers : HashMap<httpstr::HeaderName, httpstr::HeaderValue>,
+    headers : HashMap<InlinableString, InlinableString>,
 }
 
 impl PreRequest {
@@ -22,22 +23,17 @@ impl PreRequest {
             (Some(method), Some(path), Some(version)) => {
 
                 let mut pre_request = PreRequest{
-                    method  : [0; httpstr::METHOD_NAME_LENGTH],
-                    path    : [0; httpstr::PATH_LENGTH],
+                    method  : InlinableString::from(method),
+                    path    : InlinableString::from(path),
                     version : version,
                     headers : HashMap::new(),
                 };
 
-                httpstr::copy(&method.as_bytes(), &mut pre_request.method);
-                httpstr::copy(&path.as_bytes(), &mut pre_request.path);
-
                 for header in req.headers {
-                    let mut key = [0u8; httpstr::HEADER_NAME_LENGTH];
-                    let mut value = [0u8; httpstr::HEADER_VALUE_LENGTH];
-                    httpstr::copy(&header.name.as_bytes(), &mut key);
-                    httpstr::copy(&header.value, &mut value);
-
-                    pre_request.headers.insert(key, value);
+                    pre_request.headers.insert(
+                        InlinableString::from(header.name),
+                        InlinableString::from(InlinableString::from_utf8_lossy(header.value).deref())
+                    );
                 }
 
                 Ok(pre_request)
@@ -68,10 +64,10 @@ impl PreRequest {
 
 pub struct Request {
     is_send     : bool,
-    pub method  : httpstr::MethodName,
-    pub path    : httpstr::Path,
+    pub method  : InlinableString,
+    pub path    : InlinableString,
     pub version : u8,
-    headers     : HashMap<httpstr::HeaderName, httpstr::HeaderValue>,
+    headers     : HashMap<InlinableString, InlinableString>,
     token       : mio::Token,
     resp_chanel : mio::Sender<(mio::Token, response::Response)>,
 }
@@ -87,10 +83,10 @@ impl Request {
 
     pub fn is_header_set(&self, name: &str, value: &str) -> bool {
         
-        match self.headers.get(name.as_bytes()) {
+        match self.headers.get(name) {
             
             Some(get_value) => {
-                httpstr::eq(get_value, value.trim().as_bytes())
+                get_value == value.trim()
             }
             
             None => false

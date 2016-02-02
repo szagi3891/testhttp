@@ -3,13 +3,13 @@ use std::path::Path;
 use comm::mpmc::bounded::Channel;
 
 use asynchttp::log;
-use asynchttp::miohttp::{request, response, httpstr};
+use asynchttp::miohttp::{request, response};
 use app::api;
 
 pub fn render_request(request: request::Request, tx_api_request: &Channel<api::Request>) {
     
     
-    let path_src = "./static".to_owned() + httpstr::to_str(&request.path); // TODO: .trim(), FIXME: leave path_src as HttpStr::Path
+    let path_src = "./static".to_owned() + request.path.trim();
     log::info(format!("Path requested: {}", &path_src));
     
     
@@ -29,7 +29,7 @@ pub fn render_request(request: request::Request, tx_api_request: &Channel<api::R
                 let path         = Path::new(&path_src);
                 let content_type = response::Type::create_from_path(&path);
 
-                log::info(format!("200, {}, {}", content_type, httpstr::to_str(&request.path)));  // FIXME:: impl Display
+                log::info(format!("200, {}, {}", content_type, request.path));
 
                 let response = response::Response::create_from_buf(response::Code::Code200, content_type, buffer);
 
@@ -44,7 +44,7 @@ pub fn render_request(request: request::Request, tx_api_request: &Channel<api::R
 
                         let mess     = "Not found".to_owned();
                         let response = response::Response::create(response::Code::Code404, response::Type::TextHtml, mess.clone());
-                        log::debug(format!("404, {}, {}. {:?} ", response::Type::TextHtml, httpstr::to_str(&request.path), err));   // FIXME: impl Display
+                        log::debug(format!("404, {}, {}. {:?} ", response::Type::TextHtml, request.path, err));
                         request.send(response);
                     }
                     _ => {
