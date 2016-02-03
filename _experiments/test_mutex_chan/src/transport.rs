@@ -26,7 +26,7 @@ impl<T, R> TransportIn<T> for Transport<T, R> {
     
     fn send(self: Box<Self>, value: Box<T>) {
         
-        println!("wysyłam transportem wartość");
+        println!("TODO - wysyłam transportem wartość");
     }
 }
 
@@ -35,7 +35,7 @@ impl<T, R> TransportOut<R> for Transport<T, R> {
     
     fn ready(self: Box<Self>) {
         
-        println!("zgłoszenie gotowości odbioru");
+        println!("TODO - zgłoszenie gotowości odbioru");
     }
 }
 
