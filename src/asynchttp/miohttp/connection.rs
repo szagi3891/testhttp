@@ -75,7 +75,7 @@ impl Connection {
 
             ConnectionMode::WaitingForServerResponse(keep_alive) => {
                 
-                self.replace_mode(ConnectionMode::SendingResponse(keep_alive, response.as_bytes(), 0))
+                self.replace_mode(ConnectionMode::SendingResponse(keep_alive, response.into_bytes(), 0))
             }
 
             _ => {
@@ -204,7 +204,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
                                     log::error(format!("miohttp {} -> error prepare request, {:?}", token.as_usize(), err));
                                     
                                     let response_400 = response::Response::create_400();
-                                    (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.as_bytes(), 0)), None)
+                                    (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.into_bytes(), 0)), None)
                                 }
                             }
                         }
@@ -232,7 +232,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
                             /* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
                             
                             let response_400 = response::Response::create_400();
-                            (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.as_bytes(), 0)), None)
+                            (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.into_bytes(), 0)), None)
                         }
                     }
 

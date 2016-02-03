@@ -1,6 +1,8 @@
 use std::fmt;
 use std::path::Path;
 
+use inlinable_string::{InlinableString, StringExt};
+
 pub enum Code {
     Code200,
     Code400,
@@ -68,60 +70,74 @@ impl fmt::Display for Type {
 
 #[derive(Debug)]
 pub struct Response {
-    message : Vec<u8>,
+    message : InlinableString,
 }
 
 
 impl Response {
     
-    pub fn as_bytes(self) -> Vec<u8> {
-        self.message
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.message.into_bytes()
+    }
+    
+    fn append_str(&mut self, line: &str) {
+        self.message.push_str(line);
+        self.message.push_str("\r\n");
     }
     
     fn append_string(&mut self, line: String) {
-        self.message.append(&mut (line + "\r\n").into_bytes());
+        self.message.push_str(&line);
+        self.message.push_str("\r\n");
+    }
+
+    fn append_inlstr(&mut self, line: InlinableString) {
+        self.message.push_str(&line);
+        self.message.push_str("\r\n");
     }
     
     fn create_headers(code: Code, typ: Type, length: usize) -> Response {
         
         let mut response = Response {
-            message : Vec::new()
+            message : InlinableString::new()
         };
-        
-        response.append_string("HTTP/1.1 ".to_owned() + code.to_str());
-        response.append_string("Date: Thu, 20 Dec 2001 12:04:30 GMT".to_owned());
-        response.append_string("Content-Type: ".to_owned() + typ.to_str());
-        response.append_string("Connection: keep-alive".to_owned());
-        response.append_string(format!("Content-length: {}", length).to_owned());
-        response.append_string("".to_owned());
-        
-        response
-    }
-    
-    pub fn create(code: Code, typ: Type, body: String) -> Response {
-        
-        let mut response = Response::create_headers(code, typ, body.len());
-        
-        response.append_string(body);
+       
+        response.append_str("HTTP/1.1 ");
+        response.append_str(code.to_str());
+        response.append_str("Date: Thu, 20 Dec 2001 12:04:30 GMT");
+        response.append_str("Content-Type: ");
+        response.append_str(typ.to_str());
+        response.append_str("Connection: keep-alive");
+        response.append_str("Content-Length: ");
+        response.append_string(format!("{}", length));
+        response.append_str("");
         
         response
     }
     
-    pub fn create_from_buf(code: Code, typ: Type, mut body: Vec<u8>) -> Response {
+    pub fn create(code: Code, typ: Type, body: InlinableString) -> Response {
         
         let mut response = Response::create_headers(code, typ, body.len());
         
-        response.message.append(&mut body);
+        response.append_inlstr(body);
+        
+        response
+    }
+    
+    pub fn create_from_buf(code: Code, typ: Type, mut body: InlinableString) -> Response {
+        
+        let mut response = Response::create_headers(code, typ, body.len());
+        
+        response.append_inlstr(body);
         
         response
     }
     
     pub fn create_500() -> Response {
-        Response::create(Code::Code500, Type::TextHtml, "500 Internal Server Error".to_owned())
+        Response::create(Code::Code500, Type::TextHtml, InlinableString::from("500 Internal Server Error"))
     }
     
     pub fn create_400() -> Response {
-        Response::create(Code::Code400, Type::TextHtml, "400 Bad Request".to_owned())
+        Response::create(Code::Code400, Type::TextHtml, InlinableString::from("400 Bad Request"))
     }
     
     /*

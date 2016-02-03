@@ -8,12 +8,14 @@ use comm;
 use asynchttp::log;
 use asynchttp::async::{spawn, Callback, Manager};
 
+use inlinable_string::InlinableString;
+
 
 pub type FilesData  = Result<Vec<u8>, io::Error>;
 pub type CallbackFD = Callback<FilesData>;
 
 pub enum Request {
-    GetFile(String, CallbackFD),        //get file content
+    GetFile(InlinableString, CallbackFD),        //get file content
 }
 
 pub enum Response {
@@ -64,9 +66,9 @@ fn worker(rx_api_request: ApiRequestChannel, tx_api_response: ApiResponseChannel
 }
 
 
-fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &ApiResponseChannel) {
+fn get_file(path_src: InlinableString, callback: CallbackFD, tx_api_response: &ApiResponseChannel) {
     
-    let path = Path::new(&path_src);
+    let path = Path::new(path_src.as_ref());
 
     log::debug(format!("Loading file {:?}", path));
 
