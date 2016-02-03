@@ -27,7 +27,7 @@ use outvalue::Outvalue;
 //TODO - przy tworzeniu pierwszego transportu, trzeba obsłużyć klonowanie receiver-a
 
 
-fn chan<T: 'static + Send>() -> (Sender<T>, Receiver<T>) {
+fn chan<T: 'static + Clone + Send>() -> (Sender<T>, Receiver<T>) {
     
     let query : Arc<Mutex<Query<T>>> = Query::new();
     let outvalue                     = Outvalue::new();
@@ -66,11 +66,16 @@ fn main() {
     
     println!("wysyłam");
     sender.send(32);
+    sender.send(33);
     println!("wysłałem");
     
     thread::spawn(move||{
         
         println!("odbieram");
+        
+        let from_channel = recivier.get();
+        println!("wartość z kanału: {}", from_channel);
+    
         let from_channel = recivier.get();
         println!("wartość z kanału: {}", from_channel);
     });

@@ -19,7 +19,7 @@ impl<T> Sender<T> {
         
         let mut query_inner = self.query.lock().unwrap();
         
-        query_inner.values.push(Box::new(value));
+        query_inner.values.push_back(Box::new(value));
         
         query_inner.sending();
     }

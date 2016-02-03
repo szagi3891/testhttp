@@ -1,18 +1,19 @@
 use std::sync::{Arc, Mutex};
 use transport::TransportIn;
+use std::collections::linked_list::LinkedList;
 
 
 pub struct Query<T> {
-    pub values  : Vec<Box<T>>,
-    pub senders : Vec<Box<TransportIn<T> + Send>>,
+    pub values  : LinkedList<Box<T>>,
+    pub senders : LinkedList<Box<TransportIn<T> + Send>>,
 }
 
 impl<T> Query<T> {
     
     pub fn new() -> Arc<Mutex<Query<T>>> {
         Arc::new(Mutex::new(Query {
-            values  : Vec::new(),
-            senders : Vec::new(),
+            values  : LinkedList::new(),
+            senders : LinkedList::new(),
         }))
     }
         
@@ -21,7 +22,7 @@ impl<T> Query<T> {
 
         loop {
 
-            match (self.senders.pop(), self.values.pop()) {
+            match (self.senders.pop_front(), self.values.pop_front()) {
 
                 (Some(mut sender), Some(value)) => {
 
@@ -31,13 +32,13 @@ impl<T> Query<T> {
 
                 (Some(sender), None) => {
                     
-                    self.senders.push(sender);
+                    self.senders.push_front(sender);
                     return;
                 }, 
 
                 (None, Some(value)) => {
                     
-                    self.values.push(value);
+                    self.values.push_front(value);
                     return;
                 },
 
