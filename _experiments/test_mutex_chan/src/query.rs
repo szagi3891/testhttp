@@ -25,24 +25,24 @@ impl<T> Query<T> {
 
                 (Some(mut sender), Some(value)) => {
 
-                    //sender, value);
+                                //przekazanie sendera do odbiorcy wraz z przekazywaną wartością
                     sender.send(value);
-                    //zniszczenie referencji do sendera
-                    
-                    //sender.send_test();
                 },
 
                 (Some(sender), None) => {
+                    
                     self.senders.push(sender);
                     return;
                 }, 
 
                 (None, Some(value)) => {
+                    
                     self.values.push(value);
                     return;
                 },
 
                 (None, None) => {
+                    
                     return;
                 }
             }

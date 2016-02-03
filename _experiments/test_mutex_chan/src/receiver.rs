@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex, Condvar};
 use transport::TransportOut;
 use outvalue::Outvalue;
 use std::collections::linked_list::LinkedList;
+use std::sync::MutexGuard;
 
 
 pub struct Receiver<R> {
@@ -32,19 +33,19 @@ impl<R> Receiver<R> {
                 Some(value) => {
                     return value;
                 }
-               None => {},
+                None => {},
             }
             
-            get_list_copy(guard)
+            self.get_list_copy(&mut guard)
         };
         
-        //roześlij zaproszenia do nadawców
-            
-        println!("dasd {}", list_invitation.len());
         
+                        //roześlij zaproszenia do nadawców
+                        //ważne, do momentu wywołania get_in_loop nie możemy posiadać żadnego locka
         loop {
             
-            match list_invitation.pop() {
+            match list_invitation.pop_back() {
+                
                 Some(invit_item) => {
                     invit_item.ready();
                 },
@@ -55,48 +56,50 @@ impl<R> Receiver<R> {
         }
     }
     
-    fn get_list_copy() {
-        
+    
+    fn get_list_copy(&self, guard: &mut MutexGuard<Outvalue<R>>) -> LinkedList<Box<TransportOut<R> + Send>> {
+
 
         let mut out = LinkedList::new();
 
         loop {
             match guard.list.pop_front() {
-                Some(item) => out.back_push(item),
-                None => 
+                Some(item) => out.push_back(item),
+                None => return out
             }
         }
-
-
-        guard.list.drain(..).collect()
     }
-        
+    
+    
     fn get_in_loop(&mut self) -> R {
-        
+
         let mut guard = self.mutex.lock().unwrap();
-        
+
         loop {
-            
+
             let value = guard.value.take();
-            
+
             match value {
-                
+
                 Some(value) => {
                     return value;
                 }
-                
+
                 None => {
-                    
+
                     println!("dalej pusta wartość w schowku, czekam dalej");
                 }
             }
-            
+
             guard = self.cond.wait(guard).unwrap();
         }
     }
+
 }
 
-           
+
+
+
 /*
 impl<R> Clone for Receiver<R> {
     

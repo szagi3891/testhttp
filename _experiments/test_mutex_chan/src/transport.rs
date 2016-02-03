@@ -35,6 +35,14 @@ impl<T, R> TransportOut<R> for Transport<T, R> {
     
     fn ready(self: Box<Self>) {
         
+        let mut query_guard = self.query.lock().unwrap();
+        
+        query_guard.senders.push(self);
+        
+        
+        //TODO - wywołaj wysyłanie
+        
+        
         println!("TODO - zgłoszenie gotowości odbioru");
     }
 }

@@ -42,7 +42,7 @@ fn chan<T: 'static + Send>() -> (Sender<T>, Receiver<T>) {
         
     {
         let mut inner = outvalue.lock().unwrap();
-        inner.list.push(Box::new(transport));
+        inner.list.push_back(Box::new(transport));
     }
     
     (sender, receiver)
