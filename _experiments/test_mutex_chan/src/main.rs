@@ -15,7 +15,7 @@ use sender::Sender;
 use receiver::Receiver;
 use query::Query;
 use transport::Transport;
-use outvalue::Outvalue;
+use outvalue::{Outvalue, OutvalueInner};
 
 //Sender
 //Query
@@ -31,18 +31,18 @@ use outvalue::Outvalue;
 fn chan<T: 'static + Clone + Send>() -> (Sender<T>, Receiver<T>) {
     
     let query : Arc<Mutex<Query<T>>> = Query::new();
-    let outvalue                     = Outvalue::new();
-    let receiver : Receiver<T>       = Receiver::new(outvalue.clone());
+    let outvalue_inner               = OutvalueInner::new();
+    let receiver : Receiver<T>       = Receiver::new(Outvalue::new(outvalue_inner.clone()));
     let sender                       = Sender::new(query.clone());
     
     let transport = Transport {
         query    : query,
-        outvalue : outvalue.clone(),
+        outvalue : Outvalue::new(outvalue_inner.clone()),
         transform : create_identity::<T>(),
     };
         
     {
-        let mut inner = outvalue.lock().unwrap();
+        let mut inner = outvalue_inner.lock().unwrap();
         inner.list.push_back(Box::new(transport));
     }
     

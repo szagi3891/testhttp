@@ -15,7 +15,7 @@ pub trait TransportOut<R> {
 
 pub struct Transport<T, R> {
     pub query     : Arc<Mutex<Query<T>>>,
-    pub outvalue  : Arc<Mutex<Outvalue<R>>>,
+    pub outvalue  : Outvalue<R>,
     pub transform : Box<Fn(T) -> R + Send>,
 }
 
@@ -24,9 +24,9 @@ impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportIn<T> for Transport<T,
     
     fn send(self: Box<Self>, value: Box<T>) -> Option<Box<T>> {
         
-        let outvalue = self.outvalue.clone();
-        
-        let mut outvalue_guard = outvalue.lock().unwrap();
+        let mutex = self.outvalue.mutex.clone();
+    
+        let mut outvalue_guard = mutex.lock().unwrap();
         
                                         //wysyłanie, może się nie udać, wtedy zwracamy originalną wartość
         let out_value = {
@@ -49,9 +49,9 @@ impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportIn<T> for Transport<T,
                 outvalue_guard.value = Some(new_value);
                 
                                         //powiadom wszystkie uśpione wątki że podano do stołu
-                //outvalue_guard.cond.notify_all();
+                //self.cond.notify_all();
                 
-                None
+                None 
             }
         };
         
@@ -65,7 +65,7 @@ impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportIn<T> for Transport<T,
 impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportOut<R> for Transport<T, R> {
     
     fn ready(self: Box<Self>) {
-        
+        //TODO - to trzeba jakoś wyprostować
         let query = self.query.clone();
         
         let mut query_guard = query.lock().unwrap();

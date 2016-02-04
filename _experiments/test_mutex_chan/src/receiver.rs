@@ -1,22 +1,19 @@
-use std::sync::{Arc, Mutex, Condvar};
 use transport::TransportOut;
-use outvalue::Outvalue;
+use outvalue::{Outvalue, OutvalueInner};
 use std::collections::linked_list::LinkedList;
 use std::sync::MutexGuard;
 
 
 pub struct Receiver<R> {
-    pub mutex : Arc<Mutex<Outvalue<R>>>,
-    cond  : Condvar,
+    pub outvalue : Outvalue<R>,
 }
 
 
 impl<R> Receiver<R> {
     
-    pub fn new(outvalue: Arc<Mutex<Outvalue<R>>>) -> Receiver<R> {
+    pub fn new(outvalue: Outvalue<R>) -> Receiver<R> {
         Receiver{
-            mutex : outvalue,
-            cond  : Condvar::new(),
+            outvalue : outvalue
         }
     }
     
@@ -24,7 +21,7 @@ impl<R> Receiver<R> {
         
         let mut list_invitation : LinkedList<Box<TransportOut<R> + Send>> = {
             
-            let mut guard = self.mutex.lock().unwrap();
+            let mut guard = self.outvalue.mutex.lock().unwrap();
             
             let value = guard.value.take();
             
@@ -57,7 +54,7 @@ impl<R> Receiver<R> {
     }
     
     
-    fn get_list_copy(&self, guard: &mut MutexGuard<Outvalue<R>>) -> LinkedList<Box<TransportOut<R> + Send>> {
+    fn get_list_copy(&self, guard: &mut MutexGuard<OutvalueInner<R>>) -> LinkedList<Box<TransportOut<R> + Send>> {
 
 
         let mut out = LinkedList::new();
@@ -70,10 +67,10 @@ impl<R> Receiver<R> {
         }
     }
     
-    
+    //TODO - tą metodę przenieść do outvalue
     fn get_in_loop(&mut self) -> R {
 
-        let mut guard = self.mutex.lock().unwrap();
+        let mut guard = self.outvalue.mutex.lock().unwrap();
 
         loop {
 
@@ -91,7 +88,7 @@ impl<R> Receiver<R> {
                 }
             }
 
-            guard = self.cond.wait(guard).unwrap();
+            guard = self.outvalue.cond.wait(guard).unwrap();
         }
     }
 
