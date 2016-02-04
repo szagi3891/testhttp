@@ -5,18 +5,18 @@ use transport::TransportOut;
 
 
 pub struct Outvalue<R> {
-    pub mutex : Arc<Mutex<OutvalueInner<R>>>,
+    pub mutex : Mutex<OutvalueInner<R>>,
     pub cond  : Condvar,
 }
 
 impl<R> Outvalue<R> {
     
-    pub fn new(outvalue_inner: Arc<Mutex<OutvalueInner<R>>>) -> Outvalue<R> {
+    pub fn new() -> Arc<Outvalue<R>> {
         
-        Outvalue {
-            mutex : outvalue_inner,
+        Arc::new(Outvalue {
+            mutex : OutvalueInner::new(),
             cond  : Condvar::new(),
-        }
+        })
     }
 }
 
@@ -28,11 +28,11 @@ pub struct OutvalueInner<R> {
 
 impl<R> OutvalueInner<R> {
     
-    pub fn new() -> Arc<Mutex<OutvalueInner<R>>> {
+    fn new() -> Mutex<OutvalueInner<R>> {
         
-        Arc::new(Mutex::new(OutvalueInner{
+        Mutex::new(OutvalueInner{
             value : None,
             list  : LinkedList::new(),
-        }))
+        })
     }
 }

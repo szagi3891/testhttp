@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use transport::TransportOut;
 use outvalue::{Outvalue, OutvalueInner};
 use std::collections::linked_list::LinkedList;
@@ -5,13 +6,13 @@ use std::sync::MutexGuard;
 
 
 pub struct Receiver<R> {
-    pub outvalue : Outvalue<R>,
+    pub outvalue : Arc<Outvalue<R>>,
 }
 
 
 impl<R> Receiver<R> {
     
-    pub fn new(outvalue: Outvalue<R>) -> Receiver<R> {
+    pub fn new(outvalue: Arc<Outvalue<R>>) -> Receiver<R> {
         Receiver{
             outvalue : outvalue
         }

@@ -15,7 +15,7 @@ use sender::Sender;
 use receiver::Receiver;
 use query::Query;
 use transport::Transport;
-use outvalue::{Outvalue, OutvalueInner};
+use outvalue::Outvalue;
 
 //Sender
 //Query
@@ -31,18 +31,18 @@ use outvalue::{Outvalue, OutvalueInner};
 fn chan<T: 'static + Clone + Send>() -> (Sender<T>, Receiver<T>) {
     
     let query : Arc<Mutex<Query<T>>> = Query::new();
-    let outvalue_inner               = OutvalueInner::new();
-    let receiver : Receiver<T>       = Receiver::new(Outvalue::new(outvalue_inner.clone()));
+    let outvalue                     = Outvalue::new();
+    let receiver : Receiver<T>       = Receiver::new(outvalue.clone());
     let sender                       = Sender::new(query.clone());
     
     let transport = Transport {
         query    : query,
-        outvalue : Outvalue::new(outvalue_inner.clone()),
+        outvalue : outvalue.clone(),
         transform : create_identity::<T>(),
     };
         
     {
-        let mut inner = outvalue_inner.lock().unwrap();
+        let mut inner = outvalue.mutex.lock().unwrap();
         inner.list.push_back(Box::new(transport));
     }
     
@@ -83,14 +83,15 @@ fn main() {
         }
     });
     
-    sleep(Duration::new(2, 0));
-    
-        
-    println!("wysłam 2");
+    sleep(Duration::new(1, 0));    
     sender.send(34);
+    sleep(Duration::new(1, 0));
     sender.send(35);
-    println!("wysłałem 2");
-    
+    sleep(Duration::new(1, 0));
+    sender.send(36);
+    sender.send(37);
+    sender.send(38);
+        
     
                                 //czekaj na ctrl+C
     let stdin = io::stdin();
