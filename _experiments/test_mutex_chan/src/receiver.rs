@@ -48,7 +48,7 @@ impl<R> Receiver<R> {
                     invit_item.ready();
                 },
                 None => {
-                    return self.get_in_loop();
+                    return self.outvalue.get();
                 }
             }
         }
@@ -65,31 +65,6 @@ impl<R> Receiver<R> {
                 Some(item) => out.push_back(item),
                 None => return out
             }
-        }
-    }
-    
-    //TODO - tą metodę przenieść do outvalue
-    fn get_in_loop(&self) -> R {
-
-        let mut guard = self.outvalue.mutex.lock().unwrap();
-
-        loop {
-
-            let value = guard.value.take();
-
-            match value {
-
-                Some(value) => {
-                    return value;
-                }
-
-                None => {
-
-                    println!("dalej pusta wartość w schowku, czekam dalej");
-                }
-            }
-
-            guard = self.outvalue.cond.wait(guard).unwrap();
         }
     }
 

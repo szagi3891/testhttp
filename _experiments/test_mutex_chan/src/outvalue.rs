@@ -4,6 +4,9 @@ use std::collections::linked_list::LinkedList;
 use transport::TransportOut;
 
 
+//TODO - te właściwości trzeba uprywatnić, dostęp do stanu ma się odbywać wyłącznie poprzez dedykowane metody
+
+
 pub struct Outvalue<R> {
     pub mutex : Mutex<OutvalueInner<R>>,
     pub cond  : Condvar,
@@ -17,6 +20,30 @@ impl<R> Outvalue<R> {
             mutex : OutvalueInner::new(),
             cond  : Condvar::new(),
         })
+    }
+    
+    pub fn get(&self) -> R {
+
+        let mut guard = self.mutex.lock().unwrap();
+
+        loop {
+            
+            let value = guard.value.take();
+
+            match value {
+
+                Some(value) => {
+                    return value;
+                }
+
+                None => {
+
+                    println!("dalej pusta wartość w schowku, czekam dalej");
+                }
+            }
+
+            guard = self.cond.wait(guard).unwrap();
+        }
     }
 }
 
