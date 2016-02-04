@@ -65,7 +65,7 @@ fn create_identity<T>() -> Box<Fn(T) -> T + Send> {
 
 fn main() {
     
-    let (sender, mut recivier) = chan::<u32>();
+    let (sender, recivier) = chan::<u32>();
     
     
     println!("wysyłam");

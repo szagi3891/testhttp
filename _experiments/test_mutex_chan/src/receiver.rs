@@ -18,7 +18,7 @@ impl<R> Receiver<R> {
         }
     }
     
-    pub fn get(&mut self) -> R {
+    pub fn get(&self) -> R {
         
         let mut list_invitation : LinkedList<Box<TransportOut<R> + Send>> = {
             
@@ -69,7 +69,7 @@ impl<R> Receiver<R> {
     }
     
     //TODO - tą metodę przenieść do outvalue
-    fn get_in_loop(&mut self) -> R {
+    fn get_in_loop(&self) -> R {
 
         let mut guard = self.outvalue.mutex.lock().unwrap();
 
