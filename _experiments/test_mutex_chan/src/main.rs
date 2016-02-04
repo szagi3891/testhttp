@@ -2,7 +2,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::io;
 use std::io::prelude::*;
-
+use std::thread::sleep;
+use std::time::Duration;
 
 mod sender;
 mod query;
@@ -37,7 +38,7 @@ fn chan<T: 'static + Clone + Send>() -> (Sender<T>, Receiver<T>) {
     let transport = Transport {
         query    : query,
         outvalue : outvalue.clone(),
-        transform : createIdentity::<T>(),
+        transform : create_identity::<T>(),
     };
         
     {
@@ -50,12 +51,15 @@ fn chan<T: 'static + Clone + Send>() -> (Sender<T>, Receiver<T>) {
 
 
 
-fn createIdentity<T>() -> Box<Fn(T) -> T + Send> {
+fn create_identity<T>() -> Box<Fn(T) -> T + Send> {
     Box::new(|argin: T| -> T {
         argin
     })
 }
 
+
+//TODO - niepotrzebnie jest teraz klonowany arc po to żeby zmieniać zawartość którą posiada mutex
+//TODO - zrobić tak, żeby nie trzeba było definiować recivier-a jako mutowalnego
 
 
 
@@ -73,14 +77,21 @@ fn main() {
         
         println!("odbieram");
         
-        let from_channel = recivier.get();
-        println!("wartość z kanału: {}", from_channel);
-    
-        let from_channel = recivier.get();
-        println!("wartość z kanału: {}", from_channel);
+        loop {
+            let from_channel = recivier.get();
+            println!("wartość z kanału: {}", from_channel);
+        }
     });
     
+    sleep(Duration::new(2, 0));
+    
         
+    println!("wysłam 2");
+    sender.send(34);
+    sender.send(35);
+    println!("wysłałem 2");
+    
+    
                                 //czekaj na ctrl+C
     let stdin = io::stdin();
     for _ in stdin.lock().lines() {     //line

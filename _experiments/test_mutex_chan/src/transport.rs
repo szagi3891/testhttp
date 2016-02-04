@@ -1,6 +1,5 @@
 use std::sync::{Arc, Mutex};
 use query::Query;
-use receiver::Receiver;
 use outvalue::Outvalue;
 
 
@@ -48,6 +47,9 @@ impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportIn<T> for Transport<T,
                 };
                 
                 outvalue_guard.value = Some(new_value);
+                
+                                        //powiadom wszystkie uśpione wątki że podano do stołu
+                //outvalue_guard.cond.notify_all();
                 
                 None
             }

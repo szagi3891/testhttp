@@ -24,7 +24,7 @@ impl<T> Query<T> {
 
             match (self.senders.pop_front(), self.values.pop_front()) {
 
-                (Some(mut sender), Some(value)) => {
+                (Some(sender), Some(value)) => {
 
                                 //przekazanie sendera do odbiorcy wraz z przekazywaną wartością
                     sender.send(value);
