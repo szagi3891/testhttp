@@ -38,7 +38,7 @@ impl<R> Outvalue<R> {
 
                 None => {
 
-                    println!("dalej pusta wartość w schowku, czekam dalej");
+                    //println!("dalej pusta wartość w schowku, czekam dalej");
                 }
             }
 

@@ -67,7 +67,15 @@ impl<R> Receiver<R> {
             }
         }
     }
-
+    
+    /*
+    pub fn clone(&self) -> Sender<T> {
+        
+        Receiver{
+            outvalue : outvalue.clone()
+        }
+    }
+    */
 }
 
 

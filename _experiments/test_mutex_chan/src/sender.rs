@@ -23,13 +23,6 @@ impl<T> Sender<T> {
         
         query_inner.sending();
     }
-    
-    pub fn clone(&self) -> Sender<T> {
-        
-        Sender {
-            query : self.query.clone()
-        }
-    }
 }
 
 

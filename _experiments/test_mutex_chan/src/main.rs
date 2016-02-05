@@ -1,82 +1,40 @@
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::io;
 use std::io::prelude::*;
 use std::thread::sleep;
 use std::time::Duration;
 
+mod chan;
 mod sender;
 mod query;
 mod transport;
 mod receiver;
 mod outvalue;
 
-use sender::Sender;
-use receiver::Receiver;
-use query::Query;
-use transport::Transport;
-use outvalue::Outvalue;
-
-//Sender
-//Query
-//Transport
-//Valueout
-//Receiver
-
+use chan::Chan;
 
 //TODO - vec zamienić na kolejkę (potrzebne metody shift i pop)
 //TODO - przy tworzeniu pierwszego transportu, trzeba obsłużyć klonowanie receiver-a
 
-
-fn chan<T: 'static + Clone + Send>() -> (Sender<T>, Receiver<T>) {
-    
-    let query : Arc<Mutex<Query<T>>> = Query::new();
-    let outvalue                     = Outvalue::new();
-    let receiver : Receiver<T>       = Receiver::new(outvalue.clone());
-    let sender                       = Sender::new(query.clone());
-    
-    let transport = Transport {
-        query    : query,
-        outvalue : outvalue.clone(),
-        transform : create_identity::<T>(),
-    };
-        
-    {
-        let mut inner = outvalue.mutex.lock().unwrap();
-        inner.list.push_back(Box::new(transport));
-    }
-    
-    (sender, receiver)
-}
-
-
-
-fn create_identity<T>() -> Box<Fn(T) -> T + Send> {
-    Box::new(|argin: T| -> T {
-        argin
-    })
-}
-
-
 //TODO - niepotrzebnie jest teraz klonowany arc po to żeby zmieniać zawartość którą posiada mutex
-
-//TODO - zrobić klonowanie reciviera, w dwóch wątkach z odpowiednimi etykietami odbierać
-
-//TODO - zrobić kilku nadawców i kilku odbiorców, wyświetlać komunikaty z informacjami który wątek wygenerował, a który odebrał
 
 //TODO - wreszcie, zrobić selecta
 //na zasadzie, new::reciver<RR>, Fn(T) -> RR, recivier<T> zjadany
 
 
-//TODO - ten poniższy kod przenieść do examples ...
-
 
 fn main() {
     
-    let (sender, recivier) = chan();
+    let chan = Chan::new();
     
-    let sender1 = sender.clone();
-    let sender2 = sender.clone();
+    let receiver1 = chan.receiver();
+    let receiver2 = chan.receiver();
+    let receiver3 = chan.receiver();
+    
+    let sender1   = chan.sender();
+    let sender2   = chan.sender();
+    let sender3   = chan.sender();
+    
     
     thread::spawn(move||{
         
@@ -84,7 +42,7 @@ fn main() {
         
         loop {
             sender1.send(count.clone());
-            sleep(Duration::new(2, 0));
+            sleep(Duration::from_millis(300));
             count = count + 1;
         }
     });
@@ -95,7 +53,18 @@ fn main() {
         
         loop {
             sender2.send(count.clone());
-            sleep(Duration::new(1, 0));
+            sleep(Duration::from_millis(1000));
+            count = count + 1;
+        }
+    });
+    
+    thread::spawn(move||{
+        
+        let mut count = 1000000;
+        
+        loop {
+            sender3.send(count.clone());
+            sleep(Duration::from_millis(3000));
             count = count + 1;
         }
     });
@@ -103,11 +72,26 @@ fn main() {
     thread::spawn(move||{
         
         loop {
-            let from_channel = recivier.get();
-            println!("wartość z kanału: {}", from_channel);
+            let from_channel = receiver1.get();
+            println!("wątek1: wartość z kanału: {}", from_channel);
         }
     });
-            
+
+    thread::spawn(move||{
+        
+        loop {
+            let from_channel = receiver2.get();
+            println!("wątek2: wartość z kanału: {}", from_channel);
+        }
+    });
+    
+    thread::spawn(move||{
+        
+        loop {
+            let from_channel = receiver3.get();
+            println!("wątek3: wartość z kanału: {}", from_channel);
+        }
+    });
     
                                 //czekaj na ctrl+C
     let stdin = io::stdin();
