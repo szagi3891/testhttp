@@ -23,5 +23,25 @@ impl<T> Sender<T> {
         
         query_inner.sending();
     }
+    
+    pub fn clone(&self) -> Sender<T> {
+        
+        Sender {
+            query : self.query.clone()
+        }
+    }
 }
 
+
+
+
+/*
+impl<R> Clone for Receiver<R> {
+    
+    fn clone(&self) -> Self {
+    
+    }
+
+    fn clone_from(&mut self, source: &Self) { ... }
+}
+*/

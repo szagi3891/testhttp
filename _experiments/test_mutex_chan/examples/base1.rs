@@ -60,54 +60,48 @@ fn create_identity<T>() -> Box<Fn(T) -> T + Send> {
 
 //TODO - niepotrzebnie jest teraz klonowany arc po to żeby zmieniać zawartość którą posiada mutex
 
-//TODO - zrobić klonowanie reciviera, w dwóch wątkach z odpowiednimi etykietami odbierać
-
-//TODO - zrobić kilku nadawców i kilku odbiorców, wyświetlać komunikaty z informacjami który wątek wygenerował, a który odebrał
-
-//TODO - wreszcie, zrobić selecta
-//na zasadzie, new::reciver<RR>, Fn(T) -> RR, recivier<T> zjadany
-
-
-//TODO - ten poniższy kod przenieść do examples ...
 
 
 fn main() {
     
-    let (sender, recivier) = chan();
+    let (sender, recivier) = chan::<u32>();
     
-    let sender1 = sender.clone();
-    let sender2 = sender.clone();
+    //TODO - zrobić klonowanie reciviera, w dwóch wątkach z odpowiednimi etykietami odbierać
     
-    thread::spawn(move||{
-        
-        let mut count = 1000;
-        
-        loop {
-            sender1.send(count.clone());
-            sleep(Duration::new(2, 0));
-            count = count + 1;
-        }
-    });
+    //TODO - zrobić kilku nadawców i kilku odbiorców, wyświetlać komunikaty z informacjami który wątek wygenerował, a który odebrał
     
-    thread::spawn(move||{
-        
-        let mut count = 1;
-        
-        loop {
-            sender2.send(count.clone());
-            sleep(Duration::new(1, 0));
-            count = count + 1;
-        }
-    });
+    
+    //TODO - wreszcie, zrobić selecta
+    //na zasadzie, new::reciver<RR>, Fn(T) -> RR, recivier<T> zjadany
+    
+    
+    //TODO - ten poniższy kod przenieść do examples ...
+    
+    
+    println!("wysyłam");
+    sender.send(32);
+    sender.send(33);
+    println!("wysłałem");
     
     thread::spawn(move||{
+        
+        println!("odbieram");
         
         loop {
             let from_channel = recivier.get();
             println!("wartość z kanału: {}", from_channel);
         }
     });
-            
+    
+    sleep(Duration::new(1, 0));    
+    sender.send(34);
+    sleep(Duration::new(1, 0));
+    sender.send(35);
+    sleep(Duration::new(1, 0));
+    sender.send(36);
+    sender.send(37);
+    sender.send(38);
+        
     
                                 //czekaj na ctrl+C
     let stdin = io::stdin();
@@ -116,23 +110,3 @@ fn main() {
     }
     
 }
-
-
-        
-/*
-use std::thread;
-
-trait Foo {
-    fn foo(&self);
-}
-
-struct Baz {
-    pub data : Box<Foo + Send>
-}
-
-fn Bar(baz : Baz) {
-    thread::spawn(move || {baz.data.foo()});
-}
-
-fn main() {}
-*/
