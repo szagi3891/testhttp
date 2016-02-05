@@ -59,13 +59,23 @@ fn create_identity<T>() -> Box<Fn(T) -> T + Send> {
 
 
 //TODO - niepotrzebnie jest teraz klonowany arc po to żeby zmieniać zawartość którą posiada mutex
-//TODO - zrobić tak, żeby nie trzeba było definiować recivier-a jako mutowalnego
 
 
 
 fn main() {
     
     let (sender, recivier) = chan::<u32>();
+    
+    //TODO - zrobić klonowanie reciviera, w dwóch wątkach z odpowiednimi etykietami odbierać
+    
+    //TODO - zrobić kilku nadawców i kilku odbiorców, wyświetlać komunikaty z informacjami który wątek wygenerował, a który odebrał
+    
+    
+    //TODO - wreszcie, zrobić selecta
+    //na zasadzie, new::reciver<RR>, Fn(T) -> RR, recivier<T> zjadany
+    
+    
+    //TODO - ten poniższy kod przenieść do examples ...
     
     
     println!("wysyłam");
