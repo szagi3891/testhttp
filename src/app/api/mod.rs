@@ -2,13 +2,12 @@ use std::io::prelude::Read;
 use std::fs::{self, File};
 use std::path::Path;
 use std::io;
+use inlinable_string::InlinableString;
 
 use comm;
 
 use asynchttp::log;
 use asynchttp::async::{spawn, Callback, Manager};
-
-use inlinable_string::InlinableString;
 
 
 pub type FilesData  = Result<Vec<u8>, io::Error>;

@@ -110,6 +110,7 @@ impl<'a> MyHandler<'a> {
             
             Some((connection, old_event, timeout)) => {
 
+                log::debug(format!("miohttp {} -> send_data_to_user: respone.len: {}", token.as_usize(), response.message.len()));
                 let new_connection = connection.send_data_to_user(token.clone(), response);
 
                 self.insert_connection(&token, new_connection, old_event, timeout, event_loop);

@@ -13,7 +13,7 @@ pub fn render_request(request: request::Request, tx_api_request: &Channel<api::R
     let mut path_src = InlinableString::new();
     path_src.push_str("./static");
     path_src.push_str(request.path.trim());
-    log::info(format!("Path requested: {}", &path_src));
+    log::info(format!("Path requested: {}", path_src.as_ref()));
     
     
     let path = path_src.clone();
@@ -25,8 +25,6 @@ pub fn render_request(request: request::Request, tx_api_request: &Channel<api::R
         match data {
 
             Ok(buffer) => {
-
-                let buffer = InlinableString::from_utf8(buffer.to_owned()).unwrap(); // TODO!!!
 
                 let path         = Path::new(path.as_ref());
                 let content_type = response::Type::create_from_path(&path);
@@ -44,9 +42,7 @@ pub fn render_request(request: request::Request, tx_api_request: &Channel<api::R
 
                     io::ErrorKind::NotFound => {
 
-                        let mut mess = InlinableString::new();
-                        mess.push_str("Not found");
-                        let response = response::Response::create(response::Code::Code404, response::Type::TextHtml, mess);
+                        let response = response::Response::create(response::Code::Code404, response::Type::TextHtml, String::from("Not found").into_bytes());
                         log::debug(format!("404, {}, {}. {:?} ", response::Type::TextHtml, request.path.as_ref(), err));
                         request.send(response);
                     }

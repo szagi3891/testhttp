@@ -75,7 +75,7 @@ impl Connection {
 
             ConnectionMode::WaitingForServerResponse(keep_alive) => {
                 
-                self.replace_mode(ConnectionMode::SendingResponse(keep_alive, response.into_bytes(), 0))
+                self.replace_mode(ConnectionMode::SendingResponse(keep_alive, response.message, 0))
             }
 
             _ => {
@@ -204,7 +204,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
                                     log::error(format!("miohttp {} -> error prepare request, {:?}", token.as_usize(), err));
                                     
                                     let response_400 = response::Response::create_400();
-                                    (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.into_bytes(), 0)), None)
+                                    (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.message, 0)), None)
                                 }
                             }
                         }
@@ -232,7 +232,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
                             /* HeaderName, HeaderValue, NewLine, Status, Token, TooManyHeaders, Version */
                             
                             let response_400 = response::Response::create_400();
-                            (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.into_bytes(), 0)), None)
+                            (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.message, 0)), None)
                         }
                     }
 
@@ -282,6 +282,8 @@ fn transform_from_sending_to_user(mut stream: TcpStream, token: &Token, keep_ali
 
     if events.is_writable() {
 
+        log::debug(format!("try_write {}-{}", done, str.len()));
+
         return match stream.try_write(&str[done..str.len()]) {
 
             Ok(Some(size)) => {
@@ -293,6 +295,7 @@ fn transform_from_sending_to_user(mut stream: TcpStream, token: &Token, keep_ali
                                                     //send all data to browser
                     if done == str.len() {
 
+                        log::debug(format!("Written: {}", done));
                                                     //eep connection
                         if keep_alive == true {
 

@@ -3,6 +3,8 @@ use std::path::Path;
 
 use inlinable_string::{InlinableString, StringExt};
 
+use asynchttp::log;
+
 pub enum Code {
     Code200,
     Code400,
@@ -70,74 +72,57 @@ impl fmt::Display for Type {
 
 #[derive(Debug)]
 pub struct Response {
-    message : InlinableString,
+    pub message : Vec<u8>,
 }
 
 
 impl Response {
     
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.message.into_bytes()
-    }
-    
-    fn append_str(&mut self, line: &str) {
-        self.message.push_str(line);
-        self.message.push_str("\r\n");
-    }
-    
-    fn append_string(&mut self, line: String) {
-        self.message.push_str(&line);
-        self.message.push_str("\r\n");
-    }
-
-    fn append_inlstr(&mut self, line: InlinableString) {
-        self.message.push_str(&line);
-        self.message.push_str("\r\n");
-    }
-    
     fn create_headers(code: Code, typ: Type, length: usize) -> Response {
         
-        let mut response = Response {
-            message : InlinableString::new()
-        };
+        let mut message = InlinableString::from("HTTP/1.1 ");
        
-        response.append_str("HTTP/1.1 ");
-        response.append_str(code.to_str());
-        response.append_str("Date: Thu, 20 Dec 2001 12:04:30 GMT");
-        response.append_str("Content-Type: ");
-        response.append_str(typ.to_str());
-        response.append_str("Connection: keep-alive");
-        response.append_str("Content-Length: ");
-        response.append_string(format!("{}", length));
-        response.append_str("");
+        message.push_str(code.to_str());
+        message.push_str("\r\nDate: Thu, 20 Dec 2001 12:04:30 GMT");
+        message.push_str("\r\nContent-Type: ");
+        message.push_str(typ.to_str());
+        message.push_str("\r\nConnection: keep-alive");
+        message.push_str("\r\nContent-Length: ");
+        message.push_str(&(format!("{}", length)));
+        message.push_str("\r\n");
+        
+        Response {
+            message: message.into_bytes()
+        }
+    }
+    
+    pub fn create(code: Code, typ: Type, body: Vec<u8>) -> Response {
+        
+        let mut response = Response::create_headers(code, typ, body.len());
+        
+        response.message.extend(body);
         
         response
     }
     
-    pub fn create(code: Code, typ: Type, body: InlinableString) -> Response {
-        
+    pub fn create_from_buf(code: Code, typ: Type, body: Vec<u8>) -> Response {
+       
+        log::debug(format!("body.len: {}", body.len()));
         let mut response = Response::create_headers(code, typ, body.len());
         
-        response.append_inlstr(body);
+        response.message.extend(body);
         
-        response
-    }
-    
-    pub fn create_from_buf(code: Code, typ: Type, mut body: InlinableString) -> Response {
-        
-        let mut response = Response::create_headers(code, typ, body.len());
-        
-        response.append_inlstr(body);
+        log::debug(format!("response.len: {}", response.message.len()));
         
         response
     }
     
     pub fn create_500() -> Response {
-        Response::create(Code::Code500, Type::TextHtml, InlinableString::from("500 Internal Server Error"))
+        Response::create(Code::Code500, Type::TextHtml, String::from("500 Internal Server Error").into_bytes())
     }
     
     pub fn create_400() -> Response {
-        Response::create(Code::Code400, Type::TextHtml, InlinableString::from("400 Bad Request"))
+        Response::create(Code::Code400, Type::TextHtml, String::from("400 Bad Request").into_bytes())
     }
     
     /*
