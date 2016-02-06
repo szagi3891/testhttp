@@ -4,6 +4,13 @@ use std::collections::linked_list::LinkedList;
 use transport::TransportOut;
 
 
+pub enum GetResult<R> {
+    List(LinkedList<Box<TransportOut<R> + Send>>),
+    Value(R)
+}
+
+
+
 //TODO - te właściwości trzeba uprywatnić, dostęp do stanu ma się odbywać wyłącznie poprzez dedykowane metody
 
 /*
@@ -36,7 +43,26 @@ impl<R> Outvalue<R> {
         })
     }
     
-    pub fn get(&self) -> R {
+    
+    pub fn get(&self) -> GetResult<R> {
+
+        let mut guard = self.mutex.lock().unwrap();
+
+        let value = guard.take();
+
+        match value {
+
+            Some(value) => {
+                return GetResult::Value(value);
+            }
+            None => {},
+        }
+
+        GetResult::List(guard.get_list_and_drain())
+    }
+    
+    
+    pub fn get_sync(&self) -> R {
 
         let mut guard = self.mutex.lock().unwrap();
 
@@ -61,6 +87,8 @@ impl<R> Outvalue<R> {
     }
 }
 
+
+
 //TODO zrobić te pola ukryte
 
 pub struct OutvalueInner<R> {
@@ -80,5 +108,19 @@ impl<R> OutvalueInner<R> {
     
     fn take(&mut self) -> Option<R> {
         self.value.take()
+    }
+    
+    
+    fn get_list_and_drain(&mut self) -> LinkedList<Box<TransportOut<R> + Send>> {
+
+
+        let mut out = LinkedList::new();
+
+        loop {
+            match self.list.pop_front() {
+                Some(item) => out.push_back(item),
+                None => return out
+            }
+        }
     }
 }

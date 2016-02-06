@@ -1,8 +1,6 @@
 use std::sync::Arc;
 use transport::TransportOut;
-use outvalue::{Outvalue, OutvalueInner};
-use std::collections::linked_list::LinkedList;
-use std::sync::MutexGuard;
+use outvalue::{Outvalue, GetResult};
 
 
 pub struct Receiver<R> {
@@ -20,53 +18,28 @@ impl<R> Receiver<R> {
     
     pub fn get(&self) -> R {
         
-        //let mut list_or_value = self.outvalue.get_value_or_invitation();
-        
-        let mut list_invitation : LinkedList<Box<TransportOut<R> + Send>> = {
+        match self.outvalue.get() {
             
-            let mut guard = self.outvalue.mutex.lock().unwrap();
+            GetResult::Value(value) => {
+                return value;
+            },
             
-            let value = guard.value.take();
-            
-            match value {
+            GetResult::List(mut list_invitation) => {
                 
-                Some(value) => {
-                    return value;
-                }
-                None => {},
-            }
-            
-            self.get_list_copy(&mut guard)
-        };
-        
-        
-                        //roześlij zaproszenia do nadawców
-                        //ważne, do momentu wywołania get_in_loop nie możemy posiadać żadnego locka
-        loop {
-            
-            match list_invitation.pop_back() {
-                
-                Some(invit_item) => {
-                    invit_item.ready();
-                },
-                None => {
-                    return self.outvalue.get();
+                loop {
+
+                    match list_invitation.pop_back() {
+
+                        Some(invit_item) => {
+                            invit_item.ready();
+                        },
+                        
+                        None => {
+                            return self.outvalue.get_sync();
+                        }
+                    }
                 }
             }
-        }
-    }
-    
-    
-    fn get_list_copy(&self, guard: &mut MutexGuard<OutvalueInner<R>>) -> LinkedList<Box<TransportOut<R> + Send>> {
-
-
-        let mut out = LinkedList::new();
-
-        loop {
-            match guard.list.pop_front() {
-                Some(item) => out.push_back(item),
-                None => return out
-            }
-        }
+        }   
     }
 }
