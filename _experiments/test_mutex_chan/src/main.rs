@@ -18,6 +18,10 @@ use chan::Chan;
 //TODO - wreszcie, zrobić selecta
 //na zasadzie, new::reciver<RR>, Fn(T) -> RR, recivier<T> zjadany
 
+//TODO
+//LinkedList<Box<TransportOut<R> + Send>>, - opakować tą listę typem zewnętrznym którego używać we wszystkich miejscach
+//udostniępniać tylko metodę push oraz pop (będą one dbały o właściwy kierunek)
+
 
 fn main() {
     

@@ -20,47 +20,58 @@ pub struct Transport<T, R> {
     pub transform : Box<Fn(T) -> R + Send>,
 }
 
+impl<T:Send+Clone+'static, R:Send+Clone+'static> Transport<T, R> {
+    
+    fn transform_value(&self, value: Box<T>) -> R {
+        
+                    //TODO - potrzebny jest lepszy sposób na wywołanie clousera zapisanego w zmiennej struktury
+                
+        match self.transform {
+
+            ref transform => {
+
+                transform((*value).clone())
+            }
+        }       
+    }
+}
 
 impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportIn<T> for Transport<T, R> {
+    
     
     fn send(self: Box<Self>, value: Box<T>) -> Option<Box<T>> {
         
                     //TODO - to trzeba jakoś wyprostować - to klonowanie jest głupie
+        //let mut outvalue_guard = self.outvalue.mutex.lock().unwrap();
+        
         
         let outvalue = self.outvalue.clone();
     
         let mut outvalue_guard = outvalue.mutex.lock().unwrap();
         
+        
+        //jeśli transport na nową lokalizację to
+        //w tym miejscu się trzeba wstrzelić z przepięciem
+        
+        
+        
                                         //wysyłanie, może się nie udać, wtedy zwracamy originalną wartość
-        let out_value = {
-            
-            if outvalue_guard.value.is_some() {
-                
-                Some(value)
-            
-            } else {
-                            //TODO - potrzebny jest lepszy sposób na wywołanie clousera zapisanego w zmiennej struktury
-                
-                let new_value = match self.transform {
-                    
-                    ref transform => {
-                        
-                        transform((*value).clone())
-                    }
-                };
-                
-                outvalue_guard.value = Some(new_value);
-                
-                                        //powiadom wszystkie uśpione wątki że podano do stołu
-                outvalue.cond.notify_all();
-                
-                None 
-            }
-        };
-        
-        outvalue_guard.list.push_back(self);
-        
-        out_value
+        if outvalue_guard.value.is_some() {
+
+            outvalue_guard.list.push_back(self);
+
+            Some(value)
+
+        } else {
+
+            outvalue_guard.value = Some(self.transform_value(value));
+                                    //powiadom wszystkie uśpione wątki że podano do stołu
+            self.outvalue.cond.notify_all();
+
+            outvalue_guard.list.push_back(self);
+
+            None 
+        }
     }
 }
 

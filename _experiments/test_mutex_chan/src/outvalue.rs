@@ -107,6 +107,7 @@ pub struct OutvalueInner<R> {
 
 impl<R> OutvalueInner<R> {
     
+    
     fn new() -> Mutex<OutvalueInner<R>> {
         
         Mutex::new(OutvalueInner{
@@ -114,6 +115,7 @@ impl<R> OutvalueInner<R> {
             list  : LinkedList::new(),
         })
     }
+    
     
     fn take(&mut self) -> Option<R> {
         self.value.take()
