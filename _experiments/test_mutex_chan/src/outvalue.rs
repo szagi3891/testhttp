@@ -26,6 +26,15 @@ pub enum GetResult<R> {
         
         to nowe coś, będzie miało taką samą metodę jak originalne outvalue którą puka transport
             tylko że to coś będzie wykonywało transformację transportu
+            
+            
+    !!!!!!!!!!!!!!!!!!!!!!! - prawdopodobny sposób na prawidłowego selecta
+    
+    pole outvalue wskazuje na transformera
+        który nie ma typu - jest tylko interfejsem
+    
+    ten transformer tworzony jest na zewnątrz
+    oraz wstrzykiwany w momencie gdy kanał jest transformowany
 */
 
 pub struct Outvalue<R> {
