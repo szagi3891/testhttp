@@ -21,35 +21,15 @@ use chan::Chan;
 
 fn main() {
     
-    let (sender1, receiver1) = Chan::new().couple();
-    let (sender2, receiver2) = Chan::new().couple();
+    let chan = Chan::new();
     
+    let receiver1 = chan.receiver();
+    let receiver2 = chan.receiver();
+    let receiver3 = chan.receiver();
     
-    //TODO - Trzeba stworzyć wspólny kanał agregujące dane z receiver1 oraz receiver2
-    
-    /*
-    enum Out {
-        Result1(T1),
-        Result2(T2),
-    }
-    
-    let receiver_out = receiver1.transform(Fn(T1)->Out)
-    receiver_out.add(receiver2, Fn(T2)->Out)
-    
-    receiver_out.get() - zbierać dane będzie od tego momentu z dwóch źródeł
-    */
-    
-    
-    thread::spawn(move||{
-        
-        let mut count = 1;
-        
-        loop {
-            sender1.send(count.clone());
-            sleep(Duration::from_millis(150));
-            count = count + 1;
-        }
-    });
+    let sender1   = chan.sender();
+    let sender2   = chan.sender();
+    let sender3   = chan.sender();
     
     
     thread::spawn(move||{
@@ -57,12 +37,33 @@ fn main() {
         let mut count = 1000;
         
         loop {
-            sender2.send(format!("wartość druga {}", count.clone()));
+            sender1.send(count.clone());
             sleep(Duration::from_millis(300));
             count = count + 1;
         }
     });
     
+    thread::spawn(move||{
+        
+        let mut count = 1;
+        
+        loop {
+            sender2.send(count.clone());
+            sleep(Duration::from_millis(1000));
+            count = count + 1;
+        }
+    });
+    
+    thread::spawn(move||{
+        
+        let mut count = 1000000;
+        
+        loop {
+            sender3.send(count.clone());
+            sleep(Duration::from_millis(3000));
+            count = count + 1;
+        }
+    });
     
     thread::spawn(move||{
         
@@ -71,7 +72,7 @@ fn main() {
             println!("wątek1: wartość z kanału: {}", from_channel);
         }
     });
-    
+
     thread::spawn(move||{
         
         loop {
@@ -80,6 +81,13 @@ fn main() {
         }
     });
     
+    thread::spawn(move||{
+        
+        loop {
+            let from_channel = receiver3.get();
+            println!("wątek3: wartość z kanału: {}", from_channel);
+        }
+    });
     
                                 //czekaj na ctrl+C
     let stdin = io::stdin();

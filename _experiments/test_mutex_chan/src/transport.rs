@@ -12,6 +12,7 @@ pub trait TransportOut<R> {
 }
 
 
+//TODO - te wartości powinny się stać prywatne doceloo
 
 pub struct Transport<T, R> {
     pub query     : Arc<Mutex<Query<T>>>,

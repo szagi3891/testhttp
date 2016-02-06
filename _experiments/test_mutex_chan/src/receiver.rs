@@ -20,6 +20,8 @@ impl<R> Receiver<R> {
     
     pub fn get(&self) -> R {
         
+        //let mut list_or_value = self.outvalue.get_value_or_invitation();
+        
         let mut list_invitation : LinkedList<Box<TransportOut<R> + Send>> = {
             
             let mut guard = self.outvalue.mutex.lock().unwrap();
@@ -67,27 +69,4 @@ impl<R> Receiver<R> {
             }
         }
     }
-    
-    /*
-    pub fn clone(&self) -> Sender<T> {
-        
-        Receiver{
-            outvalue : outvalue.clone()
-        }
-    }
-    */
 }
-
-
-
-
-/*
-impl<R> Clone for Receiver<R> {
-    
-    fn clone(&self) -> Self {
-    
-    }
-
-    fn clone_from(&mut self, source: &Self) { ... }
-}
-*/

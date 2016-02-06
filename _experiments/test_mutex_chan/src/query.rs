@@ -3,6 +3,8 @@ use transport::TransportIn;
 use std::collections::linked_list::LinkedList;
 
 
+//TODO - te wartości powinny się stać prywatne docelowo
+
 pub struct Query<T> {
     pub values  : LinkedList<Box<T>>,
     pub senders : LinkedList<Box<TransportIn<T> + Send>>,

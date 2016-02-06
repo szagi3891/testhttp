@@ -47,6 +47,11 @@ impl<T: 'static + Clone + Send> Chan<T> {
         
         receiver
     }
+    
+    pub fn couple(&self) -> (Sender<T>, Receiver<T>) {
+        
+        (self.sender(), self.receiver())
+    }
 }
 
 

@@ -6,6 +6,20 @@ use transport::TransportOut;
 
 //TODO - te właściwości trzeba uprywatnić, dostęp do stanu ma się odbywać wyłącznie poprzez dedykowane metody
 
+/*
+    trzeba w pierwszym kroku zrobić żeby dostęp odbywał się tylko przez metody
+    metoda, która będzie podmieniała zawartość outvalue
+    
+        docelowy efekt, wywołanie metody an outvalue powinno podmienić jej interpretację wewnętrzną
+        kolejne puknięcie transportem z nową wartośćią powinno spowodować że transport zostanie transformowany w nowy transport
+        wskazujący na nowy docelowy kanał
+        
+    outvalue . transform ( Fn(T) -> R)
+        -> zwróci coś innego, ale mającego taki sam interfejs jak outvalue
+        
+        to nowe coś, będzie miało taką samą metodę jak originalne outvalue którą puka transport
+            tylko że to coś będzie wykonywało transformację transportu
+*/
 
 pub struct Outvalue<R> {
     pub mutex : Mutex<OutvalueInner<R>>,
@@ -28,7 +42,7 @@ impl<R> Outvalue<R> {
 
         loop {
             
-            let value = guard.value.take();
+            let value = guard.take();
 
             match value {
 
@@ -47,6 +61,7 @@ impl<R> Outvalue<R> {
     }
 }
 
+//TODO zrobić te pola ukryte
 
 pub struct OutvalueInner<R> {
     pub value : Option<R>,
@@ -61,5 +76,9 @@ impl<R> OutvalueInner<R> {
             value : None,
             list  : LinkedList::new(),
         })
+    }
+    
+    fn take(&mut self) -> Option<R> {
+        self.value.take()
     }
 }

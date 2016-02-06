@@ -3,6 +3,8 @@ use std::sync::{Arc, Mutex};
 use query::Query;
 
 
+//TODO - te wartości powinny się stać prywatne docelowo
+
 pub struct Sender<T> {
     query : Arc<Mutex<Query<T>>>,
 }
@@ -24,17 +26,3 @@ impl<T> Sender<T> {
         query_inner.sending();
     }
 }
-
-
-
-
-/*
-impl<R> Clone for Receiver<R> {
-    
-    fn clone(&self) -> Self {
-    
-    }
-
-    fn clone_from(&mut self, source: &Self) { ... }
-}
-*/
