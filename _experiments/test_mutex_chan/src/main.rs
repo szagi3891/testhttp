@@ -8,6 +8,7 @@ mod chan;
 mod sender;
 mod query;
 mod transport;
+mod transformer;
 mod receiver;
 mod outvalue;
 

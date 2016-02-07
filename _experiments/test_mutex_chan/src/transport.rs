@@ -50,8 +50,11 @@ impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportIn<T> for Transport<T,
         let mut outvalue_guard = outvalue.mutex.lock().unwrap();
         
         
-        //jeśli transport na nową lokalizację to
-        //w tym miejscu się trzeba wstrzelić z przepięciem
+        if outvalue_guard.end_flag {
+                                            //pozwalamy na usunięcie obiektu transportu gdyż jego czas minął
+            return Some(value);
+        
+        }
         
         
         
@@ -59,7 +62,7 @@ impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportIn<T> for Transport<T,
         if outvalue_guard.value.is_some() {
 
             outvalue_guard.list.push_back(self);
-
+            
             Some(value)
 
         } else {

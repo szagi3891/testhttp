@@ -101,6 +101,7 @@ impl<R> Outvalue<R> {
 //TODO zrobić te pola ukryte
 
 pub struct OutvalueInner<R> {
+    pub end_flag : bool,
     pub value : Option<R>,
     pub list  : LinkedList<Box<TransportOut<R> + Send>>,
 }
@@ -111,6 +112,7 @@ impl<R> OutvalueInner<R> {
     fn new() -> Mutex<OutvalueInner<R>> {
         
         Mutex::new(OutvalueInner{
+            end_flag : false,
             value : None,
             list  : LinkedList::new(),
         })
