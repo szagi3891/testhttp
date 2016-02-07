@@ -62,20 +62,8 @@ impl<T: 'static + Clone + Send> Chan<T> {
     }
 }
 
-
-
-fn create_identity<T>() -> Box<Fn(T) -> T + Send>  {
+fn create_identity<T>() -> Box<Fn(T) -> T + 'static + Send + Sync>  {
     Box::new(|argin: T| -> T {
         argin
     })
 }
-
-/*
-fn create_identity<T, R>() -> Box<Fn(T) -> R + Send> where R = T  {
-    Box::new(|argin: T| -> R {
-        argin
-    })
-}
-*/
-
-

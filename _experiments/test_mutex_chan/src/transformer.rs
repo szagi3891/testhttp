@@ -14,24 +14,24 @@ pub struct Transformer<T, R> {
     
     pub query     : Arc<Mutex<Query<T>>>,
     pub outvalue  : Arc<Outvalue<R>>,
-    pub transform : Box<Fn(T) -> R + Send>,
+    pub transform : Box<Fn(T) -> R + 'static + Send>,
 }
 
 
-impl<T:Send+Clone+'static, R:Send+Clone+'static> Transformer<T, R> {
+impl<T: 'static + Send + Sync, R: 'static + Send + Sync> Transformer<T, R> {
     
-    fn transform<K>(self: Box<Self>, new_outvalue: &Arc<Outvalue<K>>, new_transform: &Box<Fn(R) -> K + Send>) -> (Transport<T,K>, Transformer<T,K>) {
+    fn transform<K>(self: Box<Self>, new_outvalue: &Arc<Outvalue<K>>, new_transform: &Fn() -> Box<Fn(R) -> K>) -> (Transport<T,K>, Transformer<T,K>) {
         
         let transport = Transport {
             query    : self.query.clone(),
             outvalue : new_outvalue.clone(),
-            transform : glue::<T,R,K>(self.transform, new_transform),
+            transform : glue::<T,R,K>(self.transform, new_transform()),
         };
         
         let transformer = Transformer {
             query     : self.query.clone(),
             outvalue  : new_outvalue.clone(),
-            transform : glue::<T,R,K>(self.transform, new_transform),
+            transform : glue::<T,R,K>(self.transform, new_transform()),
         };
         
         
@@ -40,45 +40,12 @@ impl<T:Send+Clone+'static, R:Send+Clone+'static> Transformer<T, R> {
 }
 
 
-fn glue<T,R,K>(fn1: Box<Fn(T) -> R + Send>, fn2: &Box<Fn(R) -> K + Send>) -> Box<Fn(T) -> K + Send> {
+fn glue<T,R,K>(fn1: Box<Fn(T) -> R>, fn2: Box<Fn(R) -> K>) -> Box<Fn(T) -> K + 'static + Send> {
     
-    let fun1 = fn1.clone();
-    let fun2 = fn2.clone();
-    
-    Box::new(move|arg: T| -> K {
+    Box::new(|arg: T| -> K {
         
-        fun2(fun1(arg))
+        fn2(fn1(arg))
     })
 }
-
-/*
-
-impl<T:Send+Clone+'static, R:Send+Clone+'static> TransformerInterface<T> for Transformer<T, R> {
-    
-    fn transform(self: Box<Self>, new_transform: Box<Fn(R) -> K>) -> (Transport<T,K>, Transformer<T,K>) {
-        
-        
-        
-        let transport = Transport {
-            query    : self.query.clone(),
-            outvalue : self.outvalue.clone(),
-            transform : glue(self.transform, new_transform),
-        };
-        
-        let transformer = Transformer {
-            query     : self.query.clone(),
-            outvalue  : self.outvalue.clone(),
-            transform : glue(self.transform, new_transform),
-        };
-        
-        
-        (transport, transformer)
-    }
-}
-
-
-*/
-
-
 
 
