@@ -20,17 +20,17 @@ pub struct Transformer<T, R> {
 
 impl<T:Send+Clone+'static, R:Send+Clone+'static> Transformer<T, R> {
     
-    fn transform<K>(self: Box<Self>, new_transform: Box<Fn(R) -> K + Send>) -> (Transport<T,K>, Transformer<T,K>) {
+    fn transform<K>(self: Box<Self>, new_outvalue: &Arc<Outvalue<K>>, new_transform: &Box<Fn(R) -> K + Send>) -> (Transport<T,K>, Transformer<T,K>) {
         
-        let transport: Transport<T,K> = Transport {
+        let transport = Transport {
             query    : self.query.clone(),
-            outvalue : self.outvalue.clone(),
+            outvalue : new_outvalue.clone(),
             transform : glue::<T,R,K>(self.transform, new_transform),
         };
         
-        let transformer: Transformer<T,K> = Transformer {
+        let transformer = Transformer {
             query     : self.query.clone(),
-            outvalue  : self.outvalue.clone(),
+            outvalue  : new_outvalue.clone(),
             transform : glue::<T,R,K>(self.transform, new_transform),
         };
         
@@ -40,7 +40,7 @@ impl<T:Send+Clone+'static, R:Send+Clone+'static> Transformer<T, R> {
 }
 
 
-fn glue<T,R,K>(fn1: Box<Fn(T) -> R + Send>, fn2: Box<Fn(R) -> K + Send>) -> Box<Fn(T) -> K + Send> {
+fn glue<T,R,K>(fn1: Box<Fn(T) -> R + Send>, fn2: &Box<Fn(R) -> K + Send>) -> Box<Fn(T) -> K + Send> {
     
     let fun1 = fn1.clone();
     let fun2 = fn2.clone();
