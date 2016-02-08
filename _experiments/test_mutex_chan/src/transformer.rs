@@ -1,3 +1,4 @@
+//use types::Param;
 use std::sync::{Arc, Mutex};
 use query::Query;
 use outvalue::Outvalue;
@@ -9,18 +10,31 @@ pub trait TransformerInterface<R> {
 }
 */
 
+/*
+    trzeba wymyślić obiekt, który będzie zawierał clousera, lub referencję na kolejnego clousera
+    (T) a (R)-> (R) b (K)
+    
+    na zewnątrz musi być to przykryte interfejsem parametryzującym po T i K
+    czyli, efekt złączenia dwóch takich obiektów, musi finalnie na zewnątrz dawać nowy obiekt o zmienionym wyjściowym typie
+*/
+
 
 pub struct Transformer<T, R> {
     
     pub query     : Arc<Mutex<Query<T>>>,
     pub outvalue  : Arc<Outvalue<R>>,
-    pub transform : Box<Fn(T) -> R + 'static + Send>,
+    pub transform : Box<Fn(T) -> R + 'static + Send + Sync>,
 }
 
 
-impl<T: 'static + Send + Sync, R: 'static + Send + Sync> Transformer<T, R> {
+impl<T, R> Transformer<T, R>
+    where
+        T : 'static + Send + Sync ,
+        R : 'static + Send + Sync {
     
-    fn transform<K>(self: Box<Self>, new_outvalue: &Arc<Outvalue<K>>, new_transform: &Fn() -> Box<Fn(R) -> K>) -> (Transport<T,K>, Transformer<T,K>) {
+    fn transform<K>(self: Box<Self>, new_outvalue: &Arc<Outvalue<K>>, new_transform: &Fn() -> Box<Fn(R) -> K>) ->
+        (Transport<T,K>, Transformer<T,K>)
+        where K : 'static + Send + Sync {
         
         let transport = Transport {
             query    : self.query.clone(),
@@ -40,7 +54,11 @@ impl<T: 'static + Send + Sync, R: 'static + Send + Sync> Transformer<T, R> {
 }
 
 
-fn glue<T,R,K>(fn1: Box<Fn(T) -> R>, fn2: Box<Fn(R) -> K>) -> Box<Fn(T) -> K + 'static + Send> {
+fn glue<T,R,K>(fn1: Box<Fn(T) -> R + 'static + Send + Sync>, fn2: Box<Fn(R) -> K + 'static + Send + Sync>) -> Box<Fn(T) -> K + 'static + Send + Sync>
+    where
+        T : 'static + Send + Sync ,
+        R : 'static + Send + Sync ,
+        K : 'static + Send + Sync {
     
     Box::new(|arg: T| -> K {
         

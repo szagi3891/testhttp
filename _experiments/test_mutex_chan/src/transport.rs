@@ -17,10 +17,13 @@ pub trait TransportOut<R> {
 pub struct Transport<T, R> {
     pub query     : Arc<Mutex<Query<T>>>,
     pub outvalue  : Arc<Outvalue<R>>,
-    pub transform : Box<Fn(T) -> R + Send>,
+    pub transform : Box<Fn(T) -> R + 'static + Send + Sync>,
 }
 
-impl<T:Send+Clone+'static, R:Send+Clone+'static> Transport<T, R> {
+impl<T, R> Transport<T, R>
+    where
+        T : Send + Clone + 'static ,
+        R : Send + Clone + 'static {
     
     fn transform_value(&self, value: Box<T>) -> R {
         
@@ -36,7 +39,10 @@ impl<T:Send+Clone+'static, R:Send+Clone+'static> Transport<T, R> {
     }
 }
 
-impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportIn<T> for Transport<T, R> {
+impl<T, R> TransportIn<T> for Transport<T, R> 
+    where
+        T : Send + Clone + 'static ,
+        R : Send + Clone + 'static {
     
     
     fn send(self: Box<Self>, value: Box<T>) -> Option<Box<T>> {
@@ -79,7 +85,10 @@ impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportIn<T> for Transport<T,
 }
 
 
-impl<T:Send+Clone+'static, R:Send+Clone+'static> TransportOut<R> for Transport<T, R> {
+impl<T, R> TransportOut<R> for Transport<T, R>
+    where
+        T : Send + Clone + 'static ,
+        R : Send + Clone + 'static {
     
     fn ready(self: Box<Self>) {
         

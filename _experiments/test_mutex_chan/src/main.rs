@@ -4,6 +4,7 @@ use std::io::prelude::*;
 use std::thread::sleep;
 use std::time::Duration;
 
+mod types;
 mod chan;
 mod sender;
 mod query;
