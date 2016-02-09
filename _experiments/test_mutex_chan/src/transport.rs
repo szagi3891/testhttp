@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 use query::Query;
 use outvalue::Outvalue;
+use fnconvert::Fnconvert;
 
 
 pub trait TransportIn<T> {
@@ -17,32 +18,14 @@ pub trait TransportOut<R> {
 pub struct Transport<T, R> {
     pub query     : Arc<Mutex<Query<T>>>,
     pub outvalue  : Arc<Outvalue<R>>,
-    pub transform : Box<Fn(T) -> R + 'static + Send + Sync>,
+    pub fnconvert : Fnconvert<T,R>,
 }
 
-impl<T, R> Transport<T, R>
-    where
-        T : Send + Clone + 'static ,
-        R : Send + Clone + 'static {
-    
-    fn transform_value(&self, value: Box<T>) -> R {
-        
-                    //TODO - potrzebny jest lepszy sposób na wywołanie clousera zapisanego w zmiennej struktury
-                
-        match self.transform {
-
-            ref transform => {
-
-                transform((*value).clone())
-            }
-        }
-    }
-}
 
 impl<T, R> TransportIn<T> for Transport<T, R> 
     where
-        T : Send + Clone + 'static ,
-        R : Send + Clone + 'static {
+        T : Send + Sync + Clone + 'static ,
+        R : Send + Sync + Clone + 'static {
     
     
     fn send(self: Box<Self>, value: Box<T>) -> Option<Box<T>> {
@@ -73,7 +56,7 @@ impl<T, R> TransportIn<T> for Transport<T, R>
 
         } else {
 
-            outvalue_guard.value = Some(self.transform_value(value));
+            outvalue_guard.value = Some(self.fnconvert.conv(value));
                                     //powiadom wszystkie uśpione wątki że podano do stołu
             self.outvalue.cond.notify_all();
 
@@ -87,8 +70,8 @@ impl<T, R> TransportIn<T> for Transport<T, R>
 
 impl<T, R> TransportOut<R> for Transport<T, R>
     where
-        T : Send + Clone + 'static ,
-        R : Send + Clone + 'static {
+        T : Send + Sync + Clone + 'static ,
+        R : Send + Sync + Clone + 'static {
     
     fn ready(self: Box<Self>) {
         

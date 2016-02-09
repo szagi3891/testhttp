@@ -6,6 +6,7 @@ use query::Query;
 use transport::Transport;
 //use transformer::Transformer;
 use outvalue::Outvalue;
+use fnconvert::Fnconvert;
 
 
 //Sender
@@ -16,15 +17,19 @@ use outvalue::Outvalue;
 
 
 pub struct Chan<T: 'static + Clone + Send> {
-    query : Arc<Mutex<Query<T>>>
+    query     : Arc<Mutex<Query<T>>>,
+    fnconvert : Fnconvert<T,T>,
 }
 
-impl<T: 'static + Clone + Send> Chan<T> {
+impl<T: 'static + Clone + Send + Sync> Chan<T> {
     
     pub fn new() -> Chan<T> {
         
         Chan {
-            query : Query::new(),
+            query     : Query::new(),
+            fnconvert : Fnconvert::new(Box::new(|argin: T| -> T {
+                argin
+            }))
         }
     }
     
@@ -38,17 +43,19 @@ impl<T: 'static + Clone + Send> Chan<T> {
         let receiver : Receiver<T> = Receiver::new(outvalue.clone());
         
         let transport = Transport {
-            query    : self.query.clone(),
-            outvalue : outvalue.clone(),
-            transform : create_identity::<T>(),
+            query     : self.query.clone(),
+            outvalue  : outvalue.clone(),
+            fnconvert : self.fnconvert.clone(),
         };
+        
 /* 
         let transformer = Transformer {
             query     : self.query.clone(),
             outvalue  : outvalue.clone(),
             transform : create_identity::<T>(),
         };
-*/        
+*/      
+        
         let mut inner = outvalue.mutex.lock().unwrap();
         inner.list.push_back(Box::new(transport));
         //inner.transformers.push(Box::new(transformer));
@@ -62,8 +69,4 @@ impl<T: 'static + Clone + Send> Chan<T> {
     }
 }
 
-fn create_identity<T>() -> Box<Fn(T) -> T + 'static + Send + Sync>  {
-    Box::new(|argin: T| -> T {
-        argin
-    })
-}
+
