@@ -1,3 +1,1 @@
-trait Param : Send + Clone + Sync + 'static {
-}
-
+pub trait ChannelValue : Send + Sync + 'static {}

@@ -35,7 +35,7 @@ impl<T, R> Transport<T, R>
 
                 transform((*value).clone())
             }
-        }       
+        }
     }
 }
 

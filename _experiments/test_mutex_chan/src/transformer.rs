@@ -1,4 +1,4 @@
-//use types::Param;
+use types::ChannelValue;
 use std::sync::{Arc, Mutex};
 use query::Query;
 use outvalue::Outvalue;
@@ -29,10 +29,10 @@ pub struct Transformer<T, R> {
 
 impl<T, R> Transformer<T, R>
     where
-        T : 'static + Send + Sync ,
-        R : 'static + Send + Sync {
+        T : ChannelValue ,
+        R : ChannelValue {
     
-    fn transform<K>(self: Box<Self>, new_outvalue: &Arc<Outvalue<K>>, new_transform: &Fn() -> Box<Fn(R) -> K>) ->
+    fn transform<K>(self: Box<Self>, new_outvalue: &Arc<Outvalue<K>>, new_transform: &Fn() -> Box<Fn(R) -> K + Send + Sync + 'static>) ->
         (Transport<T,K>, Transformer<T,K>)
         where K : 'static + Send + Sync {
         
@@ -60,7 +60,7 @@ fn glue<T,R,K>(fn1: Box<Fn(T) -> R + 'static + Send + Sync>, fn2: Box<Fn(R) -> K
         R : 'static + Send + Sync ,
         K : 'static + Send + Sync {
     
-    Box::new(|arg: T| -> K {
+    Box::new(move|arg: T| -> K {
         
         fn2(fn1(arg))
     })
