@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use query::Query;
 use outvalue::Outvalue;
-use fnconvert::Fnconvert;
+use fnconvert::{Fnconvert, Convert};
 
 
 pub trait TransportIn<T> {
@@ -19,6 +19,7 @@ pub struct Transport<T, R> {
     pub query     : Arc<Mutex<Query<T>>>,
     pub outvalue  : Arc<Outvalue<R>>,
     pub fnconvert : Fnconvert<T,R>,
+    //fnconvert : Box<Convert<T,R>>,
 }
 
 
@@ -86,6 +87,4 @@ impl<T, R> TransportOut<R> for Transport<T, R>
         query_guard.sending();
     }
 }
-
-
 
