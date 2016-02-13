@@ -18,8 +18,8 @@ pub trait TransportOut<R> {
 pub struct Transport<T, R> {
     pub query     : Arc<Mutex<Query<T>>>,
     pub outvalue  : Arc<Outvalue<R>>,
-    pub fnconvert : Fnconvert<T,R>,
-    //fnconvert : Box<Convert<T,R>>,
+    //pub fnconvert : Fnconvert<T,R>,
+    pub fnconvert : Box<Convert<T,R>>,
 }
 
 

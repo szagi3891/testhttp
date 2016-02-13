@@ -6,7 +6,7 @@ use query::Query;
 use transport::Transport;
 //use transformer::Transformer;
 use outvalue::Outvalue;
-use fnconvert::Fnconvert;
+use fnconvert::{Fnconvert, Convert};
 
 
 //Sender
@@ -18,7 +18,7 @@ use fnconvert::Fnconvert;
 
 pub struct Chan<T: 'static + Clone + Send> {
     query     : Arc<Mutex<Query<T>>>,
-    fnconvert : Fnconvert<T,T>,
+    fnconvert : Box<Convert<T,T>>
 }
 
 impl<T: 'static + Clone + Send + Sync> Chan<T> {

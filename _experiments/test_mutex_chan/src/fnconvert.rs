@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 
 pub trait Convert<T,R> {
-    fn conv(self : Box<Self>, T) -> R;
-    fn clone(self : Box<Self>) -> Box<Self>;
+    fn conv (self : Box<Self>, T) -> R         where Self: Sized;
+    fn clone(self : Box<Self>)    -> Box<Self> where Self: Sized;
 }
 
 //http://huonw.github.io/blog/2015/01/object-safety/
@@ -19,13 +19,14 @@ impl<T, R> Fnconvert<T, R>
         T : 'static + Send + Sync + Clone ,
         R : 'static + Send + Sync + Clone {
     
-    pub fn new(func : Box<Fn(T) -> R + 'static + Send + Sync>) -> Fnconvert<T, R> {
+    pub fn new(func : Box<Fn(T) -> R + 'static + Send + Sync>) -> Box<Fnconvert<T, R>> {
         
-        Fnconvert {
+        Box::new(Fnconvert {
             func : Arc::new(func)
-        }
+        })
     }
     
+    /*
     pub fn conv(&self, value : Box<T>) -> R {
         
         match self.func {
@@ -36,13 +37,14 @@ impl<T, R> Fnconvert<T, R>
             }
         }
     }
-            
-    pub fn clone(&self) -> Fnconvert<T,R> {
+    
+    pub fn clone(&self) -> Box<Fnconvert<T,R>> {
         
-        Fnconvert {
+        Box::new(Fnconvert {
             func : self.func.clone()
-        }
+        })
     }
+    */
 }
 
 
@@ -58,7 +60,7 @@ impl<T,R> Convert<T,R> for Fnconvert<T,R> {
             }
         }
     }
-            
+    
     fn clone(self: Box<Self>) -> Box<Fnconvert<T,R>> {
         
         Box::new(Fnconvert {
