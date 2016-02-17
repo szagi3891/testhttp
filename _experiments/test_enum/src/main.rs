@@ -19,6 +19,22 @@ impl<A,B,C> Convert<A,C> for Fnconvert<A,B,C> {
     
     fn conv(&self, value : A) -> C {
         
+        match *self {
+            
+            Fnconvert::First(ref func) => {
+                
+                func(value)
+            },
+            
+            Fnconvert::Next(ref func, ref next_conv) => {
+                
+                next_conv.conv(func(value))
+            }
+        }
+    }
+}
+
+        /*
         match self {
             
             &Fnconvert::First(ref func) => {
@@ -31,5 +47,5 @@ impl<A,B,C> Convert<A,C> for Fnconvert<A,B,C> {
                 nextConv.conv(func(value))
             }
         }
-    }
-}
+        */
+        
