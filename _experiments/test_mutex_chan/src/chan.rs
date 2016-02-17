@@ -25,11 +25,13 @@ impl<T: 'static + Clone + Send + Sync> Chan<T> {
     
     pub fn new() -> Chan<T> {
         
+        let conv: Box<Fnconvert<T,T,T>> = Box::new(Fnconvert::new(Box::new(|argin: T| -> T {
+            argin
+        })));
+        
         Chan {
             query     : Query::new(),
-            fnconvert : Fnconvert::new(Box::new(|argin: T| -> T {
-                argin
-            }))
+            fnconvert : conv
         }
     }
     
