@@ -18,20 +18,14 @@ use fnconvert::{Fnconvert, Convert};
 
 pub struct Chan<T: 'static + Clone + Send> {
     query     : Arc<Mutex<Query<T>>>,
-    fnconvert : Box<Convert<T,T>>
 }
 
 impl<T: 'static + Clone + Send + Sync> Chan<T> {
     
     pub fn new() -> Chan<T> {
         
-        let conv: Box<Fnconvert<T,T,T>> = Box::new(Fnconvert::new(Box::new(|argin: T| -> T {
-            argin
-        })));
-        
         Chan {
-            query     : Query::new(),
-            fnconvert : conv
+            query: Query::new(),
         }
     }
     
@@ -44,12 +38,17 @@ impl<T: 'static + Clone + Send + Sync> Chan<T> {
         let outvalue               = Outvalue::new();
         let receiver : Receiver<T> = Receiver::new(outvalue.clone());
         
+        
+        let conv: Box<Fnconvert<T,T,T>> = Box::new(Fnconvert::new(Box::new(|argin: T| -> T {
+            argin
+        })));
+        
+        
         let transport = Transport {
             query     : self.query.clone(),
             outvalue  : outvalue.clone(),
-            fnconvert : self.fnconvert.clone(),
-        };
-        
+            fnconvert : conv,
+        };     
 /* 
         let transformer = Transformer {
             query     : self.query.clone(),
@@ -69,6 +68,13 @@ impl<T: 'static + Clone + Send + Sync> Chan<T> {
         
         (self.sender(), self.receiver())
     }
+}
+
+
+fn create_iden<A>() -> Box<Fn(A) -> A + Send + Sync + 'static> {
+    Box::new(|argin: A| -> A {
+        argin
+    })
 }
 
 

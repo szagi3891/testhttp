@@ -19,7 +19,12 @@ impl<A,B,C> Fnconvert<A,B,C> {
     }
 }
 
-impl<A,B,C> Convert<A,C> for Fnconvert<A,B,C> {
+impl<A,B,C> Convert<A,C> for Fnconvert<A,B,C>
+
+    where
+        A : Send + Sync + 'static ,
+        B : Send + Sync + 'static ,
+        C : Send + Sync + 'static {
     
     fn conv(&self, value : A) -> C {
         
@@ -55,8 +60,8 @@ pub struct Fnconvert<T,R> {
 
 impl<T, R> Fnconvert<T, R>
     where
-        T : 'static + Send + Sync + Clone ,
-        R : 'static + Send + Sync + Clone {
+        T : 'static + Send + Sync ,
+        R : 'static + Send + Sync {
     
     pub fn new(func : Box<Fn(T) -> R + 'static + Send + Sync>) -> Box<Fnconvert<T, R>> {
         

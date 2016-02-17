@@ -5,7 +5,7 @@ use fnconvert::{Fnconvert, Convert};
 
 
 pub trait TransportIn<T> {
-    fn send(self : Box<Self>, Box<T>) -> Option<Box<T>>;       //TODO - tutaj będzie zwracana opcja na nowego sendera T2
+    fn send(self : Box<Self>, Box<T>) -> Option<Box<T>>;
 }
 
 pub trait TransportOut<R> {
@@ -18,7 +18,6 @@ pub trait TransportOut<R> {
 pub struct Transport<T, R> {
     pub query     : Arc<Mutex<Query<T>>>,
     pub outvalue  : Arc<Outvalue<R>>,
-    //pub fnconvert : Fnconvert<T,R>,
     pub fnconvert : Box<Convert<T,R>>,
 }
 
