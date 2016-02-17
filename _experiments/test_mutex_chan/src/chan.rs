@@ -6,7 +6,7 @@ use query::Query;
 use transport::Transport;
 //use transformer::Transformer;
 use outvalue::Outvalue;
-use fnconvert::{Fnconvert, Convert};
+use fnconvert::Fnconvert;
 
 
 //Sender
@@ -39,15 +39,10 @@ impl<T: 'static + Clone + Send + Sync> Chan<T> {
         let receiver : Receiver<T> = Receiver::new(outvalue.clone());
         
         
-        let conv: Box<Fnconvert<T,T,T>> = Box::new(Fnconvert::new(Box::new(|argin: T| -> T {
-            argin
-        })));
-        
-        
         let transport = Transport {
             query     : self.query.clone(),
             outvalue  : outvalue.clone(),
-            fnconvert : conv,
+            fnconvert : Fnconvert::<T,T,T>::new(create_iden::<T>()),
         };     
 /* 
         let transformer = Transformer {
@@ -59,7 +54,6 @@ impl<T: 'static + Clone + Send + Sync> Chan<T> {
         
         let mut inner = outvalue.mutex.lock().unwrap();
         inner.list.push_back(Box::new(transport));
-        //inner.transformers.push(Box::new(transformer));
         
         receiver
     }

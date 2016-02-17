@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use query::Query;
 use outvalue::Outvalue;
-use fnconvert::{Fnconvert, Convert};
+use fnconvert::Convert;
 
 
 pub trait TransportIn<T> {
@@ -18,7 +18,7 @@ pub trait TransportOut<R> {
 pub struct Transport<T, R> {
     pub query     : Arc<Mutex<Query<T>>>,
     pub outvalue  : Arc<Outvalue<R>>,
-    pub fnconvert : Box<Convert<T,R>>,
+    pub fnconvert : Box<Convert<T,R> + Send>,
 }
 
 
@@ -56,7 +56,13 @@ impl<T, R> TransportIn<T> for Transport<T, R>
 
         } else {
 
-            outvalue_guard.value = Some(self.fnconvert.conv(value));
+            //outvalue_guard.value = Some(self.fnconvert.conv(value));
+            
+            let value_clone = (*value).clone();
+            
+            outvalue_guard.value = Some(self.fnconvert.conv(value_clone));
+            
+            
                                     //powiadom wszystkie uśpione wątki że podano do stołu
             self.outvalue.cond.notify_all();
 

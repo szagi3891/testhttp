@@ -1,3 +1,5 @@
+use std::thread;
+
 fn main() {
     
     println!("Hello, func world!");
@@ -8,7 +10,11 @@ fn main() {
         argin as u64 + 9
     }));
     
-    println!("aaa {}", tt2.conv(10));
+    
+
+    thread::spawn(move || {
+        println!("aaa {}", tt2.conv(10));
+    });
 }
 
 fn create_iden<A>() -> Box<Fn(A) -> A + Send + Sync + 'static> {
