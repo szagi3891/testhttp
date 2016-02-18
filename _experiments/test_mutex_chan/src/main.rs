@@ -10,7 +10,7 @@ mod chan;
 mod sender;
 mod query;
 mod transport;
-//mod transformer;
+mod transformer;
 mod receiver;
 mod outvalue;
 
@@ -25,26 +25,16 @@ use chan::Chan;
 //LinkedList<Box<TransportOut<R> + Send>>, - opakować tą listę typem zewnętrznym którego używać we wszystkich miejscach
 //udostniępniać tylko metodę push oraz pop (będą one dbały o właściwy kierunek)
 
+enum Out {
+    Result1(u64),
+    Result2(u64),
+}
 
 fn main() {
     
     let (sender1, receiver1) = Chan::new().couple();
     let (sender2, receiver2) = Chan::new().couple();
     
-    
-    //TODO - Trzeba stworzyć wspólny kanał agregujące dane z receiver1 oraz receiver2
-    
-    /*
-    enum Out {
-        Result1(T1),
-        Result2(T2),
-    }
-    
-    let receiver_out = receiver1.transform(Fn(T1)->Out)
-    receiver_out.add(receiver2, Fn(T2)->Out)
-    
-    receiver_out.get() - zbierać dane będzie od tego momentu z dwóch źródeł
-    */
     
     
     thread::spawn(move||{
@@ -86,6 +76,27 @@ fn main() {
             println!("wątek2: wartość z kanału: {}", from_channel);
         }
     });
+    
+    
+    /*
+    let select = Chan::Select::<Out>();
+    
+    select.add(receiver1, Box::new(|value: u64| -> Out {
+        Out::Result1(value)
+    }));
+    
+    select.add(receiver2, Box::new(|value: u64| -> Out {
+        Out::Result2(value)
+    }));
+    
+    thread::spawn(move||{
+        
+        loop {
+            let from_channel = select.get();
+            println!("wątek select: wartość z kanału: {}", from_channel);
+        }
+    });
+    */
     
     
                                 //czekaj na ctrl+C

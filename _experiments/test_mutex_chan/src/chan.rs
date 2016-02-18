@@ -4,7 +4,7 @@ use sender::Sender;
 use receiver::Receiver;
 use query::Query;
 use transport::Transport;
-//use transformer::Transformer;
+use transformer::Transformer;
 use outvalue::Outvalue;
 use fnconvert::Fnconvert;
 
@@ -14,6 +14,7 @@ use fnconvert::Fnconvert;
 //Transport
 //Valueout
 //Receiver
+//Select
 
 
 pub struct Chan<T: 'static + Clone + Send> {
@@ -35,8 +36,7 @@ impl<T: 'static + Clone + Send + Sync> Chan<T> {
     
     pub fn receiver(&self) -> Receiver<T> {
         
-        let outvalue               = Outvalue::new();
-        let receiver : Receiver<T> = Receiver::new(outvalue.clone());
+        let outvalue = Outvalue::new();
         
         
         let transport = Transport {
@@ -44,18 +44,20 @@ impl<T: 'static + Clone + Send + Sync> Chan<T> {
             outvalue  : outvalue.clone(),
             fnconvert : Fnconvert::<T,T,T>::new(create_iden::<T>()),
         };     
-/* 
+        
         let transformer = Transformer {
             query     : self.query.clone(),
             outvalue  : outvalue.clone(),
-            transform : create_identity::<T>(),
+            fnconvert : Fnconvert::<T,T,T>::new(create_iden::<T>()),
         };
-*/      
+
         
         let mut inner = outvalue.mutex.lock().unwrap();
         inner.list.push_back(Box::new(transport));
         
-        receiver
+        
+        //Receiver::new(outvalue.clone(), transformer)
+        Receiver::new(outvalue.clone())
     }
     
     pub fn couple(&self) -> (Sender<T>, Receiver<T>) {
@@ -69,6 +71,22 @@ fn create_iden<A>() -> Box<Fn(A) -> A + Send + Sync + 'static> {
     Box::new(|argin: A| -> A {
         argin
     })
+}
+
+
+struct Select<Out> {
+    outvalue : Arc<Outvalue<Out>>,
+}
+
+
+impl<Out> Select<Out> {
+    
+    pub fn new() -> Select<Out> {
+        
+        Select {
+            outvalue : Outvalue::new(),
+        }
+    }
 }
 
 
