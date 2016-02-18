@@ -1,19 +1,28 @@
 use std::sync::Arc;
 use transport::TransportOut;
+use transformer::Transformer;
 use outvalue::{Outvalue, GetResult};
+use transport::Transport;
 
 
-pub struct Receiver<R> {
+pub struct Receiver<T, R> {
     pub outvalue : Arc<Outvalue<R>>,
+    transformer  : Transformer<T, R>,
 }
 
 
-impl<R> Receiver<R> {
+impl<T,R> Receiver<T,R> {
     
-    pub fn new(outvalue: Arc<Outvalue<R>>) -> Receiver<R> {
+    pub fn new(outvalue: Arc<Outvalue<R>>, transformer: Transformer<T, R>) -> Receiver<T, R> {
         Receiver{
-            outvalue : outvalue
+            outvalue    : outvalue,
+            transformer : transformer
         }
+    }
+    
+    pub fn transform<K>(self, outvalue: Arc<Outvalue<K>>, trans_fn: Box<Fn(R) -> K + Send + Sync + 'static>) -> Transport<T,K> {
+        
+        self.transformer.transform(outvalue, trans_fn)
     }
     
     pub fn get(&self) -> R {

@@ -19,7 +19,7 @@ impl<T, R> Transformer<T, R>
         T : ChannelValue ,
         R : ChannelValue {
     
-    fn transform<K>(self: Box<Self>, outvalue: Arc<Outvalue<K>>, transform: Box<Fn(R) -> K + Send + Sync + 'static>) -> Transport<T,K>
+    pub fn transform<K>(self: Box<Self>, outvalue: Arc<Outvalue<K>>, transform: Box<Fn(R) -> K + Send + Sync + 'static>) -> Transport<T,K>
         where K : 'static + Send + Sync {
         
             //TODO - niepotrzebne klonowanie query

@@ -34,7 +34,7 @@ impl<T: 'static + Clone + Send + Sync> Chan<T> {
         Sender::new(self.query.clone())
     }
     
-    pub fn receiver(&self) -> Receiver<T> {
+    pub fn receiver(&self) -> Receiver<T,T> {
         
         let outvalue = Outvalue::new();
         
@@ -56,11 +56,11 @@ impl<T: 'static + Clone + Send + Sync> Chan<T> {
         inner.list.push_back(Box::new(transport));
         
         
-        //Receiver::new(outvalue.clone(), transformer)
-        Receiver::new(outvalue.clone())
+        Receiver::new(outvalue.clone(), transformer)
+        //Receiver::new(outvalue.clone())
     }
     
-    pub fn couple(&self) -> (Sender<T>, Receiver<T>) {
+    pub fn couple(&self) -> (Sender<T>, Receiver<T,T>) {
         
         (self.sender(), self.receiver())
     }
@@ -74,7 +74,7 @@ fn create_iden<A>() -> Box<Fn(A) -> A + Send + Sync + 'static> {
 }
 
 
-struct Select<Out> {
+pub struct Select<Out> {
     outvalue : Arc<Outvalue<Out>>,
 }
 
@@ -86,6 +86,13 @@ impl<Out> Select<Out> {
         Select {
             outvalue : Outvalue::new(),
         }
+    }
+    
+    pub fn add<T,R>(&self, rec: Receiver<T,R>, transform: Box<Fn(R) -> Out + Send + Sync + 'static>) {
+        
+        let new_transport = rec.transform(self.outvalue.clone(), transform);
+        
+        println!("dodaje reciviera");
     }
 }
 

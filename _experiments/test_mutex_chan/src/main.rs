@@ -15,6 +15,7 @@ mod receiver;
 mod outvalue;
 
 use chan::Chan;
+use chan::Select;
 
 //TODO - niepotrzebnie jest teraz klonowany arc po to żeby zmieniać zawartość którą posiada mutex
 
@@ -60,7 +61,7 @@ fn main() {
         }
     });
     
-    
+    /*
     thread::spawn(move||{
         
         loop {
@@ -76,14 +77,18 @@ fn main() {
             println!("wątek2: wartość z kanału: {}", from_channel);
         }
     });
+    */
     
     
-    /*
-    let select = Chan::Select::<Out>();
+    let select: Select<Out> = Select::new();
+    
     
     select.add(receiver1, Box::new(|value: u64| -> Out {
         Out::Result1(value)
     }));
+    
+    
+    /*
     
     select.add(receiver2, Box::new(|value: u64| -> Out {
         Out::Result2(value)
