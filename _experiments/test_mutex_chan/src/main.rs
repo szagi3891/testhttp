@@ -27,6 +27,10 @@ use chan::Select;
 //udostniępniać tylko metodę push oraz pop (będą one dbały o właściwy kierunek)
 
 
+//TODO
+//zrobić metodę za pomocą której będzie można klonować sendera i reciviera ...
+
+
 
                                 //TODO - pozbyć się tego clona dla struktury out
 #[derive(Clone)]
