@@ -26,6 +26,10 @@ use chan::Select;
 //LinkedList<Box<TransportOut<R> + Send>>, - opakować tą listę typem zewnętrznym którego używać we wszystkich miejscach
 //udostniępniać tylko metodę push oraz pop (będą one dbały o właściwy kierunek)
 
+
+
+                                //TODO - pozbyć się tego clona dla struktury out
+#[derive(Clone)]
 enum Out {
     Result1(u64),
     Result2(String),
@@ -83,26 +87,27 @@ fn main() {
     
     let select: Select<Out> = Select::new();
     
-    
     select.add(receiver1, Box::new(|value: u64| -> Out {
         Out::Result1(value)
     }));
-    
     
     select.add(receiver2, Box::new(|value: String| -> Out {
         Out::Result2(value)
     }));
     
-    
-    /*
     thread::spawn(move||{
         
         loop {
-            let from_channel = select.get();
-            println!("wątek select: wartość z kanału: {}", from_channel);
+            match select.get() {
+                Out::Result1(from_channel) => {
+                    println!("wątek selecta: wartość z kanału 1: {}", from_channel);
+                },
+                Out::Result2(from_channel) => {
+                    println!("wątek selecta: wartość z kanału 2: {}", from_channel);
+                }
+            }
         }
     });
-    */
     
     
                                 //czekaj na ctrl+C

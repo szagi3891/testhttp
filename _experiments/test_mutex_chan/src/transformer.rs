@@ -2,7 +2,7 @@
 use std::sync::{Arc, Mutex};
 use query::Query;
 use outvalue::Outvalue;
-use transport::{Transport, TransportOut};
+use transport::Transport;
 use fnconvert::{Fnconvert, Convert};
 
 
@@ -29,6 +29,14 @@ impl<T, R> Transformer<T, R>
             outvalue  : outvalue,
             fnconvert : Box::new(Fnconvert::Next(self.fnconvert, Arc::new(transform))),
         };
+        
+        
+            //TODO - to zakończanie ma potencjalną wadę
+            //nie może być żadnej wartości zapisanej w zmiennej outvalue ...
+            
+        let mut inner = self.outvalue.mutex.lock().unwrap();
+        inner.end_flag = true;
+        
         
         transport
     }

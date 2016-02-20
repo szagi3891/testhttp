@@ -60,7 +60,6 @@ impl<T> Chan<T>
         
         
         Receiver::new(outvalue.clone(), transformer)
-        //Receiver::new(outvalue.clone())
     }
     
     pub fn couple(&self) -> (Sender<T>, Receiver<T,T>) {
@@ -69,6 +68,7 @@ impl<T> Chan<T>
     }
 }
 
+//TODO - pozbyć się tej metody na rzecz klonowania całej metody transformującej
 
 fn create_iden<A>() -> Box<Fn(A) -> A + Send + Sync + 'static>
     where A : Send + Sync + 'static {
@@ -79,13 +79,13 @@ fn create_iden<A>() -> Box<Fn(A) -> A + Send + Sync + 'static>
 }
 
 
-pub struct Select<Out> {
+pub struct Select<Out> where Out : Clone + Send + Sync + 'static {
     outvalue : Arc<Outvalue<Out>>,
 }
 
 
 impl<Out> Select<Out>
-    where Out : Send + Sync + 'static {
+    where Out : Clone + Send + Sync + 'static {
     
     pub fn new() -> Select<Out> {
         
@@ -96,16 +96,24 @@ impl<Out> Select<Out>
     
     pub fn add<T,R>(&self, rec: Receiver<T,R>, transform: Box<Fn(R) -> Out + Send + Sync + 'static>)
         where
-            T : Send + Sync + 'static ,
+            T : Clone + Send + Sync + 'static ,
             R : Send + Sync + 'static {
         
         let new_transport = rec.transform(self.outvalue.clone(), transform);
         
-        //dodaj transporter do nowego out
+                        //dodaj transporter do nowego out
+        {
+            let mut inner = self.outvalue.mutex.lock().unwrap();
+            inner.list.push_back(Box::new(new_transport));
+        }
         
         
-                
+        
         println!("dodaje reciviera");
+    }
+    
+    pub fn get(&self) -> Out {
+        self.outvalue.get()
     }
 }
 

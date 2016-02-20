@@ -4,7 +4,7 @@ use std::collections::linked_list::LinkedList;
 use transport::TransportOut;
 
 
-pub enum GetResult<R> {
+enum GetResult<R> {
     List(LinkedList<Box<TransportOut<R> + Send>>),
     Value(R)
 }
@@ -52,8 +52,34 @@ impl<R> Outvalue<R> {
         })
     }
     
+    pub fn get(&self) -> R {
+
+        match self.get_value() {
+            
+            GetResult::Value(value) => {
+                return value;
+            },
+            
+            GetResult::List(mut list_invitation) => {
+                
+                loop {
+
+                    match list_invitation.pop_back() {
+
+                        Some(invit_item) => {
+                            invit_item.ready();
+                        },
+                        
+                        None => {
+                            return self.get_sync();
+                        }
+                    }
+                }
+            }
+        }
+    }
     
-    pub fn get(&self) -> GetResult<R> {
+    fn get_value(&self) -> GetResult<R> {
 
         let mut guard = self.mutex.lock().unwrap();
 
@@ -71,7 +97,7 @@ impl<R> Outvalue<R> {
     }
     
     
-    pub fn get_sync(&self) -> R {
+    fn get_sync(&self) -> R {
 
         let mut guard = self.mutex.lock().unwrap();
 

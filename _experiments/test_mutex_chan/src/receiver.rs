@@ -1,7 +1,6 @@
 use std::sync::Arc;
-use transport::TransportOut;
 use transformer::Transformer;
-use outvalue::{Outvalue, GetResult};
+use outvalue::Outvalue;
 use transport::Transport;
 
 
@@ -31,28 +30,6 @@ impl<T,R> Receiver<T,R>
     
     pub fn get(&self) -> R {
         
-        match self.outvalue.get() {
-            
-            GetResult::Value(value) => {
-                return value;
-            },
-            
-            GetResult::List(mut list_invitation) => {
-                
-                loop {
-
-                    match list_invitation.pop_back() {
-
-                        Some(invit_item) => {
-                            invit_item.ready();
-                        },
-                        
-                        None => {
-                            return self.outvalue.get_sync();
-                        }
-                    }
-                }
-            }
-        }   
+        self.outvalue.get()
     }
 }
