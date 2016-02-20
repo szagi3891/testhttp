@@ -5,7 +5,7 @@ use transport::Transport;
 
 
 pub struct Receiver<T, R> {
-    pub outvalue : Arc<Outvalue<R>>,
+    outvalue     : Arc<Outvalue<R>>,
     transformer  : Transformer<T, R>,
 }
 
@@ -31,5 +31,13 @@ impl<T,R> Receiver<T,R>
     pub fn get(&self) -> R {
         
         self.outvalue.get()
+    }
+            
+    pub fn clone(&self) -> Receiver<T,R> {
+        
+        Receiver{
+            outvalue    : self.outvalue.clone(),
+            transformer : self.transformer.clone()
+        }
     }
 }

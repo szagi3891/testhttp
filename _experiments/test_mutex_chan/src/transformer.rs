@@ -40,6 +40,15 @@ impl<T, R> Transformer<T, R>
         
         transport
     }
+            
+    pub fn clone(&self) -> Transformer<T, R> {
+        
+        Transformer {
+            query     : self.query.clone(),
+            outvalue  : self.outvalue.clone(),
+            fnconvert : self.fnconvert.clone(),
+        }
+    }
 }
 
 

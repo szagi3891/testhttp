@@ -45,6 +45,8 @@ fn main() {
     let (sender2, receiver2) = Chan::new().couple();
     
     
+    let receiver3 = receiver2.clone();
+    
     
     thread::spawn(move||{
         
@@ -87,6 +89,16 @@ fn main() {
     });
     */
     
+    
+//TODO - klonowanie recivier-a nie zadziała, bo nie posiada on informacji o query
+//a to z kolei jest potrzebne do wygenerowanie i zarejestrowania nowego transportu
+    thread::spawn(move||{
+        
+        loop {
+            let from_channel = receiver3.get();
+            println!("wątek niezależny: wartość z kanału 2: {}", from_channel);
+        }
+    });    
     
     
     let select: Select<Out> = Select::new();
