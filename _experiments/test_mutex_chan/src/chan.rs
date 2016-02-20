@@ -6,7 +6,7 @@ use query::Query;
 use transport::Transport;
 use transformer::Transformer;
 use outvalue::Outvalue;
-use fnconvert::Fnconvert;
+use fnconvert::{Fnconvert, Convert};
 
 
 //Sender
@@ -39,19 +39,25 @@ impl<T> Chan<T>
     
     pub fn receiver(&self) -> Receiver<T,T> {
         
+        
         let outvalue = Outvalue::new();
+        
+        
+        let fnconvert: Box<Convert<T,T> + Send + 'static> = Fnconvert::<T,T,T>::new(Box::new(|argin: T| -> T {
+            argin
+        }));
         
         
         let transport = Transport {
             query     : self.query.clone(),
             outvalue  : outvalue.clone(),
-            fnconvert : Fnconvert::<T,T,T>::new(create_iden::<T>()),
+            fnconvert : fnconvert.clone(),
         };     
         
         let transformer = Transformer {
             query     : self.query.clone(),
             outvalue  : outvalue.clone(),
-            fnconvert : Fnconvert::<T,T,T>::new(create_iden::<T>()),
+            fnconvert : fnconvert,
         };
 
         
@@ -66,16 +72,6 @@ impl<T> Chan<T>
         
         (self.sender(), self.receiver())
     }
-}
-
-//TODO - pozbyć się tej metody na rzecz klonowania całej metody transformującej
-
-fn create_iden<A>() -> Box<Fn(A) -> A + Send + Sync + 'static>
-    where A : Send + Sync + 'static {
-    
-    Box::new(|argin: A| -> A {
-        argin
-    })
 }
 
 

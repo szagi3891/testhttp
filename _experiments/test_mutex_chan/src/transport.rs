@@ -42,7 +42,6 @@ impl<T, R> TransportIn<T> for Transport<T, R>
         if outvalue_guard.end_flag {
                                             //pozwalamy na usunięcie obiektu transportu gdyż jego czas minął
             return Some(value);
-        
         }
         
         
