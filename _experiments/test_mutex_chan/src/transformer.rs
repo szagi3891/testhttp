@@ -1,4 +1,4 @@
-use types::ChannelValue;
+//use types::ChannelValue;
 use std::sync::{Arc, Mutex};
 use query::Query;
 use outvalue::Outvalue;
@@ -16,10 +16,10 @@ pub struct Transformer<T, R> {
 
 impl<T, R> Transformer<T, R>
     where
-        T : ChannelValue ,
-        R : ChannelValue {
+        T : Send + Sync + 'static ,
+        R : Send + Sync + 'static {
     
-    pub fn transform<K>(self: Box<Self>, outvalue: Arc<Outvalue<K>>, transform: Box<Fn(R) -> K + Send + Sync + 'static>) -> Transport<T,K>
+    pub fn transform<K>(self, outvalue: Arc<Outvalue<K>>, transform: Box<Fn(R) -> K + Send + Sync + 'static>) -> Transport<T,K>
         where K : 'static + Send + Sync {
         
             //TODO - niepotrzebne klonowanie query

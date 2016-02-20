@@ -17,11 +17,14 @@ use fnconvert::Fnconvert;
 //Select
 
 
-pub struct Chan<T: 'static + Clone + Send> {
+pub struct Chan<T>
+    where T : Clone + Send + Sync + 'static {
+    
     query     : Arc<Mutex<Query<T>>>,
 }
 
-impl<T: 'static + Clone + Send + Sync> Chan<T> {
+impl<T> Chan<T>
+    where T : Clone + Send + Sync + 'static {
     
     pub fn new() -> Chan<T> {
         
@@ -67,7 +70,9 @@ impl<T: 'static + Clone + Send + Sync> Chan<T> {
 }
 
 
-fn create_iden<A>() -> Box<Fn(A) -> A + Send + Sync + 'static> {
+fn create_iden<A>() -> Box<Fn(A) -> A + Send + Sync + 'static>
+    where A : Send + Sync + 'static {
+    
     Box::new(|argin: A| -> A {
         argin
     })
@@ -79,7 +84,8 @@ pub struct Select<Out> {
 }
 
 
-impl<Out> Select<Out> {
+impl<Out> Select<Out>
+    where Out : Send + Sync + 'static {
     
     pub fn new() -> Select<Out> {
         
@@ -88,7 +94,10 @@ impl<Out> Select<Out> {
         }
     }
     
-    pub fn add<T,R>(&self, rec: Receiver<T,R>, transform: Box<Fn(R) -> Out + Send + Sync + 'static>) {
+    pub fn add<T,R>(&self, rec: Receiver<T,R>, transform: Box<Fn(R) -> Out + Send + Sync + 'static>)
+        where
+            T : Send + Sync + 'static ,
+            R : Send + Sync + 'static {
         
         let new_transport = rec.transform(self.outvalue.clone(), transform);
         

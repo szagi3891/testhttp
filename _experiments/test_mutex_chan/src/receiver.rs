@@ -11,7 +11,10 @@ pub struct Receiver<T, R> {
 }
 
 
-impl<T,R> Receiver<T,R> {
+impl<T,R> Receiver<T,R>
+    where
+        T : Send + Sync + 'static ,
+        R : Send + Sync + 'static {
     
     pub fn new(outvalue: Arc<Outvalue<R>>, transformer: Transformer<T, R>) -> Receiver<T, R> {
         Receiver{
@@ -20,7 +23,8 @@ impl<T,R> Receiver<T,R> {
         }
     }
     
-    pub fn transform<K>(self, outvalue: Arc<Outvalue<K>>, trans_fn: Box<Fn(R) -> K + Send + Sync + 'static>) -> Transport<T,K> {
+    pub fn transform<K>(self, outvalue: Arc<Outvalue<K>>, trans_fn: Box<Fn(R) -> K + Send + Sync + 'static>) -> Transport<T,K>
+        where K : Send + Sync + 'static {
         
         self.transformer.transform(outvalue, trans_fn)
     }
