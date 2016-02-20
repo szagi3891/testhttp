@@ -1,57 +1,35 @@
-use std::sync::{Arc, Mutex, Condvar};
-use transport::TransportOut;
+use std::sync::Arc;
+use transformer::Transformer;
 use outvalue::Outvalue;
+use transport::Transport;
 
 
-
-pub struct Receiver<R> {
-    pub mutex : Arc<Mutex<Outvalue<R>>>,
-    cond  : Condvar,
+pub struct Receiver<T, R> {
+    pub outvalue : Arc<Outvalue<R>>,
+    transformer  : Transformer<T, R>,
 }
 
 
-impl<R> Receiver<R> {
+impl<T,R> Receiver<T,R>
+    where
+        T : Send + Sync + 'static ,
+        R : Send + Sync + 'static {
     
-    pub fn new(outvalue: Arc<Mutex<Outvalue<R>>>) -> Receiver<R> {
+    pub fn new(outvalue: Arc<Outvalue<R>>, transformer: Transformer<T, R>) -> Receiver<T, R> {
         Receiver{
-            mutex : outvalue,
-            cond  : Condvar::new(),
+            outvalue    : outvalue,
+            transformer : transformer
         }
     }
     
-    pub fn get(&mut self) -> R {
+    pub fn transform<K>(self, outvalue: Arc<Outvalue<K>>, trans_fn: Box<Fn(R) -> K + Send + Sync + 'static>) -> Transport<T,K>
+        where K : Send + Sync + 'static {
         
-        let mut guard = self.mutex.lock().unwrap();
+        self.transformer.transform(outvalue, trans_fn)
+    }
+    
+    pub fn get(&self) -> R {
         
-        loop {
-            
-            let value = guard.value.take();
-            
-            match value {
-                
-                Some(value) => {
-                    return value;
-                }
-                
-                None => {
-                    
-                    println!("dalej pusta wartość w schowku, czekam dalej");
-                }
-            }
-            
-            guard = self.cond.wait(guard).unwrap();
-        }
+        self.outvalue.get()
     }
 }
-
-           
-/*
-impl<R> Clone for Receiver<R> {
-    
-    fn clone(&self) -> Self {
-    
-    }
-
-    fn clone_from(&mut self, source: &Self) { ... }
-}
-*/

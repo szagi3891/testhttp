@@ -1,7 +1,9 @@
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
     
 use query::Query;
 
+
+//TODO - te wartości powinny się stać prywatne docelowo
 
 pub struct Sender<T> {
     query : Arc<Mutex<Query<T>>>,
@@ -19,9 +21,8 @@ impl<T> Sender<T> {
         
         let mut query_inner = self.query.lock().unwrap();
         
-        query_inner.values.push(Box::new(value));
+        query_inner.values.push_back(Box::new(value));
         
         query_inner.sending();
     }
 }
-
