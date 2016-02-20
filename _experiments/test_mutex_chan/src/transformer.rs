@@ -27,7 +27,7 @@ impl<T, R> Transformer<T, R>
         let transport = Transport {
             query     : self.query.clone(),
             outvalue  : outvalue,
-            fnconvert : Box::new(Fnconvert::Next(self.fnconvert, transform)),
+            fnconvert : Box::new(Fnconvert::Next(self.fnconvert, Arc::new(transform))),
         };
         
         transport

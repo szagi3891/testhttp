@@ -101,6 +101,10 @@ impl<Out> Select<Out>
         
         let new_transport = rec.transform(self.outvalue.clone(), transform);
         
+        //dodaj transporter do nowego out
+        
+        
+                
         println!("dodaje reciviera");
     }
 }

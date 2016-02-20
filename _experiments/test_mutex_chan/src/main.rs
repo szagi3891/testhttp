@@ -28,7 +28,7 @@ use chan::Select;
 
 enum Out {
     Result1(u64),
-    Result2(u64),
+    Result2(String),
 }
 
 fn main() {
@@ -80,6 +80,7 @@ fn main() {
     */
     
     
+    
     let select: Select<Out> = Select::new();
     
     
@@ -88,12 +89,12 @@ fn main() {
     }));
     
     
-    /*
-    
-    select.add(receiver2, Box::new(|value: u64| -> Out {
+    select.add(receiver2, Box::new(|value: String| -> Out {
         Out::Result2(value)
     }));
     
+    
+    /*
     thread::spawn(move||{
         
         loop {
