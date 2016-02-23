@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::io;
 
-use comm;
+use channels_async::{Sender, Receiver};
 
 use asynchttp::log;
 use asynchttp::async::{spawn, Callback, Manager};
@@ -11,6 +11,7 @@ use asynchttp::async::{spawn, Callback, Manager};
 
 pub type FilesData  = Result<Vec<u8>, io::Error>;
 pub type CallbackFD = Callback<FilesData>;
+
 
 pub enum Request {
     GetFile(String, CallbackFD),        //get file content
@@ -21,18 +22,16 @@ pub enum Response {
 }
 
 
-pub type ApiRequestChannel<'a>  = comm::mpmc::bounded::Channel<'a, Request>;
-pub type ApiResponseChannel<'a> = comm::mpmc::bounded::Channel<'a, Response>;
 
-
-pub fn run(rx_api_request: ApiRequestChannel<'static>, tx_api_response: ApiResponseChannel<'static>) {
+pub fn run(api_request_consumer: Receiver<Request>, api_response_producer: Sender<Response>) {
 
     let manager_static_workers = Manager::new("static worker".to_owned(), 5, Box::new(move|thread_name| {
-        let rx_api_request  = rx_api_request.clone();
-        let tx_api_response = tx_api_response.clone();
+        
+        let api_request_consumer  = api_request_consumer.clone();
+        let api_response_producer = api_response_producer.clone();
         
         match spawn(thread_name.to_owned(), move ||{
-            worker(rx_api_request, tx_api_response);
+            worker(api_request_consumer, api_response_producer);
         }) {
                 Ok(join_handle) => join_handle,
                 Err(err) => panic!("Can't spawn {}: {}", thread_name, err),
@@ -43,28 +42,22 @@ pub fn run(rx_api_request: ApiRequestChannel<'static>, tx_api_response: ApiRespo
 }
 
 
-fn worker(rx_api_request: ApiRequestChannel, tx_api_response: ApiResponseChannel) {
+fn worker(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) {
 
     loop {
         
-        match rx_api_request.recv_sync() {
+        match rx_api_request.get() {
 
-            Ok(Request::GetFile(path_src, callback)) => {
+            Request::GetFile(path_src, callback) => {
                 
                 get_file(path_src, callback, &tx_api_response);
-            }
-            
-            Err(err) => {
-                
-                log::debug(format!("rx_api_request channel error: {:?}", err));
-                return;
             }
         }
     }
 }
 
 
-fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &ApiResponseChannel) {
+fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Sender<Response>) {
     
     let path = Path::new(&path_src);
 
@@ -99,7 +92,7 @@ fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &ApiRespons
         Err(err) => Err(err), 
     };
 
-    tx_api_response.send_sync(Response::GetFile(response, callback));
+    tx_api_response.send(Response::GetFile(response, callback));
     log::debug(format!("Response sent."));
 }
 

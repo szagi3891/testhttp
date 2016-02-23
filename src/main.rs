@@ -5,7 +5,7 @@ extern crate mio;
 extern crate simple_signal;
 extern crate httparse;
 extern crate time;
-extern crate comm;
+extern crate channels_async;
 
 mod asynchttp;      //TODO - gdy się ustabilizuje, trzeba wynieść do zewnętrznego crate
 

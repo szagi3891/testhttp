@@ -1,12 +1,12 @@
 use std::io;
 use std::path::Path;
-use comm::mpmc::bounded::Channel;
+use channels_async::Sender;
 
 use asynchttp::log;
 use asynchttp::miohttp::{request, response};
 use app::api;
 
-pub fn render_request(request: request::Request, tx_api_request: &Channel<api::Request>) {
+pub fn render_request(request: request::Request, tx_api_request: &Sender<api::Request>) {
     
     
     let path_src = "./static".to_owned() + request.path.trim();
@@ -16,7 +16,7 @@ pub fn render_request(request: request::Request, tx_api_request: &Channel<api::R
     
     let path = path_src.clone();
     
-    tx_api_request.send_sync(api::Request::GetFile(path, Box::new(move|data: api::FilesData|{
+    tx_api_request.send(api::Request::GetFile(path, Box::new(move|data: api::FilesData|{
 
         log::debug(format!("Invoked request's callback in response"));
 

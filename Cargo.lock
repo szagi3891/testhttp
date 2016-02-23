@@ -2,7 +2,7 @@
 name = "mio-test"
 version = "0.1.0"
 dependencies = [
- "comm 0.0.1 (git+https://github.com/mahkoh/comm)",
+ "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
  "httparse 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "simple-signal 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -25,9 +25,9 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "comm"
-version = "0.0.1"
-source = "git+https://github.com/mahkoh/comm#a7b96032d56678c9923338345d2c47e8193c83c4"
+name = "channels_async"
+version = "0.1.0"
+source = "git+https://github.com/szagi3891/channels_async-rs#e4d7e8c04481aac43d0ecf367bb38582ead93ad7"
 
 [[package]]
 name = "httparse"

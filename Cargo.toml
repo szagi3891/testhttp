@@ -9,5 +9,9 @@ simple-signal = "1.0.4"
 httparse = "1.1.0"
 time = "0.1"
 
-[dependencies.comm]
-git = "https://github.com/mahkoh/comm"
+[dependencies.channels_async]
+git = "https://github.com/szagi3891/channels_async-rs"
+#path = "../channels_async-rs"
+
+#[dependencies.comm]
+#git = "https://github.com/mahkoh/comm"

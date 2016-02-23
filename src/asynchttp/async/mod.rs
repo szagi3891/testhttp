@@ -7,11 +7,11 @@ use std::collections::HashMap;
 
 use asynchttp::log;
 
-pub type Callback<T> = Box<FnBox(T) + Send + 'static + Sync>;
+pub type Callback<T> = Box<FnBox(T) + Send + Sync + 'static>;
 
 
 pub fn spawn<F, T>(name: String, block: F) -> Result<JoinHandle<T>>
-    where F: FnOnce() -> T + Send + 'static, T: Send + 'static {
+    where F: FnOnce() -> T + Send + Sync + 'static, T: Send + Sync + 'static {
     
     thread::Builder::new().name(name).spawn(block)
 }
@@ -58,12 +58,12 @@ pub struct Manager {
     len    : u32,
     count  : u32,
     map    : HashMap<i32, i32>,
-    create : Box<Fn(String) + Send + 'static + Sync>,
+    create : Box<Fn(String) + Send + Sync + 'static>,
 }
 
 impl Manager {
     
-    pub fn new(name: String, len: u32, create: Box<Fn(String) + Send + 'static + Sync>) -> Manager {
+    pub fn new(name: String, len: u32, create: Box<Fn(String) + Send + Sync + 'static>) -> Manager {
         
         log::debug(format!("Starting {} manager with {} thread(s).", name, len));
 
