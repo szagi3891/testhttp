@@ -2,10 +2,14 @@
 #![feature(unboxed_closures)]
 
 extern crate mio;
-extern crate simple_signal;
 extern crate httparse;
 extern crate time;
 extern crate channels_async;
+
+//extern crate simple_signal;
+extern crate ctrlc;
+
+mod signal_end;
 
 mod asynchttp;      //TODO - gdy się ustabilizuje, trzeba wynieść do zewnętrznego crate
 

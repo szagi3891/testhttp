@@ -2,7 +2,6 @@ mod api;
 mod worker;
 
 use std::process;
-use simple_signal::{Signals, Signal};
 use channels_async::{Chan, Sender, Receiver, Select};
 
 use asynchttp::{miohttp,log};
@@ -13,6 +12,7 @@ use asynchttp::miohttp::request::Request;
 use app::api::Request  as apiRequest;
 use app::api::Response as apiResponse;
 
+use signal_end::signal_end;
 
 pub fn run_main() {
         
@@ -104,7 +104,7 @@ fn run(addres: String) -> i32 {
     let (sigterm_sender,  sigterm_receiver ) = Chan::new().couple();
     let (shutdown_sender, shutdown_receiver) = Chan::new().couple();
     
-    Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
+    signal_end(Box::new(move || {
 
         log::debug(format!("Termination signal catched."));
 
@@ -112,7 +112,7 @@ fn run(addres: String) -> i32 {
         
         // oczekuj na zakończenie procedury wyłączania
         let _ = shutdown_receiver.get();
-    });
+    }));
     
     
     // główna pętla sterująca podwątkami
