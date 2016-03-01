@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["grzegorz"]
 
 [dependencies]
-mio = "0.5.0"
+#mio = "0.5.0"
 httparse = "1.1.0"
 time = "0.1"
 clippy = "*"
@@ -16,5 +16,5 @@ git = "https://github.com/Detegr/rust-ctrlc"
 #git = "https://github.com/szagi3891/channels_async-rs"
 path = "../channels_async-rs"
 
-#[dependencies.mio]
-#git = "https://github.com/carllerche/mio"
+[dependencies.mio]
+git = "https://github.com/carllerche/mio"

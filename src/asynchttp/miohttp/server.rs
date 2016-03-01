@@ -11,6 +11,7 @@ use asynchttp::miohttp::token_gen::TokenGen;
 use asynchttp::miohttp::request::Request;
 
 use channels_async::{Sender};
+use std::time::Duration;
 
 
 // Define a handler to process the events
@@ -180,7 +181,7 @@ impl MyHandler {
                 
                 if new_connection.in_state_close() {
                     
-                    if let Some(timeout_value) = timeout {
+                    if let Some(ref timeout_value) = timeout {
                         let _ = event_loop.clear_timeout(timeout_value);
                     }
                     
@@ -255,7 +256,7 @@ impl MyHandler {
                     TimerMode::Out => (Some(timeout), "keep".to_owned()),
                     
                     TimerMode::None => {
-                        let _ = event_loop.clear_timeout(timeout);
+                        let _ = event_loop.clear_timeout(&timeout);
                         (None, "clear".to_owned())
                     },
                 }
@@ -267,7 +268,9 @@ impl MyHandler {
                     
                     TimerMode::In => {
                         
-                        match event_loop.timeout_ms(token.clone(), self.timeout_reading) {
+                        match event_loop.timeout(token.clone(), Duration::from_millis(self.timeout_reading)) {
+                        
+                        //match event_loop.timeout_ms(token.clone(), self.timeout_reading) {
                             
                             Ok(timeout) => (Some(timeout), "timer in set".to_owned()),
                             Err(err)    => (None , format!("timer in error {:?}", err)),
@@ -277,7 +280,8 @@ impl MyHandler {
                     
                     TimerMode::Out => {
                         
-                        match event_loop.timeout_ms(token.clone(), self.timeout_writing) {
+                        match event_loop.timeout(token.clone(), Duration::from_millis(self.timeout_writing)) {
+                        //match event_loop.timeout_ms(token.clone(), self.timeout_writing) {
                             
                             Ok(timeout) => (Some(timeout), "timer out set".to_owned()),
                             Err(err)    => (None , format!("timer out error {:?}", err)),
