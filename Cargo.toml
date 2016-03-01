@@ -5,17 +5,16 @@ authors = ["grzegorz"]
 
 [dependencies]
 mio = "0.5.0"
-#simple-signal = "1.0.4"
 httparse = "1.1.0"
 time = "0.1"
-#clippy = "*"
+clippy = "*"
 
 [dependencies.ctrlc]
 git = "https://github.com/Detegr/rust-ctrlc"
 
 [dependencies.channels_async]
-git = "https://github.com/szagi3891/channels_async-rs"
-#path = "../channels_async-rs"
+#git = "https://github.com/szagi3891/channels_async-rs"
+path = "../channels_async-rs"
 
-#[dependencies.comm]
-#git = "https://github.com/mahkoh/comm"
+#[dependencies.mio]
+#git = "https://github.com/carllerche/mio"

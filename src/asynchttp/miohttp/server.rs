@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::io;
-//use std::sync::mpsc;
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, Timeout};
 use mio::tcp::{TcpListener};
 //use mio::util::Slab;                 //TODO - użyć tego modułu zamiast hashmapy
@@ -192,7 +191,7 @@ impl MyHandler {
                     
                     Some(request) => {
                         log::debug(format!("Sending request through channel 1"));
-                        let _ = self.channel.send(request);
+                        self.channel.send(request);
                         log::debug(format!("Sending request through channel 2"));
                     }
 

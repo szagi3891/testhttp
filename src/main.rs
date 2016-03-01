@@ -1,5 +1,4 @@
 #![feature(fnbox)]
-#![feature(unboxed_closures)]
 
 //#![feature(plugin)]
 //#![plugin(clippy)]
@@ -8,8 +7,6 @@ extern crate mio;
 extern crate httparse;
 extern crate time;
 extern crate channels_async;
-
-//extern crate simple_signal;
 extern crate ctrlc;
 
 mod signal_end;

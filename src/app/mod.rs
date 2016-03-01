@@ -40,7 +40,7 @@ fn run(addres: String) -> i32 {
 
     match spawn(thread_name, move ||{
         
-        miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer);
+        let _ = miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer);
         
         //tutaj trzeba odebrać błąd, a następnie go odpowiednio sformatować i wyrzucić w loga
         
@@ -106,28 +106,29 @@ fn run(addres: String) -> i32 {
     
     signal_end(Box::new(move || {
 
-        log::debug(format!("Termination signal catched."));
+        log::debug("Termination signal catched.".to_owned());
 
         sigterm_sender.send(());
         
         // oczekuj na zakończenie procedury wyłączania
-        let _ = shutdown_receiver.get();
+        shutdown_receiver.get();
     }));
     
     
     // główna pętla sterująca podwątkami
     loop {
         
-        let _ = sigterm_receiver.get();
+        sigterm_receiver.get();
 
-        log::info(format!("Shutting down!"));
+        log::info("Shutting down!".to_owned());
+        
         
         //TODO - czekaj aż wsystkie taski się zakończą ...
         
         //TODO - manager_api --> off
         //TODO - manager_workers -> off
         
-        let _ = shutdown_sender.send(());
+        shutdown_sender.send(());
         return 0;
     }
 }
@@ -142,8 +143,8 @@ fn run_worker(request_consumer: Receiver<Request>, api_request_producer: Sender<
     
     let select: Select<Out> = Select::new();
     
-    select.add(request_consumer     , Box::new(|value:     Request| Out::Result1(value)));
-    select.add(api_response_consumer, Box::new(|value: apiResponse| Out::Result2(value)));
+    select.add(request_consumer     , Box::new(Out::Result1));
+    select.add(api_response_consumer, Box::new(Out::Result2));
     
     loop {
         match select.get() {
@@ -151,7 +152,7 @@ fn run_worker(request_consumer: Receiver<Request>, api_request_producer: Sender<
                 worker::render_request(request, &api_request_producer);
             },
             Out::Result2(api::Response::GetFile(result, callback)) => {
-                log::debug(format!("Received file data"));
+                log::debug("Received file data".to_owned());
                 callback.call_box((result,));
             }
         }
