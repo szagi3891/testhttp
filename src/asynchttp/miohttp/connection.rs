@@ -71,7 +71,7 @@ impl Connection {
 
     pub fn send_data_to_user(self, token: Token, response: response::Response) -> Connection {
         
-        let new_connection = match self.mode {
+        match self.mode {
 
             ConnectionMode::WaitingForServerResponse(keep_alive) => {
                 
@@ -83,19 +83,18 @@ impl Connection {
                 log::error(format!("miohttp {} -> send_data_to_user: incorect state", token.as_usize()));
                 self
             }
-        };
+        }
 
-        new_connection
+        
     }
 
     pub fn get_event(&self) -> Event {
 
         match self.mode {
             
-            ConnectionMode::ReadingRequest(_, _)        => Event::Read,
-            ConnectionMode::WaitingForServerResponse(_) => Event::None,
-            ConnectionMode::SendingResponse(_, _, _)    => Event::Write,
-            ConnectionMode::Close                       => Event::None
+            ConnectionMode::ReadingRequest(_, _)     => Event::Read,
+            ConnectionMode::SendingResponse(_, _, _) => Event::Write,
+            _                                        => Event::None
         }
     }
     
@@ -103,10 +102,9 @@ impl Connection {
         
         match self.mode {
             
-            ConnectionMode::ReadingRequest(_, _)        => TimerMode::In,
-            ConnectionMode::WaitingForServerResponse(_) => TimerMode::None,
-            ConnectionMode::SendingResponse(_, _, _)    => TimerMode::Out,
-            ConnectionMode::Close                       => TimerMode::None
+            ConnectionMode::ReadingRequest(_, _)     => TimerMode::In,
+            ConnectionMode::SendingResponse(_, _, _) => TimerMode::Out,
+            _                                        => TimerMode::None
         }
     }
     
@@ -173,7 +171,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
 
         let total = buf.len();
         
-        return match stream.try_read(&mut buf[done..total]) {
+        match stream.try_read(&mut buf[done..total]) {
 
             Ok(Some(size)) => {
 
@@ -273,7 +271,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
 
         //trzeba też ustawić jakiś timeout czekania na dane od użytkownika
 
-        return (Connection::make(stream, ConnectionMode::ReadingRequest(buf, done)), None);
+        (Connection::make(stream, ConnectionMode::ReadingRequest(buf, done)), None)
     }
 }
 
@@ -282,7 +280,7 @@ fn transform_from_sending_to_user(mut stream: TcpStream, token: &Token, keep_ali
 
     if events.is_writable() {
 
-        return match stream.try_write(&str[done..str.len()]) {
+        match stream.try_write(&str[done..str.len()]) {
 
             Ok(Some(size)) => {
                 

@@ -46,10 +46,10 @@ impl Type {
         match path.extension() {
             
             Some(ext) => match ext.to_str() {
-                Some("html") => Type::TextHtml,
                 Some("txt")  => Type::TextPlain,
                 Some("jpg")  => Type::ImageJpeg,
                 Some("png")  => Type::ImagePng,
+                //Some("html") => Type::TextHtml,
                 Some(_)      => Type::TextHtml,
                 None         => Type::TextHtml,
             },

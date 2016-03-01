@@ -8,6 +8,7 @@ mio = "0.5.0"
 #simple-signal = "1.0.4"
 httparse = "1.1.0"
 time = "0.1"
+#clippy = "*"
 
 [dependencies.ctrlc]
 git = "https://github.com/Detegr/rust-ctrlc"

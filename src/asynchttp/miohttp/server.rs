@@ -17,7 +17,7 @@ use channels_async::{Sender};
 // Define a handler to process the events
 pub struct MyHandler {
     token           : Token,
-    server          : TcpListener,
+    server          : TcpListener,                  //TODO option, Some - serwer nasłuchuje, None - jest w trybie wyłączania
     hash            : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
     channel         : Sender<Request>,   //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
@@ -170,7 +170,7 @@ impl MyHandler {
             };
         }
     }
-
+    
     fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler>, token: &Token, events: EventSet) {
         
         match self.get_connection(&token) {
@@ -181,12 +181,8 @@ impl MyHandler {
                 
                 if new_connection.in_state_close() {
                     
-                                                //TODO - trzeba to bardziej elegancko rozwiązać
-                    match timeout {
-                        Some(timeout) => {
-                            let _ = event_loop.clear_timeout(timeout);
-                        }
-                        None => {}
+                    if let Some(timeout_value) = timeout {
+                        let _ = event_loop.clear_timeout(timeout_value);
                     }
                     
                     return;
