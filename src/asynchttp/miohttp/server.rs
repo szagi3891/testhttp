@@ -192,7 +192,7 @@ impl MyHandler {
                     
                     Some(request) => {
                         log::debug(format!("Sending request through channel 1"));
-                        self.channel.send(request);
+                        self.channel.send(request).unwrap();
                         log::debug(format!("Sending request through channel 2"));
                     }
 

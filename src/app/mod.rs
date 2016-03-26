@@ -2,7 +2,7 @@ mod api;
 mod worker;
 
 use std::process;
-use channels_async::{Chan, Sender, Receiver, Select};
+use channels_async::{channel, Sender, Receiver, Select};
 
 use asynchttp::{miohttp,log};
 use asynchttp::async::{spawn};
@@ -34,7 +34,7 @@ pub fn run_main() {
 
 fn run(addres: String) -> i32 {
     
-    let (request_producer, request_consumer) = Chan::new().couple();
+    let (request_producer, request_consumer) = channel();
 
     let thread_name = "<EventLoop>".to_owned();
 
@@ -61,14 +61,14 @@ fn run(addres: String) -> i32 {
     
     // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
     
-    let (api_request_producer , api_request_consumer)  = Chan::new().couple();
-    let (api_response_producer, api_response_consumer) = Chan::new().couple();
+    let (api_request_producer , api_request_consumer)  = channel();
+    let (api_response_producer, api_response_consumer) = channel();
     
     {
         let api_request_consumer  = api_request_consumer.clone();
         let api_response_producer = api_response_producer.clone();
         
-        let manager_api = Manager::new("api".to_owned(), 1, Box::new(move|thread_name: String|{
+        let _ = Manager::new("api".to_owned(), 1, Box::new(move|thread_name: String|{
 
             let api_request_consumer  = api_request_consumer.clone();
             let api_response_producer = api_response_producer.clone();
@@ -86,7 +86,7 @@ fn run(addres: String) -> i32 {
     
     //TODO - nazwę wątku wzbogacić o licznik
     
-    let manager_workers = Manager::new("worker".to_owned(), 4, Box::new(move|thread_name: String|{
+    let _ = Manager::new("worker".to_owned(), 4, Box::new(move|thread_name: String|{
         
         let request_consumer      = request_consumer.clone();
         let api_request_producer  = api_request_producer.clone();
@@ -101,34 +101,33 @@ fn run(addres: String) -> i32 {
     }));
     
     
-    let (sigterm_sender,  sigterm_receiver ) = Chan::new().couple();
-    let (shutdown_sender, shutdown_receiver) = Chan::new().couple();
+    let (sigterm_sender,  sigterm_receiver ) = channel();
+    let (shutdown_sender, shutdown_receiver) = channel();
     
     signal_end(Box::new(move || {
 
         log::debug("Termination signal catched.".to_owned());
 
-        sigterm_sender.send(());
+        sigterm_sender.send(()).unwrap();
         
         // oczekuj na zakończenie procedury wyłączania
-        shutdown_receiver.get();
+        let _ = shutdown_receiver.get();
     }));
     
     
     // główna pętla sterująca podwątkami
     loop {
         
-        sigterm_receiver.get();
+        let _ = sigterm_receiver.get();
 
         log::info("Shutting down!".to_owned());
-        
         
         //TODO - czekaj aż wsystkie taski się zakończą ...
         
         //TODO - manager_api --> off
         //TODO - manager_workers -> off
         
-        shutdown_sender.send(());
+        shutdown_sender.send(()).unwrap();
         return 0;
     }
 }
@@ -148,12 +147,17 @@ fn run_worker(request_consumer: Receiver<Request>, api_request_producer: Sender<
     
     loop {
         match select.get() {
-            Out::Result1(request) => {
+            Ok(Out::Result1(request)) => {
                 worker::render_request(request, &api_request_producer);
             },
-            Out::Result2(api::Response::GetFile(result, callback)) => {
+            Ok(Out::Result2(api::Response::GetFile(result, callback))) => {
                 log::debug("Received file data".to_owned());
                 callback.call_box((result,));
+            },
+            Err(_) => {
+                
+                //TODO - zalogować błąd w strumień błędów ... ?
+                return;
             }
         }
     }

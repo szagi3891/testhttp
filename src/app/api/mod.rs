@@ -25,7 +25,7 @@ pub enum Response {
 
 pub fn run(api_request_consumer: Receiver<Request>, api_response_producer: Sender<Response>) {
 
-    let manager_static_workers = Manager::new("static worker".to_owned(), 5, Box::new(move|thread_name| {
+    let _ = Manager::new("static worker".to_owned(), 5, Box::new(move|thread_name| {
         
         let api_request_consumer  = api_request_consumer.clone();
         let api_response_producer = api_response_producer.clone();
@@ -48,9 +48,14 @@ fn worker(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) 
         
         match rx_api_request.get() {
 
-            Request::GetFile(path_src, callback) => {
+            Ok(Request::GetFile(path_src, callback)) => {
                 
                 get_file(path_src, callback, &tx_api_response);
+            }
+            Err(_) => {
+                
+                //TODO - logowanie błędu w strumień błędów ... ?
+                return;
             }
         }
     }
@@ -92,7 +97,7 @@ fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Sender<Res
         Err(err) => Err(err), 
     };
 
-    tx_api_response.send(Response::GetFile(response, callback));
+    tx_api_response.send(Response::GetFile(response, callback)).unwrap();
     log::debug(format!("Response sent."));
 }
 

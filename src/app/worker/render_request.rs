@@ -55,5 +55,5 @@ pub fn render_request(request: request::Request, tx_api_request: &Sender<api::Re
 
             }
         }
-    })));
+    }))).unwrap();
 }
