@@ -4,3 +4,16 @@ http://babeljs.io/
 
 http://facebook.github.io/react/docs/tooling-integration.html#jsx
 
+
+npm init
+npm install --save gulp gulp-react gulp-concat
+npm instal -g gulp-cli
+gulp -v
+
+npm install --save browserify reactify vinyl-source-stream watchify gulp-util
+
+                --save - prawdopodobnie zapisuje w package.json
+
+
+npm install --save react@0.13.3
+
