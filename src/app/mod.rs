@@ -31,6 +31,56 @@ pub fn run_main() {
 }
 
 
+/*
+
+for _ in 0..3 {
+    runApp();
+}
+
+    lub pętla nieskończona
+
+ctrl-c trzeba obsłużyć
+
+runApp() {
+    
+    let reset_count = 5;
+    
+    let (api_prod, api_cons)   = channels();
+    let (type_prod, type_cons) = channels();
+    
+    //...
+    
+    //uzupełnienie kanału tworzącego
+    
+    //wrzuć jedno api
+    //wrzuć jedno 5 workerów
+    
+    (new, api)
+    (renev, api)
+    
+    loop {
+        match type_cons.get() {
+        
+            ("new", "api") => {
+                run_api("api", api_prod.clone(), api_cons.clone(), type_prod);
+                        //jak się wysypie api, to powinien zostać jeszcze raz komunikat wysłany
+            }
+            
+            //inne startowanie
+            
+            (renew, type) {
+                to samo, tylko że zostaje licznik restartów zmniejszony
+                    jeśli jest 0, to wychodzimy z procedury
+                    
+                type_prod.send(()"api", type)
+            }
+        }
+    }
+    
+
+}
+
+*/
 
 fn run(addres: String) -> i32 {
     
