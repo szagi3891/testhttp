@@ -3,9 +3,11 @@ mod worker;
 
 use std::process;
 use channels_async::{channel, Sender, Receiver, Select};
+use task_async::{TaskManager, Task};
 
 use asynchttp::{miohttp,log};
 use asynchttp::miohttp::request::Request;
+use asynchttp::miohttp::response::Response;
 
 use app::api::Request  as apiRequest;
 use app::api::Response as apiResponse;
@@ -112,12 +114,12 @@ fn run(addres: String) -> i32 {
         
         //TODO - ogólnie, do dalszego przetwarzania będzie wysyłana para, (request, task)
         
-        miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer, Box::new(|req:Request|->(req:Request, task:Task) {
+        miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer, Box::new(|req:Request|->(Request, Task) {
             
             let task = task_manager.task(Box::new(move|result : Option<(Request, Response)>|{
                 
                 match result {
-                    Some((req, resp)) => req.resp(response),
+                    Some((req, resp)) => req.resp(resp),
                     None => {
                         
                         //coś poszło nie tak z obsługą tego requestu

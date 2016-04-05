@@ -14,15 +14,19 @@ use channels_async::{Sender};
 use std::time::Duration;
 
 
+type FnConvert<Out> = Box<Fn(Request) -> Out + Send + Sync + 'static>;
+
+
 // Define a handler to process the events
-pub struct MyHandler {
+pub struct MyHandler<Out> {
     token           : Token,
     server          : TcpListener,                  //TODO option, Some - serwer nasłuchuje, None - jest w trybie wyłączania
     hash            : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
-    channel         : Sender<Request>,   //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
+    channel         : Sender<Out>,                  //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
     timeout_reading : u64,
     timeout_writing : u64,
+    convert_request : FnConvert<Out>,
 }
 
 
@@ -37,7 +41,7 @@ pub enum Event {
 }
 
 
-impl Handler for MyHandler {
+impl<Out> Handler for MyHandler<Out> {
 
     type Timeout = Token;
     type Message = (Token, response::Response);
@@ -69,9 +73,9 @@ impl Handler for MyHandler {
 }
 
 
-impl MyHandler {
+impl<Out> MyHandler<Out> {
 
-    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Request>) -> Result<(), io::Error> {
+    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Request>, convert : FnConvert<Out>) -> Result<(), io::Error> {
         
         let mut tokens = TokenGen::new();
 
@@ -99,6 +103,7 @@ impl MyHandler {
             channel         : tx,
             timeout_reading : timeout_reading,
             timeout_writing : timeout_writing,
+            convert_request : convert,
         };
         
         event_loop.run(&mut inst).unwrap();
