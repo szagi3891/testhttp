@@ -18,7 +18,7 @@ pub fn render_request(request: request::Request, tx_api_request: &Sender<api::Re
     let path = path_src.clone();
     
     tx_api_request.send(api::Request::GetFile(path, Box::new(move|data: api::FilesData|{
-
+        
         log::debug(format!("Invoked request's callback in response"));
 
         match data {

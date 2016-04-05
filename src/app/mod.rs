@@ -112,9 +112,12 @@ fn run(addres: String) -> i32 {
         }));
         
         
-        //TODO - ogólnie, do dalszego przetwarzania będzie wysyłana para, (request, task)
+                        //TODO - ogólnie, do dalszego przetwarzania będzie wysyłana para, (request, task)
         
-        miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer, Box::new(|req:Request|->(Request, Task) {
+        
+        //: Box<Fn(Request) -> (Request, Task<(Request, Response)>)> 
+        
+        let convert = Box::new(|req:Request| -> (Request, Task<(Request, Response)>) {
             
             let task = task_manager.task(Box::new(move|result : Option<(Request, Response)>|{
                 
@@ -128,9 +131,10 @@ fn run(addres: String) -> i32 {
                 
             }));
             
-            (req, task)
-            
-        })).unwrap();
+            (req, task) 
+        });
+        
+        miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer, convert).unwrap();
         
         //funkcja, przetwarzająca request na nowy rodzaj typu
         
@@ -168,7 +172,7 @@ fn run(addres: String) -> i32 {
     }
     
     
-    let (sigterm_sender,  sigterm_receiver ) = channel();
+    let (sigterm_sender , sigterm_receiver ) = channel();
     let (shutdown_sender, shutdown_receiver) = channel();
     
     signal_end(Box::new(move || {
@@ -213,10 +217,10 @@ let _ = Manager::new("api".to_owned(), 1, Box::new(move|thread_name: String|{
 }));
 */
 
-fn run_worker(request_consumer: Receiver<Request>, api_request_producer: Sender<apiRequest>, api_response_consumer: Receiver<apiResponse>) {
+fn run_worker(request_consumer: (Request, Task<(Request, Response)>), api_request_producer: Sender<apiRequest>, api_response_consumer: Receiver<apiResponse>) {
     
     enum Out {
-        Result1(Request),
+        Result1((Request, Task<(Request, Response)>)),
         Result2(apiResponse),
     }
     
@@ -227,9 +231,14 @@ fn run_worker(request_consumer: Receiver<Request>, api_request_producer: Sender<
     
     loop {
         match select.get() {
-            Ok(Out::Result1(request)) => {
-                worker::render_request(request, &api_request_producer);
+            
+            Ok(Out::Result1((request, task))) => {
+                
+                println!("TODO - odbieram nowego taska z requestem");
+                
+                //worker::render_request(request, &api_request_producer);
             },
+            
             Ok(Out::Result2(api::Response::GetFile(result, callback))) => {
                 log::debug("Received file data".to_owned());
                 callback.call_box((result,));
