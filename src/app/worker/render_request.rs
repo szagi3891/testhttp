@@ -5,6 +5,7 @@ use channels_async::Sender;
 use asynchttp::log;
 use asynchttp::miohttp::{request, response};
 use app::api;
+use task_async::Task;
 
 pub fn render_request(request: request::Request, tx_api_request: &Sender<api::Request>) {
     

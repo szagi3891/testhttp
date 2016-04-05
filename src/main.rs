@@ -7,6 +7,7 @@ extern crate mio;
 extern crate httparse;
 extern crate time;
 extern crate channels_async;
+extern crate task_async;
 extern crate ctrlc;
 
 mod signal_end;

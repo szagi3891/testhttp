@@ -2,45 +2,57 @@ use std::io::prelude::Read;
 use std::fs::{self, File};
 use std::path::Path;
 use std::io;
+use std::thread;
 
 use channels_async::{Sender, Receiver};
-
 use asynchttp::log;
-use asynchttp::async::{spawn, Callback, Manager};
+use task_async::Task;
 
 
-pub type FilesData  = Result<Vec<u8>, io::Error>;
-pub type CallbackFD = Callback<FilesData>;
 
+pub type FilesData   = Result<Vec<u8>, io::Error>;
+
+//TODO - odwrócić kolejność, najpierw task
 
 pub enum Request {
-    GetFile(String, CallbackFD),        //get file content
+    GetFile(String, Task<FilesData>),        //get file content
 }
 
 pub enum Response {
-    GetFile(FilesData, CallbackFD),     //get file content
+    GetFile(FilesData, Task<FilesData>),     //get file content
 }
 
 
 
 pub fn run(api_request_consumer: Receiver<Request>, api_response_producer: Sender<Response>) {
 
-    let _ = Manager::new("static worker".to_owned(), 5, Box::new(move|thread_name| {
+    for _ in 0..5 {
         
         let api_request_consumer  = api_request_consumer.clone();
         let api_response_producer = api_response_producer.clone();
         
-        match spawn(thread_name.to_owned(), move ||{
+        spawn("api worker".to_owned(), move ||{
             worker(api_request_consumer, api_response_producer);
-        }) {
-                Ok(join_handle) => join_handle,
-                Err(err) => panic!("Can't spawn {}: {}", thread_name, err),
-        };
-    }));
+        });
+    }
 
     //TODO - dodać monitoring działania workerów
 }
 
+
+//TODO - dodać sprytne dodawanie subnazw w zależności od wątka który stworzył ten nowy podwątek
+
+pub fn spawn<F, T>(name: String, block: F)
+    where F: FnOnce() -> T + Send + Sync + 'static, T: Send + Sync + 'static {
+
+    
+    let result = thread::Builder::new().name(name.clone()).spawn(block);
+        
+    match result {
+        Ok(_) => {},
+        Err(err) => panic!("Can't spawn {}: {}", name, err),
+    };
+}
 
 fn worker(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) {
 
@@ -62,7 +74,7 @@ fn worker(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) 
 }
 
 
-fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Sender<Response>) {
+fn get_file(path_src: String, task: Task<FilesData>, tx_api_response: &Sender<Response>) {
     
     let path = Path::new(&path_src);
 
@@ -97,7 +109,7 @@ fn get_file(path_src: String, callback: CallbackFD, tx_api_response: &Sender<Res
         Err(err) => Err(err), 
     };
 
-    tx_api_response.send(Response::GetFile(response, callback)).unwrap();
+    tx_api_response.send(Response::GetFile(response, task)).unwrap();
     log::debug(format!("Response sent."));
 }
 
