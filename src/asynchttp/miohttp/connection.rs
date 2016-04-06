@@ -119,7 +119,9 @@ impl Connection {
         }
     }
     
-    pub fn ready(self, events: EventSet, token: &Token, event_loop: &mut EventLoop<MyHandler>) -> (Connection, Option<Request>) {
+    pub fn ready<Out>(self, events: EventSet, token: &Token, event_loop: &mut EventLoop<MyHandler<Out>>) -> (Connection, Option<Request>)
+        where
+            Out : Send + Sync + 'static {
         
         if events.is_error() {
             
@@ -138,7 +140,9 @@ impl Connection {
 
 
 
-    fn transform(self, events: EventSet, event_loop: &mut EventLoop<MyHandler>, token: &Token) -> (Connection, Option<Request>) {
+    fn transform<Out>(self, events: EventSet, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<Request>)
+        where
+            Out : Send + Sync + 'static {
 
         match self.mode {
 
@@ -165,7 +169,9 @@ impl Connection {
     }
 }
 
-fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize, event_loop: &mut EventLoop<MyHandler>, token: &Token) -> (Connection, Option<Request>) {
+fn transform_from_waiting_for_user<Out>(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<Request>)
+    where
+        Out : Send + Sync + 'static {
 
     if events.is_readable() {
 

@@ -3,16 +3,18 @@ mod worker;
 
 use std::process;
 use channels_async::{channel, Sender, Receiver, Select};
+use task_async::{TaskManager, Task};
 
 use asynchttp::{miohttp,log};
-use asynchttp::async::{spawn};
-use asynchttp::async::Manager;
 use asynchttp::miohttp::request::Request;
+use asynchttp::miohttp::response::Response;
 
 use app::api::Request  as apiRequest;
 use app::api::Response as apiResponse;
 
 use signal_end::signal_end;
+
+use std::thread;
 
 pub fn run_main() {
         
@@ -82,30 +84,63 @@ runApp() {
 
 */
 
+
+/*
+    TODO - zarządca
+
+    jeśli pod rząd nie może uruchomić programu 3 razy, to fail
+    w przypadku gdy poleci panic, to wznawiaj taki proces ...
+*/
+
+
+//TODO - spawn, ma za zadanie robić sprytne nazwy wątków
+
+
 fn run(addres: String) -> i32 {
     
     let (request_producer, request_consumer) = channel();
 
     let thread_name = "<EventLoop>".to_owned();
 
-    match spawn(thread_name, move ||{
+    spawn(thread_name, move ||{
         
-        let _ = miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer);
+                        //grupa tasków
+        let task_manager = TaskManager::new(Box::new(move||{
+
+            println!("grupa tasków zakończyłą zadanie");
+            //down_producer.send(()).unwrap();
+        }));
         
-        //tutaj trzeba odebrać błąd, a następnie go odpowiednio sformatować i wyrzucić w loga
         
-    }) {
-        Ok(join_handle) => join_handle,
-        Err(err) => panic!("Can't spawn StaticHttp spawner: {}", err),
-    };
-    
-    
-    /*
-        TODO - zarządca
+                        //TODO - ogólnie, do dalszego przetwarzania będzie wysyłana para, (request, task)
         
-        jeśli pod rząd nie może uruchomić programu 3 razy, to fail
-        w przypadku gdy poleci panic, to wznawiaj taki proces ...
-    */
+        
+        
+        //TODO - |Request, Sender<Response>| -> (Request, Task<Response>)
+        
+        //TODO - request nie ma robić nic na własną rękę jeśli chodzi o wysyłanie odpowiedzi
+                //request-a, można sklonować jeśli zajdzie potrzeba, ma być to niemutowalny parametr
+        
+        
+        let convert = Box::new(move|req:Request| -> (Request, Task<(Request, Response)>) {
+            
+            let task = task_manager.task(Box::new(move|result : Option<(Request, Response)>|{
+                
+                match result {
+                    Some((req, resp)) => req.send(resp),
+                    None => {
+                        
+                        //coś poszło nie tak z obsługą tego requestu
+                    }
+                };
+                
+            }));
+            
+            (req, task) 
+        });
+        
+        miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer, convert).unwrap();        
+    });
     
     
     
@@ -115,49 +150,36 @@ fn run(addres: String) -> i32 {
     let (api_response_producer, api_response_consumer) = channel();
     
     {
+        
         let api_request_consumer  = api_request_consumer.clone();
         let api_response_producer = api_response_producer.clone();
-        
-        let _ = Manager::new("api".to_owned(), 1, Box::new(move|thread_name: String|{
 
-            let api_request_consumer  = api_request_consumer.clone();
-            let api_response_producer = api_response_producer.clone();
-
-            match spawn(thread_name.to_owned(), move ||{
-                api::run(api_request_consumer, api_response_producer);
-            }) {
-                Ok(join_handle) => join_handle,
-                Err(err) => panic!("Can't spawn {}: {}", thread_name, err),
-            };
-        }));
+        spawn("api".to_owned(), move ||{
+            api::run(api_request_consumer, api_response_producer);
+        });
     }
     
     
     
-    //TODO - nazwę wątku wzbogacić o licznik
-    
-    let _ = Manager::new("worker".to_owned(), 4, Box::new(move|thread_name: String|{
+    for _ in 0..4 {
         
         let request_consumer      = request_consumer.clone();
         let api_request_producer  = api_request_producer.clone();
         let api_response_consumer = api_response_consumer.clone();
         
-        match spawn(thread_name, move ||{
+        spawn("worker".to_owned(), move ||{
             run_worker(request_consumer, api_request_producer, api_response_consumer);
-        }) {
-            Ok(join_handle) => join_handle,
-            Err(err) => panic!("Can't spawn api spawner: {}", err),
-        };
-    }));
+        });
+    }
     
     
-    let (sigterm_sender,  sigterm_receiver ) = channel();
+    let (sigterm_sender , sigterm_receiver ) = channel();
     let (shutdown_sender, shutdown_receiver) = channel();
     
     signal_end(Box::new(move || {
 
         log::debug("Termination signal catched.".to_owned());
-
+        
         sigterm_sender.send(()).unwrap();
         
         // oczekuj na zakończenie procedury wyłączania
@@ -169,13 +191,8 @@ fn run(addres: String) -> i32 {
     loop {
         
         let _ = sigterm_receiver.get();
-
+        
         log::info("Shutting down!".to_owned());
-        
-        //TODO - czekaj aż wsystkie taski się zakończą ...
-        
-        //TODO - manager_api --> off
-        //TODO - manager_workers -> off
         
         shutdown_sender.send(()).unwrap();
         return 0;
@@ -183,10 +200,10 @@ fn run(addres: String) -> i32 {
 }
 
 
-fn run_worker(request_consumer: Receiver<Request>, api_request_producer: Sender<apiRequest>, api_response_consumer: Receiver<apiResponse>) {
+fn run_worker(request_consumer: Receiver<(Request, Task<(Request, Response)>)>, api_request_producer: Sender<apiRequest>, api_response_consumer: Receiver<apiResponse>) {
     
     enum Out {
-        Result1(Request),
+        Result1((Request, Task<(Request, Response)>)),
         Result2(apiResponse),
     }
     
@@ -197,13 +214,18 @@ fn run_worker(request_consumer: Receiver<Request>, api_request_producer: Sender<
     
     loop {
         match select.get() {
-            Ok(Out::Result1(request)) => {
-                worker::render_request(request, &api_request_producer);
+            
+            Ok(Out::Result1((request, task))) => {
+                
+                worker::render_request(request, task, &api_request_producer);
             },
-            Ok(Out::Result2(api::Response::GetFile(result, callback))) => {
+            
+            Ok(Out::Result2(api::Response::GetFile(result, task))) => {
+                
                 log::debug("Received file data".to_owned());
-                callback.call_box((result,));
+                task.result(result);
             },
+            
             Err(_) => {
                 
                 //TODO - zalogować błąd w strumień błędów ... ?
@@ -214,3 +236,16 @@ fn run_worker(request_consumer: Receiver<Request>, api_request_producer: Sender<
 }
 
 
+
+//TODO - ubibliotecznić to sprytnie
+pub fn spawn<F, T>(name: String, block: F)
+    where F: FnOnce() -> T + Send + Sync + 'static, T: Send + Sync + 'static {
+
+    
+    let result = thread::Builder::new().name(name.clone()).spawn(block);
+        
+    match result {
+        Ok(_) => {},
+        Err(err) => panic!("Can't spawn {}: {}", name, err),
+    };
+}
