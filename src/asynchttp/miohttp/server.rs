@@ -14,7 +14,7 @@ use channels_async::{Sender};
 use std::time::Duration;
 
 
-type FnConvert<Out> = Box<Fn(Request) -> Out + Send + Sync + 'static>;
+pub type FnConvert<Out> = Box<Fn(Request) -> Out + Send + Sync + 'static>;
 
 
 // Define a handler to process the events
@@ -198,7 +198,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
                     Some(request) => {
                         log::debug(format!("Sending request through channel 1"));
                         
-                        let pack_request = (self.convert_request as FnConvert<Out>)(request);
+                        let pack_request = (self.convert_request)(request);
                         self.channel.send(pack_request).unwrap();
                         
                         //self.channel.send(request).unwrap();

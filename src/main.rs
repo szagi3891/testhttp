@@ -1,5 +1,3 @@
-#![feature(fnbox)]
-
 //#![feature(plugin)]
 //#![plugin(clippy)]
 

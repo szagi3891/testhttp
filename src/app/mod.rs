@@ -115,14 +115,19 @@ fn run(addres: String) -> i32 {
                         //TODO - ogólnie, do dalszego przetwarzania będzie wysyłana para, (request, task)
         
         
-        //: Box<Fn(Request) -> (Request, Task<(Request, Response)>)> 
         
-        let convert = Box::new(|req:Request| -> (Request, Task<(Request, Response)>) {
+        //TODO - |Request, Sender<Response>| -> (Request, Task<Response>)
+        
+        //TODO - request nie ma robić nic na własną rękę jeśli chodzi o wysyłanie odpowiedzi
+                //request-a, można sklonować jeśli zajdzie potrzeba, ma być to niemutowalny parametr
+        
+        
+        let convert = Box::new(move|req:Request| -> (Request, Task<(Request, Response)>) {
             
             let task = task_manager.task(Box::new(move|result : Option<(Request, Response)>|{
                 
                 match result {
-                    Some((req, resp)) => req.resp(resp),
+                    Some((req, resp)) => req.send(resp),
                     None => {
                         
                         //coś poszło nie tak z obsługą tego requestu
@@ -134,11 +139,7 @@ fn run(addres: String) -> i32 {
             (req, task) 
         });
         
-        miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer, convert).unwrap();
-        
-        //funkcja, przetwarzająca request na nowy rodzaj typu
-        
-        
+        miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer, convert).unwrap();        
     });
     
     
@@ -198,26 +199,8 @@ fn run(addres: String) -> i32 {
     }
 }
 
-//TODO - ubibliotecznić to sprytnie
-pub fn spawn<F, T>(name: String, block: F)
-    where F: FnOnce() -> T + Send + Sync + 'static, T: Send + Sync + 'static {
 
-    
-    let result = thread::Builder::new().name(name.clone()).spawn(block);
-        
-    match result {
-        Ok(_) => {},
-        Err(err) => panic!("Can't spawn {}: {}", name, err),
-    };
-}
-
-
-/*
-let _ = Manager::new("api".to_owned(), 1, Box::new(move|thread_name: String|{
-}));
-*/
-
-fn run_worker(request_consumer: (Request, Task<(Request, Response)>), api_request_producer: Sender<apiRequest>, api_response_consumer: Receiver<apiResponse>) {
+fn run_worker(request_consumer: Receiver<(Request, Task<(Request, Response)>)>, api_request_producer: Sender<apiRequest>, api_response_consumer: Receiver<apiResponse>) {
     
     enum Out {
         Result1((Request, Task<(Request, Response)>)),
@@ -234,15 +217,15 @@ fn run_worker(request_consumer: (Request, Task<(Request, Response)>), api_reques
             
             Ok(Out::Result1((request, task))) => {
                 
-                println!("TODO - odbieram nowego taska z requestem");
-                
-                //worker::render_request(request, &api_request_producer);
+                worker::render_request(request, task, &api_request_producer);
             },
             
-            Ok(Out::Result2(api::Response::GetFile(result, callback))) => {
+            Ok(Out::Result2(api::Response::GetFile(result, task))) => {
+                
                 log::debug("Received file data".to_owned());
-                callback.call_box((result,));
+                task.result(result);
             },
+            
             Err(_) => {
                 
                 //TODO - zalogować błąd w strumień błędów ... ?
@@ -253,3 +236,16 @@ fn run_worker(request_consumer: (Request, Task<(Request, Response)>), api_reques
 }
 
 
+
+//TODO - ubibliotecznić to sprytnie
+pub fn spawn<F, T>(name: String, block: F)
+    where F: FnOnce() -> T + Send + Sync + 'static, T: Send + Sync + 'static {
+
+    
+    let result = thread::Builder::new().name(name.clone()).spawn(block);
+        
+    match result {
+        Ok(_) => {},
+        Err(err) => panic!("Can't spawn {}: {}", name, err),
+    };
+}
