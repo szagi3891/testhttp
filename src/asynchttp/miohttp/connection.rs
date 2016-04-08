@@ -140,7 +140,7 @@ impl Connection {
 
 
 
-    fn transform<Out>(self, events: EventSet, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<Request>)
+    fn transform<Out>(self, events: EventSet, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<(Request, &Token, mio::Sender<(mio::Token, response::Response)>)>)
         where
             Out : Send + Sync + 'static {
 
@@ -169,7 +169,7 @@ impl Connection {
     }
 }
 
-fn transform_from_waiting_for_user<Out>(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<Request>)
+fn transform_from_waiting_for_user<Out>(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<(Request, &Token, mio::Sender<(mio::Token, response::Response)>)>)
     where
         Out : Send + Sync + 'static {
 
@@ -196,11 +196,13 @@ fn transform_from_waiting_for_user<Out>(mut stream: TcpStream, events: EventSet,
 
                                 Ok(pre_request) => {
                                     
-                                    let request = pre_request.bind(&token, event_loop.channel());
+                                    //let request = pre_request.bind(&token, event_loop.channel());
+                                    
+                                    let request = pre_request.bind();
                                     
                                     let keep_alive = request.is_header_set("Connection", "keep-alive");
 
-                                    (Connection::make(stream, ConnectionMode::WaitingForServerResponse(keep_alive)), Some(request))
+                                    (Connection::make(stream, ConnectionMode::WaitingForServerResponse(keep_alive)), Some((request, &token, event_loop.channel())))
                                 }
 
                                 Err(err) => {

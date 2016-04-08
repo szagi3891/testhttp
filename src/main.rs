@@ -16,6 +16,11 @@ mod app;            //przykładowa apka
 
 //TODO PreRequest i RequestInner - uwspólnić ...
 
+//(Request, &Token, mio::Sender<(mio::Token, response::Response)>)
+    //zrobić z tego (Request, mioSender)
+//mioSender.send(Response) - samozjadnie
+//sprawdzać w dropie zawsze wysłano odpowiedź, jeśli nie wysłano to panic że jest błąd w logice kodu
+
 
 fn main() {
     

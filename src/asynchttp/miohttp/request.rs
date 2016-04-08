@@ -61,15 +61,12 @@ impl PreRequest {
     }
     
     
-    pub fn bind(self, token: &mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>) -> Request {
+    pub fn bind(self) -> Request {
         Request::new(RequestInner{
-            //is_send     : false,
             method      : self.method,
             path        : self.path,
             version     : self.version,
             headers     : self.headers,
-            token       : token.clone(),
-            resp_chanel : resp_chanel
         })
     }
 }
@@ -115,8 +112,6 @@ struct RequestInner {
     path        : String,
     version     : u8,
     headers     : HashMap<Box<String>, String>,
-    token       : mio::Token,                                               //TODO - to ma docelowo z tego miejsca wylecieć
-    resp_chanel : mio::Sender<(mio::Token, response::Response)>,            //TODO - to ma docelowo z tego miejsca wylecieć
 }
 
 /*
@@ -139,12 +134,7 @@ impl RequestInner {
             None => false
         }
     }
-    
-    pub fn send(&self, response: response::Response) {
-        
-        let _ = self.resp_chanel.send((self.token, response));
-    }
-    
+
     pub fn path(&self) -> &String {
         &(self.path)
     }

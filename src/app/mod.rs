@@ -146,6 +146,15 @@ fn run(addres: String) -> i32 {
                             }
 
                         }
+    token       : mio::Token,                                               //TODO - to ma docelowo z tego miejsca wylecieć
+    resp_chanel : mio::Sender<(mio::Token, response::Response)>,            //TODO - to ma docelowo z tego miejsca wylecieć
+
+    pub fn send(&self, response: response::Response) {
+        
+        let _ = self.resp_chanel.send((self.token, response));
+    }
+    
+token: &mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>
                         */
 
                     }
