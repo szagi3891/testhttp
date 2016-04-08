@@ -3,7 +3,7 @@ use mio::tcp::{TcpStream};
 use httparse;
 use mio;
 use asynchttp::miohttp::server::{Event, MyHandler};
-use asynchttp::miohttp::request::{PreRequest, Request};
+use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::response;
 use asynchttp::log;
 
@@ -192,13 +192,9 @@ fn transform_from_waiting_for_user<Out>(mut stream: TcpStream, events: EventSet,
 
                         Ok(httparse::Status::Complete(_)) => {      /*size_parse*/
                             
-                            match PreRequest::new(req) {
+                            match Request::new(req) {
 
-                                Ok(pre_request) => {
-                                    
-                                    //let request = pre_request.bind(&token, event_loop.channel());
-                                    
-                                    let request = pre_request.bind();
+                                Ok(request) => {
                                     
                                     let keep_alive = request.is_header_set("Connection", "keep-alive");
 

@@ -5,17 +5,18 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 
 
-#[derive(Debug)]
-pub struct PreRequest {
-    method : String,
-    path : String,
-    version : u8,
-    headers : HashMap<Box<String>, String>,
+// #[derive(Debug)]
+
+
+pub struct Request {
+    
+    inner : Arc<RequestInner>,
 }
 
-impl PreRequest {
 
-    pub fn new(req: httparse::Request) -> Result<PreRequest, Error> {
+impl Request {    
+
+    pub fn new(req: httparse::Request) -> Result<Request, Error> {
 
         match (req.method, req.path, req.version) {
 
@@ -42,51 +43,23 @@ impl PreRequest {
                     };
                 }
 
-                Ok(PreRequest{
-                    method  : method.to_owned(),
-                    path    : path.to_owned(),
-                    version : version,
-                    headers : headers,
+                Ok(Request{
+                    inner : Arc::new(RequestInner{
+                        method      : method.to_owned(),
+                        path        : path.to_owned(),
+                        version     : version,
+                        headers     : headers,
+                    })
                 })
             }
             _ => {
 
-                //TODO - komunikat ma bardziej szczegółowo wskazywać gdzie wystąpił błąd
+                                        //TODO - komunikat ma bardziej szczegółowo wskazywać gdzie wystąpił błąd
                 Err(Error::new(ErrorKind::InvalidInput, "Błąd tworzenia odpowiedzi"))
             }
         }
     }
     
-    
-    pub fn bind(self) -> Request {
-        Request::new(RequestInner{
-            method      : self.method,
-            path        : self.path,
-            version     : self.version,
-            headers     : self.headers,
-        })
-    }
-}
-
-
-
-
-pub struct Request {
-    
-    inner : Arc<RequestInner>,
-}
-
-impl Request {
-    
-    fn new(inner: RequestInner) -> Request {
-        
-        Request {
-            inner : Arc::new(inner)
-        }
-    }
-}
-
-impl Request {
     
     pub fn is_header_set(&self, name: &str, value: &str) -> bool {
         self.inner.is_header_set(name, value)
@@ -95,11 +68,6 @@ impl Request {
     pub fn path(&self) -> &String {
         self.inner.path()
     }
-    /*
-    pub fn send(&self, response: response::Response) {
-        self.inner.send(response);
-    }
-    */
 }
 
 

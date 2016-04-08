@@ -14,7 +14,6 @@ mod asynchttp;      //TODO - gdy się ustabilizuje, trzeba wynieść do zewnętr
 
 mod app;            //przykładowa apka
 
-//TODO PreRequest i RequestInner - uwspólnić ...
 
 //(Request, &Token, mio::Sender<(mio::Token, response::Response)>)
     //zrobić z tego (Request, mioSender)
