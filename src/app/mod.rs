@@ -131,6 +131,23 @@ fn run(addres: String) -> i32 {
                     None => {
                         
                         //coś poszło nie tak z obsługą tego requestu
+                        
+                        
+                        /*
+                                                                                                    //TODO - to ma wylecieć docelowo
+                        impl Drop for RequestInner {
+
+                            fn drop(&mut self) {
+
+                                if self.is_send == false {
+
+                                    let _ = self.resp_chanel.send((self.token, response::Response::create_500()));
+                                }
+                            }
+
+                        }
+                        */
+
                     }
                 };
                 

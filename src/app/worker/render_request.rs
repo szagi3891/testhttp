@@ -12,7 +12,7 @@ use task_async::Task;
 pub fn render_request(request: request::Request, task: Task<(Request, Response)>, api_request_producer: &Sender<api::Request>) {
     
     
-    let path_src = "./static".to_owned() + request.path.trim();
+    let path_src = "./static".to_owned() + request.path().trim();
     log::info(format!("Path requested: {}", &path_src));
     
     
@@ -35,7 +35,7 @@ pub fn render_request(request: request::Request, task: Task<(Request, Response)>
                         let path         = Path::new(&path_src);
                         let content_type = response::Type::create_from_path(&path);
 
-                        log::info(format!("200, {}, {}", content_type, request.path));
+                        log::info(format!("200, {}, {}", content_type, request.path()));
 
                         let response = response::Response::create_from_buf(response::Code::Code200, content_type, buffer);
 
@@ -51,7 +51,7 @@ pub fn render_request(request: request::Request, task: Task<(Request, Response)>
 
                                 let mess     = "Not found".to_owned();
                                 let response = response::Response::create(response::Code::Code404, response::Type::TextHtml, mess.clone());
-                                log::debug(format!("404, {}, {}. {:?} ", response::Type::TextHtml, request.path, err));
+                                log::debug(format!("404, {}, {}. {:?} ", response::Type::TextHtml, request.path(), err));
                                 //request.send(response);
 
                                 task.result((request, response))

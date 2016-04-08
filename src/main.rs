@@ -14,6 +14,8 @@ mod asynchttp;      //TODO - gdy się ustabilizuje, trzeba wynieść do zewnętr
 
 mod app;            //przykładowa apka
 
+//TODO PreRequest i RequestInner - uwspólnić ...
+
 
 fn main() {
     

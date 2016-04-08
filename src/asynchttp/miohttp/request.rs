@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use mio;
 use httparse;
 use std::io::{Error, ErrorKind};
+use std::sync::Arc;
 
 use asynchttp::miohttp::response;
 
@@ -61,29 +62,61 @@ impl PreRequest {
     
     
     pub fn bind(self, token: &mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>) -> Request {
-        Request {
-            is_send     : false,
+        Request::new(RequestInner{
+            //is_send     : false,
             method      : self.method,
             path        : self.path,
             version     : self.version,
             headers     : self.headers,
             token       : token.clone(),
             resp_chanel : resp_chanel
+        })
+    }
+}
+
+
+
+
+pub struct Request {
+    
+    inner : Arc<RequestInner>,
+}
+
+impl Request {
+    
+    fn new(inner: RequestInner) -> Request {
+        
+        Request {
+            inner : Arc::new(inner)
         }
+    }
+}
+
+impl Request {
+    
+    pub fn is_header_set(&self, name: &str, value: &str) -> bool {
+        self.inner.is_header_set(name, value)
+    }
+    
+    pub fn path(&self) -> &String {
+        self.inner.path()
+    }
+    
+    pub fn send(&self, response: response::Response) {
+        self.inner.send(response);
     }
 }
 
 
 
 #[derive(Debug)]
-pub struct Request {
-    is_send     : bool,
-    pub method  : String,
-    pub path    : String,
-    pub version : u8,
+struct RequestInner {
+    method      : String,
+    path        : String,
+    version     : u8,
     headers     : HashMap<Box<String>, String>,
-    token       : mio::Token,
-    resp_chanel : mio::Sender<(mio::Token, response::Response)>,
+    token       : mio::Token,                                               //TODO - to ma docelowo z tego miejsca wylecieć
+    resp_chanel : mio::Sender<(mio::Token, response::Response)>,            //TODO - to ma docelowo z tego miejsca wylecieć
 }
 
 /*
@@ -93,7 +126,7 @@ https://github.com/tailhook/rotor-http/blob/master/src/http1.rs
 */
 
 
-impl Request {
+impl RequestInner {
 
     pub fn is_header_set(&self, name: &str, value: &str) -> bool {
         
@@ -107,23 +140,14 @@ impl Request {
         }
     }
     
-    pub fn send(mut self, response: response::Response) {
+    pub fn send(&self, response: response::Response) {
         
         let _ = self.resp_chanel.send((self.token, response));
-        
-        self.is_send = true;
+    }
+    
+    pub fn path(&self) -> &String {
+        &(self.path)
     }
 }
 
-impl Drop for Request {
-
-    fn drop(&mut self) {
-        
-        if self.is_send == false {
-            
-            let _ = self.resp_chanel.send((self.token, response::Response::create_500()));
-        }
-    }
-
-}
 
