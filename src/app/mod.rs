@@ -115,12 +115,7 @@ fn run(addres: String) -> i32 {
         
         
         
-        //TODO - request nie ma robić nic na własną rękę jeśli chodzi o wysyłanie odpowiedzi
-                //request-a, można sklonować jeśli zajdzie potrzeba, ma być to niemutowalny parametr
-        
-        let convert = Box::new(move|date_req: (Request, Respchan)| -> (Request, Task<(Response)>) {
-            
-            let (req, respchan) = date_req;
+        let convert = Box::new(move|(req, respchan): (Request, Respchan)| -> (Request, Task<(Response)>) {
             
             let task = task_manager.task(Box::new(move|result : Option<(Response)>|{
                 
