@@ -9,12 +9,12 @@ use asynchttp::log;
 use asynchttp::miohttp::connection::{Connection, TimerMode};
 use asynchttp::miohttp::token_gen::TokenGen;
 use asynchttp::miohttp::request::Request;
+use asynchttp::miohttp::respchan::Respchan;
 
 use channels_async::{Sender};
 use std::time::Duration;
 
-
-pub type FnConvert<Out> = Box<Fn(Request) -> Out + Send + Sync + 'static>;
+pub type FnConvert<Out> = Box<Fn((Request, Respchan)) -> Out + Send + Sync + 'static>;
 
 
 // Define a handler to process the events
@@ -195,10 +195,10 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
                 
                 match request_opt {
                     
-                    Some(request) => {
+                    Some((request, respchan)) => {
                         log::debug(format!("Sending request through channel 1"));
                         
-                        let pack_request = (self.convert_request)(request);
+                        let pack_request = (self.convert_request)((request, respchan));
                         self.channel.send(pack_request).unwrap();
                         
                         //self.channel.send(request).unwrap();
