@@ -19,7 +19,7 @@ pub fn render_request(request: request::Request, task: Task<(Request, Response)>
     
     let path = path_src.clone();
     
-    let task_get_file = task.run(Box::new(move|task: Task<(Request, Response)>, response: Option<api::FilesData>|{
+    let task_get_file = task.async1(Box::new(move|task: Task<(Request, Response)>, response: Option<api::FilesData>|{
         
         log::debug(format!("Invoked request's callback in response"));
         

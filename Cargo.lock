@@ -120,7 +120,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "task_async"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/task_async-rs#fbbd1380900c0b6f82f4164c33836491cea81b17"
+source = "git+https://github.com/szagi3891/task_async-rs#926edcf2a08de1e0c9c372f64485f77ae7ed293b"
 dependencies = [
  "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
 ]
