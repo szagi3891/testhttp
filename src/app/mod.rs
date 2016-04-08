@@ -15,6 +15,11 @@ use app::api::Response as apiResponse;
 use signal_end::signal_end;
 
 use std::thread;
+use mio;
+use asynchttp;
+
+use asynchttp::miohttp::response;
+
 
 pub fn run_main() {
         
@@ -121,16 +126,25 @@ fn run(addres: String) -> i32 {
         //TODO - request nie ma robić nic na własną rękę jeśli chodzi o wysyłanie odpowiedzi
                 //request-a, można sklonować jeśli zajdzie potrzeba, ma być to niemutowalny parametr
         
+        //mio::Token, mio::Sender<(mio::Token, asynchttp::miohttp::response::Response)
         
-        let convert = Box::new(move|req:Request| -> (Request, Task<(Request, Response)>) {
+        let convert = Box::new(move|date_req: (Request, mio::Token, mio::Sender<(mio::Token, asynchttp::miohttp::response::Response)>)| -> (Request, Task<(Response)>) {
             
-            let task = task_manager.task(Box::new(move|result : Option<(Request, Response)>|{
+            let (req, token, sender) = date_req;
+            
+            let task = task_manager.task(Box::new(move|result : Option<(Response)>|{
                 
                 match result {
-                    Some((req, resp)) => req.send(resp),
+                    
+                    Some(resp) => {
+                        
+                        sender.send((token, resp)).unwrap();
+                    },
+                    
                     None => {
                         
-                        //coś poszło nie tak z obsługą tego requestu
+                                        //coś poszło nie tak z obsługą tego requestu
+                        sender.send((token, response::Response::create_500())).unwrap();
                         
                         
                         /*
@@ -146,15 +160,6 @@ fn run(addres: String) -> i32 {
                             }
 
                         }
-    token       : mio::Token,                                               //TODO - to ma docelowo z tego miejsca wylecieć
-    resp_chanel : mio::Sender<(mio::Token, response::Response)>,            //TODO - to ma docelowo z tego miejsca wylecieć
-
-    pub fn send(&self, response: response::Response) {
-        
-        let _ = self.resp_chanel.send((self.token, response));
-    }
-    
-token: &mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>
                         */
 
                     }
@@ -164,6 +169,8 @@ token: &mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>
             
             (req, task) 
         });
+        
+        //::<(Request, Token, mio::Sender<(mio::Token, response::Response)>)>
         
         miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer, convert).unwrap();        
     });
@@ -226,10 +233,10 @@ token: &mio::Token, resp_chanel: mio::Sender<(mio::Token, response::Response)>
 }
 
 
-fn run_worker(request_consumer: Receiver<(Request, Task<(Request, Response)>)>, api_request_producer: Sender<apiRequest>, api_response_consumer: Receiver<apiResponse>) {
+fn run_worker(request_consumer: Receiver<(Request, Task<(Response)>)>, api_request_producer: Sender<apiRequest>, api_response_consumer: Receiver<apiResponse>) {
     
     enum Out {
-        Result1((Request, Task<(Request, Response)>)),
+        Result1((Request, Task<(Response)>)),
         Result2(apiResponse),
     }
     

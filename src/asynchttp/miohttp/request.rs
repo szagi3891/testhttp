@@ -1,11 +1,8 @@
 use std;
 use std::collections::HashMap;
-use mio;
 use httparse;
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
-
-use asynchttp::miohttp::response;
 
 
 #[derive(Debug)]
@@ -98,10 +95,11 @@ impl Request {
     pub fn path(&self) -> &String {
         self.inner.path()
     }
-    
+    /*
     pub fn send(&self, response: response::Response) {
         self.inner.send(response);
     }
+    */
 }
 
 

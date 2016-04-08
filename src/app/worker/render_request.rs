@@ -4,12 +4,11 @@ use channels_async::Sender;
 
 use asynchttp::log;
 use asynchttp::miohttp::{request, response};
-use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::response::Response;
 use app::api;
 use task_async::Task;
 
-pub fn render_request(request: request::Request, task: Task<(Request, Response)>, api_request_producer: &Sender<api::Request>) {
+pub fn render_request(request: request::Request, task: Task<(Response)>, api_request_producer: &Sender<api::Request>) {
     
     
     let path_src = "./static".to_owned() + request.path().trim();
@@ -19,7 +18,7 @@ pub fn render_request(request: request::Request, task: Task<(Request, Response)>
     
     let path = path_src.clone();
     
-    let task_get_file = task.async1(Box::new(move|task: Task<(Request, Response)>, response: Option<api::FilesData>|{
+    let task_get_file = task.async1(Box::new(move|task: Task<(Response)>, response: Option<api::FilesData>|{
         
         log::debug(format!("Invoked request's callback in response"));
         
@@ -39,7 +38,7 @@ pub fn render_request(request: request::Request, task: Task<(Request, Response)>
 
                         let response = response::Response::create_from_buf(response::Code::Code200, content_type, buffer);
 
-                        task.result((request, response))
+                        task.result(response)
                         //request.send(response);
                     }
 
@@ -54,7 +53,7 @@ pub fn render_request(request: request::Request, task: Task<(Request, Response)>
                                 log::debug(format!("404, {}, {}. {:?} ", response::Type::TextHtml, request.path(), err));
                                 //request.send(response);
 
-                                task.result((request, response))
+                                task.result(response)
                             }
                             _ => {
 

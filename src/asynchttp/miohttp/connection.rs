@@ -1,7 +1,7 @@
 use mio::{EventLoop, Token, EventSet, TryRead, TryWrite};
 use mio::tcp::{TcpStream};
 use httparse;
-
+use mio;
 use asynchttp::miohttp::server::{Event, MyHandler};
 use asynchttp::miohttp::request::{PreRequest, Request};
 use asynchttp::miohttp::response;
@@ -119,7 +119,7 @@ impl Connection {
         }
     }
     
-    pub fn ready<Out>(self, events: EventSet, token: &Token, event_loop: &mut EventLoop<MyHandler<Out>>) -> (Connection, Option<Request>)
+    pub fn ready<Out>(self, events: EventSet, token: &Token, event_loop: &mut EventLoop<MyHandler<Out>>) -> (Connection, Option<(Request, Token, mio::Sender<(mio::Token, response::Response)>)>)
         where
             Out : Send + Sync + 'static {
         
@@ -140,7 +140,7 @@ impl Connection {
 
 
 
-    fn transform<Out>(self, events: EventSet, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<(Request, &Token, mio::Sender<(mio::Token, response::Response)>)>)
+    fn transform<Out>(self, events: EventSet, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<(Request, Token, mio::Sender<(mio::Token, response::Response)>)>)
         where
             Out : Send + Sync + 'static {
 
@@ -169,7 +169,7 @@ impl Connection {
     }
 }
 
-fn transform_from_waiting_for_user<Out>(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<(Request, &Token, mio::Sender<(mio::Token, response::Response)>)>)
+fn transform_from_waiting_for_user<Out>(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<(Request, Token, mio::Sender<(mio::Token, response::Response)>)>)
     where
         Out : Send + Sync + 'static {
 
@@ -202,7 +202,7 @@ fn transform_from_waiting_for_user<Out>(mut stream: TcpStream, events: EventSet,
                                     
                                     let keep_alive = request.is_header_set("Connection", "keep-alive");
 
-                                    (Connection::make(stream, ConnectionMode::WaitingForServerResponse(keep_alive)), Some((request, &token, event_loop.channel())))
+                                    (Connection::make(stream, ConnectionMode::WaitingForServerResponse(keep_alive)), Some((request, token.clone(), event_loop.channel())))
                                 }
 
                                 Err(err) => {
