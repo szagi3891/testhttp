@@ -7,18 +7,15 @@ use task_async::{TaskManager, Task};
 
 use asynchttp::{miohttp,log};
 use asynchttp::miohttp::request::Request;
-use asynchttp::miohttp::response::Response;
+use asynchttp::miohttp::response::{self, Response};
+use asynchttp::miohttp::respchan::Respchan;
 
 use app::api::Request  as apiRequest;
 use app::api::Response as apiResponse;
 
 use signal_end::signal_end;
-
 use std::thread;
-use mio;
-use asynchttp;
 
-use asynchttp::miohttp::response;
 
 
 pub fn run_main() {
@@ -117,20 +114,13 @@ fn run(addres: String) -> i32 {
         }));
         
         
-                        //TODO - ogólnie, do dalszego przetwarzania będzie wysyłana para, (request, task)
-        
-        
-        
-        //TODO - |Request, Sender<Response>| -> (Request, Task<Response>)
         
         //TODO - request nie ma robić nic na własną rękę jeśli chodzi o wysyłanie odpowiedzi
                 //request-a, można sklonować jeśli zajdzie potrzeba, ma być to niemutowalny parametr
         
-        //mio::Token, mio::Sender<(mio::Token, asynchttp::miohttp::response::Response)
-        
-        let convert = Box::new(move|date_req: (Request, mio::Token, mio::Sender<(mio::Token, asynchttp::miohttp::response::Response)>)| -> (Request, Task<(Response)>) {
+        let convert = Box::new(move|date_req: (Request, Respchan)| -> (Request, Task<(Response)>) {
             
-            let (req, token, sender) = date_req;
+            let (req, respchan) = date_req;
             
             let task = task_manager.task(Box::new(move|result : Option<(Response)>|{
                 
@@ -138,30 +128,12 @@ fn run(addres: String) -> i32 {
                     
                     Some(resp) => {
                         
-                        sender.send((token, resp)).unwrap();
+                        respchan.send(resp);
                     },
                     
                     None => {
-                        
-                                        //coś poszło nie tak z obsługą tego requestu
-                        sender.send((token, response::Response::create_500())).unwrap();
-                        
-                        
-                        /*
-                                                                                                    //TODO - to ma wylecieć docelowo
-                        impl Drop for RequestInner {
-
-                            fn drop(&mut self) {
-
-                                if self.is_send == false {
-
-                                    let _ = self.resp_chanel.send((self.token, response::Response::create_500()));
-                                }
-                            }
-
-                        }
-                        */
-
+                                                                //coś poszło nie tak z obsługą tego requestu
+                        respchan.send(response::Response::create_500());
                     }
                 };
                 
@@ -169,8 +141,6 @@ fn run(addres: String) -> i32 {
             
             (req, task) 
         });
-        
-        //::<(Request, Token, mio::Sender<(mio::Token, response::Response)>)>
         
         miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer, convert).unwrap();        
     });

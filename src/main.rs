@@ -15,10 +15,8 @@ mod asynchttp;      //TODO - gdy się ustabilizuje, trzeba wynieść do zewnętr
 mod app;            //przykładowa apka
 
 
-//(Request, &Token, mio::Sender<(mio::Token, response::Response)>)
-    //zrobić z tego (Request, mioSender)
-//mioSender.send(Response) - samozjadnie
-//sprawdzać w dropie zawsze wysłano odpowiedź, jeśli nie wysłano to panic że jest błąd w logice kodu
+
+//TODO - respchan       - trzeba zaimplementować dropa który będzie sprawdzał czy wysłana była odpowiedź, jeśli nie to ma rzucać panic
 
 
 fn main() {
