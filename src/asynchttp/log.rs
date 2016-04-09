@@ -92,3 +92,17 @@ pub fn debug(message: String) {
     println!("{:<20}: {}", thread::current().name().unwrap_or("<unnamed>"), message);
 }
 
+
+
+//TODO - ubibliotecznić to sprytnie
+pub fn spawn<F, T>(name: String, block: F)
+    where F: FnOnce() -> T + Send + Sync + 'static, T: Send + Sync + 'static {
+
+    
+    let result = thread::Builder::new().name(name.clone()).spawn(block);
+        
+    match result {
+        Ok(_) => {},
+        Err(err) => panic!("Can't spawn {}: {}", name, err),
+    };
+}

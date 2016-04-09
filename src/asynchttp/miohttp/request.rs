@@ -5,11 +5,7 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 
 
-// #[derive(Debug)]
-
-
 pub struct Request {
-    
     inner : Arc<RequestInner>,
 }
 
@@ -71,8 +67,21 @@ impl Request {
 }
 
 
+impl Clone for Request {
+    
+    fn clone(&self) -> Request {
+        
+        Request {
+            inner : self.inner.clone(),
+        }
+    }
 
-#[derive(Debug)]
+    fn clone_from(&mut self, request: &Request) {
+        self.inner = request.inner.clone();
+    }
+}
+
+
 struct RequestInner {
     method      : String,
     path        : String,

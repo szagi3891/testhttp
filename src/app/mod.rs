@@ -14,7 +14,6 @@ use app::api::Request  as apiRequest;
 use app::api::Response as apiResponse;
 
 use signal_end::signal_end;
-use std::thread;
 
 
 
@@ -95,16 +94,12 @@ runApp() {
 */
 
 
-//TODO - spawn, ma za zadanie robić sprytne nazwy wątków
-
 
 fn run(addres: String) -> i32 {
     
     let (request_producer, request_consumer) = channel();
-
-    let thread_name = "<EventLoop>".to_owned();
-
-    spawn(thread_name, move ||{
+    
+    log::spawn("<EventLoop>".to_owned(), move ||{
         
                         //grupa tasków
         let task_manager = TaskManager::new(Box::new(move||{
@@ -147,27 +142,11 @@ fn run(addres: String) -> i32 {
     let (api_request_producer , api_request_consumer)  = channel();
     let (api_response_producer, api_response_consumer) = channel();
     
-    {
-        
-        let api_request_consumer  = api_request_consumer.clone();
-        let api_response_producer = api_response_producer.clone();
-
-        spawn("api".to_owned(), move ||{
-            api::run(api_request_consumer, api_response_producer);
-        });
-    }
-    
+    run_api(&api_request_consumer, &api_response_producer);
     
     
     for _ in 0..4 {
-        
-        let request_consumer      = request_consumer.clone();
-        let api_request_producer  = api_request_producer.clone();
-        let api_response_consumer = api_response_consumer.clone();
-        
-        spawn("worker".to_owned(), move ||{
-            run_worker(request_consumer, api_request_producer, api_response_consumer);
-        });
+        run_worker(&request_consumer, &api_request_producer, &api_response_consumer);
     }
     
     
@@ -197,53 +176,55 @@ fn run(addres: String) -> i32 {
     }
 }
 
+fn run_api(api_request_consumer: &Receiver<apiRequest>, api_response_producer: &Sender<apiResponse>) {
+    
+    let api_request_consumer  = api_request_consumer.clone();
+    let api_response_producer = api_response_producer.clone();
 
-fn run_worker(request_consumer: Receiver<(Request, Task<(Response)>)>, api_request_producer: Sender<apiRequest>, api_response_consumer: Receiver<apiResponse>) {
+    log::spawn("api".to_owned(), move ||{
+        api::run(api_request_consumer, api_response_producer);
+    });
+}
+
+fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_request_producer: &Sender<apiRequest>, api_response_consumer: &Receiver<apiResponse>) {
     
-    enum Out {
-        Result1((Request, Task<(Response)>)),
-        Result2(apiResponse),
-    }
-    
-    let select: Select<Out> = Select::new();
-    
-    select.add(request_consumer     , Box::new(Out::Result1));
-    select.add(api_response_consumer, Box::new(Out::Result2));
-    
-    loop {
-        match select.get() {
-            
-            Ok(Out::Result1((request, task))) => {
-                
-                worker::render_request(request, task, &api_request_producer);
-            },
-            
-            Ok(Out::Result2(api::Response::GetFile(result, task))) => {
-                
-                log::debug("Received file data".to_owned());
-                task.result(result);
-            },
-            
-            Err(_) => {
-                
-                //TODO - zalogować błąd w strumień błędów ... ?
-                return;
+    let request_consumer      = request_consumer.clone();
+    let api_request_producer  = api_request_producer.clone();
+    let api_response_consumer = api_response_consumer.clone();
+
+    log::spawn("worker".to_owned(), move ||{
+
+        enum Out {
+            Result1((Request, Task<(Response)>)),
+            Result2(apiResponse),
+        }
+
+        let select: Select<Out> = Select::new();
+
+        select.add(request_consumer     , Box::new(Out::Result1));
+        select.add(api_response_consumer, Box::new(Out::Result2));
+
+        loop {
+            match select.get() {
+
+                Ok(Out::Result1((request, task))) => {
+
+                    worker::render_request(request, task, &api_request_producer);
+                },
+
+                Ok(Out::Result2(api::Response::GetFile(result, task))) => {
+
+                    log::debug("Received file data".to_owned());
+                    task.result(result);
+                },
+
+                Err(_) => {
+
+                    //TODO - zalogować błąd w strumień błędów ... ?
+                    return;
+                }
             }
         }
-    }
+    });
 }
 
-
-
-//TODO - ubibliotecznić to sprytnie
-pub fn spawn<F, T>(name: String, block: F)
-    where F: FnOnce() -> T + Send + Sync + 'static, T: Send + Sync + 'static {
-
-    
-    let result = thread::Builder::new().name(name.clone()).spawn(block);
-        
-    match result {
-        Ok(_) => {},
-        Err(err) => panic!("Can't spawn {}: {}", name, err),
-    };
-}

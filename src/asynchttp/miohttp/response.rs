@@ -9,6 +9,7 @@ pub enum Code {
 }
 
 //https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
+//https://doc.rust-lang.org/std/path/struct.Path.html#method.extension
 
 impl Code {
     fn to_str(&self) -> &str {
