@@ -75,22 +75,25 @@ impl<Out> Handler for MyHandler<Out> where Out : Send + Sync + 'static {
 
 impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
-    pub fn new(ip: &String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Out>, convert : FnConvert<Out>) -> Result<(), io::Error> {
+    pub fn new(addres: String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Out>, convert : FnConvert<Out>) {
         
-        let mut tokens = TokenGen::new();
-
-        let mut event_loop = EventLoop::new().unwrap();
-
-        let addr = ip.parse().unwrap();
-
-        let server = match TcpListener::bind(&addr) {
+        
+        let addres_parse = addres.parse().unwrap();
+        
+        let server = match TcpListener::bind(&addres_parse) {
             Ok(server) => server,
             Err(err) => {
-                log::error(format!("Unable to bind socket {}: {}", addr, err));
-                return Err(err);
+                log::error(format!("Unable to bind socket {}: {}", addres, err));
+                //return 1;
+                return;
             }
         };
 
+
+        let mut tokens = TokenGen::new();
+        
+        let mut event_loop = EventLoop::new().unwrap();
+        
         let token = tokens.get();
         
         event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
@@ -107,8 +110,6 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
         };
         
         event_loop.run(&mut inst).unwrap();
-        
-        Ok(())
     }
 
     fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler<Out>>, token: Token, response: response::Response) {

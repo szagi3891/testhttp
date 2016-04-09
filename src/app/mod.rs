@@ -4,7 +4,6 @@ mod worker;
 use std::process;
 use channels_async::{channel, Sender, Receiver, Select};
 use task_async::{TaskManager, Task};
-
 use asynchttp::{miohttp,log};
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::response::{self, Response};
@@ -18,7 +17,7 @@ use signal_end::signal_end;
 
 
 pub fn run_main() {
-        
+    
     let addres = "0.0.0.0:2222";
     
     println!("server running - {}", &addres);
@@ -99,41 +98,25 @@ fn run(addres: String) -> i32 {
     
     let (request_producer, request_consumer) = channel();
     
-    log::spawn("<EventLoop>".to_owned(), move ||{
-        
-                        //grupa tasków
-        let task_manager = TaskManager::new(Box::new(move||{
-
-            println!("grupa tasków zakończyłą zadanie");
-            //down_producer.send(()).unwrap();
-        }));
-        
-        
-        
-        let convert = Box::new(move|(req, respchan): (Request, Respchan)| -> (Request, Task<(Response)>) {
-            
-            let task = task_manager.task(Box::new(move|result : Option<(Response)>|{
-                
-                match result {
-                    
-                    Some(resp) => {
-                        
-                        respchan.send(resp);
-                    },
-                    
-                    None => {
-                                                                //coś poszło nie tak z obsługą tego requestu
-                        respchan.send(response::Response::create_500());
-                    }
-                };
-                
-            }));
-            
-            (req, task) 
-        });
-        
-        miohttp::server::MyHandler::new(&addres, 4000, 4000, request_producer, convert).unwrap();        
-    });
+    
+    /*
+    Counter - ilość działąjących mio,
+    
+    let count = Counter::new(||{
+        //liczba mio spadła do zera
+    })
+    
+    let offMio = newMio(Arc<socket>, count.clone());
+    
+    offMio();
+    
+    
+    //a może lepszym rozwiązaniem będzie klonowanie socketa ...
+    //można spróbować przekazać socketa za pomocą Arc
+    */
+    
+    
+    run_mio(addres, &request_producer);
     
     
     
@@ -175,6 +158,49 @@ fn run(addres: String) -> i32 {
         return 0;
     }
 }
+
+
+fn run_mio(addres: String, request_producer: &Sender<(Request, Task<(Response)>)>) {
+    
+    let request_producer = request_producer.clone();
+    
+    log::spawn("<EventLoop>".to_owned(), move ||{
+        
+                        //grupa tasków
+        let task_manager = TaskManager::new(Box::new(move||{
+
+            println!("grupa tasków zakończyłą zadanie");
+            //down_producer.send(()).unwrap();
+        }));
+        
+        
+        
+        let convert = Box::new(move|(req, respchan): (Request, Respchan)| -> (Request, Task<(Response)>) {
+            
+            let task = task_manager.task(Box::new(move|result : Option<(Response)>|{
+                
+                match result {
+                    
+                    Some(resp) => {
+                        
+                        respchan.send(resp);
+                    },
+                    
+                    None => {
+                                                                //coś poszło nie tak z obsługą tego requestu
+                        respchan.send(response::Response::create_500());
+                    }
+                };
+                
+            }));
+            
+            (req, task) 
+        });
+        
+        miohttp::server::MyHandler::new(addres, 4000, 4000, request_producer, convert);        
+    });
+}
+
 
 fn run_api(api_request_consumer: &Receiver<apiRequest>, api_response_producer: &Sender<apiResponse>) {
     
