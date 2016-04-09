@@ -106,18 +106,15 @@ fn run(addres: String) -> i32 {
         //liczba mio spadła do zera
     })
     
-    let offMio = newMio(Arc<socket>, count.clone());
+    let offMio = newMio(adress, count.clone());     //otwierać współdzielonego socketa
     
-    offMio();
+    offMio();       //wysyła kanałem informację do eventloopa że ma się on wyłączyć
     
-    
-    //a może lepszym rozwiązaniem będzie klonowanie socketa ...
-    //można spróbować przekazać socketa za pomocą Arc
     */
     
     
-    run_mio(addres, &request_producer);
-    
+    run_mio(&addres, &request_producer, "1".to_owned());
+    run_mio(&addres, &request_producer, "2".to_owned());
     
     
     // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
@@ -160,11 +157,14 @@ fn run(addres: String) -> i32 {
 }
 
 
-fn run_mio(addres: String, request_producer: &Sender<(Request, Task<(Response)>)>) {
+fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>)>, sufix: String) {
     
+    let addres           = addres.clone();
     let request_producer = request_producer.clone();
     
-    log::spawn("<EventLoop>".to_owned(), move ||{
+    let thread_name = format!("<EventLoop {}>", sufix);
+    
+    log::spawn(thread_name, move ||{
         
                         //grupa tasków
         let task_manager = TaskManager::new(Box::new(move||{
