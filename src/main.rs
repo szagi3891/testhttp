@@ -1,12 +1,15 @@
 //#![feature(plugin)]
 //#![plugin(clippy)]
 
-extern crate mio;
-extern crate httparse;
+extern crate mio;                   //miohttp
+extern crate httparse;              //miohttp
 extern crate time;
 extern crate channels_async;
 extern crate task_async;
 extern crate ctrlc;
+extern crate net2;                  //miohttp
+extern crate libc;                  //miohttp
+
 
 mod signal_end;
 

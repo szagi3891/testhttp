@@ -15,6 +15,18 @@ use app::api::Response as apiResponse;
 use signal_end::signal_end;
 
 
+/*
+
+https://github.com/carllerche/mio/issues/186
+https://lwn.net/Articles/542629/
+
+https://github.com/rust-lang-nursery/net2-rs
+
+http://www.unixguide.net/network/socketfaq/4.5.shtml
+http://man7.org/linux/man-pages/man7/socket.7.html
+https://github.com/tailhook/rotor-http/blob/master/examples/threaded_reuse_port.rs
+
+*/
 
 pub fn run_main() {
     
