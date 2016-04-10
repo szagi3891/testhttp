@@ -3,7 +3,7 @@ use std::io;
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, Timeout};
 use mio::tcp::{TcpListener};
 //use mio::util::Slab;                 //TODO - użyć tego modułu zamiast hashmapy
-
+use std::mem;
 use asynchttp::miohttp::response;
 use asynchttp::log;
 use asynchttp::miohttp::connection::{Connection, TimerMode};
@@ -11,8 +11,9 @@ use asynchttp::miohttp::token_gen::TokenGen;
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::respchan::Respchan;
 use asynchttp::miohttp::new_socket::new_socket;
+use asynchttp::miohttp::miodown::MioDown;
 
-use channels_async::{Sender};
+use channels_async::Sender;
 use std::time::Duration;
 
 
@@ -47,6 +48,7 @@ pub enum Event {
 
 pub enum MioMessage {
     Response(Token, response::Response),
+    Down,
 }
 
 
@@ -64,6 +66,8 @@ impl<Out> Handler for MyHandler<Out> where Out : Send + Sync + 'static {
         } else {
             self.socket_ready(event_loop, &token, events);
         }
+        
+        self.test_close_mio(event_loop);
     }
 
     fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
@@ -72,45 +76,77 @@ impl<Out> Handler for MyHandler<Out> where Out : Send + Sync + 'static {
             
             MioMessage::Response(token, response) => {
                 self.send_data_to_user(event_loop, token, response);
+            },
+            
+            MioMessage::Down => {
+                
+                match mem::replace(&mut self.server, None) {
+                    
+                    Some(server) => {
+
+                        event_loop.deregister(&server);
+                    },
+                    None => {
+                        
+                        panic!("Powielony sygnał wyłączenia event_loop-a");
+                    }
+                };
             }
         };
     }
 
-    fn timeout(&mut self, _: &mut EventLoop<Self>, token: Self::Timeout) {
+    fn timeout(&mut self, event_loop: &mut EventLoop<Self>, token: Self::Timeout) {
         
         self.timeout_trigger(&token);
+        
+        self.test_close_mio(event_loop);
     }
 }
 
 
 impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
-    pub fn new(addres: String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Out>, convert : FnConvert<Out>) {
-        
-        let server = new_socket(addres);
-        
-        let mut tokens = TokenGen::new();
+    pub fn new(thread_name: String, addres: String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Out>, convert : FnConvert<Out>) -> MioDown {
         
         let mut event_loop = EventLoop::new().unwrap();
         
-        let token = tokens.get();
+        let chan_shoutdown = event_loop.channel();
         
-        event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
+        log::spawn(thread_name, move ||{
+            
+            let server = new_socket(addres);
 
-        let mut inst = MyHandler::<Out> {
-            token           : token,
-            server          : Some(server),
-            hash            : HashMap::new(),
-            tokens          : tokens,
-            channel         : tx,
-            timeout_reading : timeout_reading,
-            timeout_writing : timeout_writing,
-            convert_request : convert,
-        };
+            let mut tokens = TokenGen::new();
+
+            let token = tokens.get();
+
+            event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
+
+            let mut inst = MyHandler::<Out> {
+                token           : token,
+                server          : Some(server),
+                hash            : HashMap::new(),
+                tokens          : tokens,
+                channel         : tx,
+                timeout_reading : timeout_reading,
+                timeout_writing : timeout_writing,
+                convert_request : convert,
+            };
+
+            event_loop.run(&mut inst).unwrap();
+        });
         
-        event_loop.run(&mut inst).unwrap();
+        MioDown::new(chan_shoutdown)
     }
-
+    
+    fn test_close_mio(&self, event_loop: &mut EventLoop<MyHandler<Out>>) {
+        
+        if self.server.is_none() && self.hash.len() == 0 {
+            println!("wyłączam mio");
+            event_loop.shutdown();
+        }
+    }
+    
     fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler<Out>>, token: Token, response: response::Response) {
 
         match self.get_connection(&token) {

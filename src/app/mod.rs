@@ -8,12 +8,14 @@ use asynchttp::{miohttp,log};
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::response::{self, Response};
 use asynchttp::miohttp::respchan::Respchan;
-
+use asynchttp::miohttp::miodown::MioDown;
 use app::api::Request  as apiRequest;
 use app::api::Response as apiResponse;
 
 use signal_end::signal_end;
 
+use std::thread::sleep;
+use std::time::Duration;
 
 /*
 
@@ -105,6 +107,8 @@ runApp() {
 
 fn run(addres: String) -> i32 {
     
+    //TODO - kanały grupa ...
+    
     let (request_producer, request_consumer) = channel();
     
     
@@ -122,11 +126,19 @@ fn run(addres: String) -> i32 {
     */
     
     
-    run_mio(&addres, &request_producer, "1".to_owned());
-    run_mio(&addres, &request_producer, "2".to_owned());
+    
+    let miodown = run_mio(&addres, &request_producer, "1".to_owned());
+    let _       = run_mio(&addres, &request_producer, "2".to_owned());
     
     
-    // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
+    log::spawn("api".to_owned(), move ||{
+        
+        println!("miodown: będę wyłączał");
+        sleep(Duration::from_millis(5000));
+        miodown.shoutdown();
+        println!("miodown: wyłączyłem");
+    });
+    
     
     let (api_request_producer , api_request_consumer)  = channel();
     let (api_response_producer, api_response_consumer) = channel();
@@ -166,48 +178,48 @@ fn run(addres: String) -> i32 {
 }
 
 
-fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>)>, sufix: String) {
+fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>)>, sufix: String) -> MioDown {
     
     let addres           = addres.clone();
     let request_producer = request_producer.clone();
     
     let thread_name = format!("<EventLoop {}>", sufix);
     
-    log::spawn(thread_name, move ||{
-        
-                        //grupa tasków
-        let task_manager = TaskManager::new(Box::new(move||{
+                    //grupa tasków
+    let task_manager = TaskManager::new(Box::new(move||{
 
-            println!("grupa tasków zakończyłą zadanie");
-            //down_producer.send(()).unwrap();
+        println!("grupa tasków zakończyłą zadanie");
+        //down_producer.send(()).unwrap();
+    }));
+    
+    
+    let convert = Box::new(move|(req, respchan): (Request, Respchan)| -> (Request, Task<(Response)>) {
+
+        let task = task_manager.task(Box::new(move|result : Option<(Response)>|{
+
+            match result {
+
+                Some(resp) => {
+
+                    respchan.send(resp);
+                },
+
+                None => {
+                                                            //coś poszło nie tak z obsługą tego requestu
+                    respchan.send(response::Response::create_500());
+                }
+            };
+
         }));
-        
-        
-        
-        let convert = Box::new(move|(req, respchan): (Request, Respchan)| -> (Request, Task<(Response)>) {
-            
-            let task = task_manager.task(Box::new(move|result : Option<(Response)>|{
-                
-                match result {
-                    
-                    Some(resp) => {
-                        
-                        respchan.send(resp);
-                    },
-                    
-                    None => {
-                                                                //coś poszło nie tak z obsługą tego requestu
-                        respchan.send(response::Response::create_500());
-                    }
-                };
-                
-            }));
-            
-            (req, task) 
-        });
-        
-        miohttp::server::MyHandler::new(addres, 4000, 4000, request_producer, convert);        
+
+        (req, task) 
     });
+
+    
+    
+    let miodown = miohttp::server::MyHandler::new(thread_name, addres, 4000, 4000, request_producer, convert);        
+    
+    miodown
 }
 
 
