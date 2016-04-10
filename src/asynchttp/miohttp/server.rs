@@ -10,9 +10,13 @@ use asynchttp::miohttp::connection::{Connection, TimerMode};
 use asynchttp::miohttp::token_gen::TokenGen;
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::respchan::Respchan;
+use asynchttp::miohttp::newsocket::new_socket;
 
 use channels_async::{Sender};
 use std::time::Duration;
+
+
+
 
 pub type FnConvert<Out> = Box<Fn((Request, Respchan)) -> Out + Send + Sync + 'static>;
 
@@ -77,19 +81,8 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
     pub fn new(addres: String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Out>, convert : FnConvert<Out>) {
         
+        let server = new_socket(addres);
         
-        let addres_parse = addres.parse().unwrap();
-        
-        let server = match TcpListener::bind(&addres_parse) {
-            Ok(server) => server,
-            Err(err) => {
-                log::error(format!("Unable to bind socket {}: {}", addres, err));
-                //return 1;
-                return;
-            }
-        };
-
-
         let mut tokens = TokenGen::new();
         
         let mut event_loop = EventLoop::new().unwrap();
@@ -197,14 +190,9 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
                 match request_opt {
                     
                     Some((request, respchan)) => {
-                        log::debug(format!("Sending request through channel 1"));
                         
                         let pack_request = (self.convert_request)((request, respchan));
                         self.channel.send(pack_request).unwrap();
-                        
-                        //self.channel.send(request).unwrap();
-                        
-                        log::debug(format!("Sending request through channel 2"));
                     }
 
                     None => {}

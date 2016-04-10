@@ -1,12 +1,15 @@
 //#![feature(plugin)]
 //#![plugin(clippy)]
 
-extern crate mio;
-extern crate httparse;
+extern crate mio;                   //miohttp
+extern crate httparse;              //miohttp
 extern crate time;
 extern crate channels_async;
 extern crate task_async;
 extern crate ctrlc;
+extern crate net2;                  //miohttp
+extern crate libc;                  //miohttp
+
 
 mod signal_end;
 
@@ -20,10 +23,6 @@ mod app;            //przykładowa apka
 
 //TODO - respchan       - trzeba zaimplementować dropa który będzie sprawdzał czy wysłana była odpowiedź, jeśli nie to ma rzucać panic
 
-
-
-//TODO - request-a, można sklonować jeśli zajdzie potrzeba, ma być to niemutowalny parametr
-        
 
 //TODO - funkcję spawn, można by wsadzić do liba z taskami
     //funkcja spawn powinna współpracować z logowaniem

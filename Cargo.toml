@@ -8,6 +8,8 @@ authors = ["grzegorz"]
 httparse = "1.1.0"
 time = "0.1"
 #clippy = "*"
+net2 = "0.2"
+libc = "0.1"
 
 [dependencies.ctrlc]
 git = "https://github.com/Detegr/rust-ctrlc"

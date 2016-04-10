@@ -15,6 +15,18 @@ use app::api::Response as apiResponse;
 use signal_end::signal_end;
 
 
+/*
+
+https://github.com/carllerche/mio/issues/186
+https://lwn.net/Articles/542629/
+
+https://github.com/rust-lang-nursery/net2-rs
+
+http://www.unixguide.net/network/socketfaq/4.5.shtml
+http://man7.org/linux/man-pages/man7/socket.7.html
+https://github.com/tailhook/rotor-http/blob/master/examples/threaded_reuse_port.rs
+
+*/
 
 pub fn run_main() {
     
@@ -23,10 +35,7 @@ pub fn run_main() {
     println!("server running - {}", &addres);
     
     let exit_code = run(addres.to_owned());
-
-    // All channels dropped, wait for workers to end.
-    //log::debug(format!("Waiting for workers to end..."));
-
+    
     log::info(format!("Bye."));
     
     process::exit(exit_code);
@@ -106,18 +115,15 @@ fn run(addres: String) -> i32 {
         //liczba mio spadła do zera
     })
     
-    let offMio = newMio(Arc<socket>, count.clone());
+    let offMio = newMio(adress, count.clone());     //otwierać współdzielonego socketa
     
-    offMio();
+    offMio();       //wysyła kanałem informację do eventloopa że ma się on wyłączyć
     
-    
-    //a może lepszym rozwiązaniem będzie klonowanie socketa ...
-    //można spróbować przekazać socketa za pomocą Arc
     */
     
     
-    run_mio(addres, &request_producer);
-    
+    run_mio(&addres, &request_producer, "1".to_owned());
+    run_mio(&addres, &request_producer, "2".to_owned());
     
     
     // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
@@ -160,11 +166,14 @@ fn run(addres: String) -> i32 {
 }
 
 
-fn run_mio(addres: String, request_producer: &Sender<(Request, Task<(Response)>)>) {
+fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>)>, sufix: String) {
     
+    let addres           = addres.clone();
     let request_producer = request_producer.clone();
     
-    log::spawn("<EventLoop>".to_owned(), move ||{
+    let thread_name = format!("<EventLoop {}>", sufix);
+    
+    log::spawn(thread_name, move ||{
         
                         //grupa tasków
         let task_manager = TaskManager::new(Box::new(move||{
