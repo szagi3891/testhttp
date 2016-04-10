@@ -45,10 +45,15 @@ pub enum Event {
 }
 
 
+pub enum MioMessage {
+    Response(Token, response::Response),
+}
+
+
 impl<Out> Handler for MyHandler<Out> where Out : Send + Sync + 'static {
 
     type Timeout = Token;
-    type Message = (Token, response::Response);
+    type Message = MioMessage;
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler<Out>>, token: Token, events: EventSet) {
 
@@ -64,7 +69,8 @@ impl<Out> Handler for MyHandler<Out> where Out : Send + Sync + 'static {
     fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
 
         match msg {
-            (token, response) => {
+            
+            MioMessage::Response(token, response) => {
                 self.send_data_to_user(event_loop, token, response);
             }
         };

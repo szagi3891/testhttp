@@ -1,17 +1,17 @@
 use mio::{Token, Sender};
 use asynchttp::miohttp::response::Response;
-
+use asynchttp::miohttp::server::MioMessage;
 
 pub struct Respchan {
     //is_send : bool,
     token   : Token,
-    sender  : Sender<(Token, Response)>,
+    sender  : Sender<MioMessage>,
 }
 
 
 impl Respchan {
     
-    pub fn new(token: Token, sender: Sender<(Token, Response)>) -> Respchan {
+    pub fn new(token: Token, sender: Sender<MioMessage>) -> Respchan {
         
         Respchan {
             //is_send : false,
@@ -24,7 +24,7 @@ impl Respchan {
         
         //self.is_send = true;
         
-        (self.sender).send((self.token, response)).unwrap();
+        (self.sender).send(MioMessage::Response(self.token, response)).unwrap();
     }
 }
 
