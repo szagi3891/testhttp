@@ -10,7 +10,7 @@ use asynchttp::miohttp::connection::{Connection, TimerMode};
 use asynchttp::miohttp::token_gen::TokenGen;
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::respchan::Respchan;
-use asynchttp::miohttp::newsocket::new_socket;
+use asynchttp::miohttp::new_socket::new_socket;
 
 use channels_async::{Sender};
 use std::time::Duration;
@@ -24,7 +24,7 @@ pub type FnConvert<Out> = Box<Fn((Request, Respchan)) -> Out + Send + Sync + 'st
 // Define a handler to process the events
 pub struct MyHandler<Out> where Out : Send + Sync + 'static {
     token           : Token,
-    server          : TcpListener,                  //TODO option, Some - serwer nasłuchuje, None - jest w trybie wyłączania
+    server          : Option<TcpListener>,                  //Some - serwer nasłuchuje, None - jest w trybie wyłączania
     hash            : HashMap<Token, (Connection, Event, Option<Timeout>)>,
     tokens          : TokenGen,
     channel         : Sender<Out>,                  //TODO - trzeba użyć typu generycznego i pozbyć się tej zależności
@@ -93,7 +93,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
         let mut inst = MyHandler::<Out> {
             token           : token,
-            server          : server,
+            server          : Some(server),
             hash            : HashMap::new(),
             tokens          : tokens,
             channel         : tx,
@@ -143,32 +143,55 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
     
     fn new_connection(&mut self, event_loop: &mut EventLoop<MyHandler<Out>>) {
         
+        let new_connections = match &(self.server) {
+
+            &Some(ref socket) => {
+                
+                self.get_new_connections(&socket)
+            },
+            
+            &None => {
+                log::info(format!("serwer znajduje się w trybie wyłączania"));
+                Vec::new()
+            }
+        };
+        
+        for (addr, connection) in new_connections {
+            
+            let token = self.tokens.get();
+
+            log::info(format!("miohttp {} -> new connection, addr = {}", token.as_usize(), addr));
+
+            self.insert_connection(&token, connection, Event::Init, None, event_loop);
+        }
+    }
+    
+    
+    fn get_new_connections(&self, socket: &TcpListener) -> Vec<(String, Connection)> {
+        
+        let mut list = Vec::new();
+        
         loop {
-            match self.server.accept() {
+            
+            match socket.accept() {
 
                 Ok(Some((stream, addr))) => {
-
-                    let token = self.tokens.get();
-                    
-                    log::info(format!("miohttp {} -> new connection, addr = {}", token.as_usize(), addr));
-
-                    let connection = Connection::new(stream);
-
-                    self.insert_connection(&token, connection, Event::Init, None, event_loop);
+                    list.push((format!("{}", addr), Connection::new(stream)));
                 }
-
+                
                 Ok(None) => {
-                    return;
+                    return list;
                 }
 
                 Err(err) => {
-                    
+
                     log::error(format!("miohttp {} -> new connection err {}", self.token.as_usize(), err));
-                    return;
+                    return list;
                 }
             };
         }
     }
+    
     
     fn socket_ready(&mut self, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token, events: EventSet) {
         

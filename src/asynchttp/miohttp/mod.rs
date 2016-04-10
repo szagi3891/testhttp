@@ -4,4 +4,4 @@ pub mod response;
 mod connection;
 pub mod server;
 pub mod respchan;
-mod newsocket;
+mod new_socket;
