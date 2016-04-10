@@ -10,14 +10,12 @@ use asynchttp::miohttp::connection::{Connection, TimerMode};
 use asynchttp::miohttp::token_gen::TokenGen;
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::respchan::Respchan;
+use asynchttp::miohttp::newsocket::new_socket;
 
 use channels_async::{Sender};
 use std::time::Duration;
-use net2;
-use libc;
 
-use mio;
-use std::os::unix::io::AsRawFd;
+
 
 
 pub type FnConvert<Out> = Box<Fn((Request, Respchan)) -> Out + Send + Sync + 'static>;
@@ -83,53 +81,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
     pub fn new(addres: String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Out>, convert : FnConvert<Out>) {
         
-        /*
-        let addres_parse = addres.parse().unwrap();
-        
-        let server = match TcpListener::bind(&addres_parse) {
-            Ok(server) => server,
-            Err(err) => {
-                log::error(format!("Unable to bind socket {}: {}", addres, err));
-                //return 1;
-                return;
-            }
-        };
-        */
-        
-        let sock = net2::TcpBuilder::new_v4().unwrap();
-        let one = 1i32;
-        unsafe {
-            assert!(libc::setsockopt(
-                sock.as_raw_fd(), libc::SOL_SOCKET,
-                libc::SO_REUSEPORT,
-                &one as *const libc::c_int as *const libc::c_void, 4) == 0);
-        }
-        let addr = &addres.parse().unwrap();
-        sock.bind(&addr).unwrap();
-        let server = mio::tcp::TcpListener::from_listener(
-            sock.listen(4096).unwrap(), &addr).unwrap();
-        
-        
-        /*
-        let addres_parse = addres.parse().unwrap();
-        
-        let sock = net2::TcpBuilder::new_v4().unwrap();
-        
-        let one = 1i32;
-        
-        unsafe {
-            assert!(libc::setsockopt(
-                sock.as_raw_fd(), libc::SOL_SOCKET,
-                libc::SO_REUSEPORT,
-                &one as *const libc::c_int as *const libc::c_void, 4) == 0);
-        }
-        
-        
-        sock.bind(&addres_parse).unwrap();
-        
-        let server = TcpListener::from_listener(sock.listen(4096).unwrap(), &addres_parse).unwrap();
-        */
-        
+        let server = new_socket(addres);
         
         let mut tokens = TokenGen::new();
         
@@ -238,14 +190,9 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
                 match request_opt {
                     
                     Some((request, respchan)) => {
-                        log::debug(format!("Sending request through channel 1"));
                         
                         let pack_request = (self.convert_request)((request, respchan));
                         self.channel.send(pack_request).unwrap();
-                        
-                        //self.channel.send(request).unwrap();
-                        
-                        log::debug(format!("Sending request through channel 2"));
                     }
 
                     None => {}

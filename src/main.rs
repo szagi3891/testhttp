@@ -24,10 +24,6 @@ mod app;            //przykładowa apka
 //TODO - respchan       - trzeba zaimplementować dropa który będzie sprawdzał czy wysłana była odpowiedź, jeśli nie to ma rzucać panic
 
 
-
-//TODO - request-a, można sklonować jeśli zajdzie potrzeba, ma być to niemutowalny parametr
-        
-
 //TODO - funkcję spawn, można by wsadzić do liba z taskami
     //funkcja spawn powinna współpracować z logowaniem
     //spawn powinno tworzyć ładne "drzewko"

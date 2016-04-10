@@ -35,10 +35,7 @@ pub fn run_main() {
     println!("server running - {}", &addres);
     
     let exit_code = run(addres.to_owned());
-
-    // All channels dropped, wait for workers to end.
-    //log::debug(format!("Waiting for workers to end..."));
-
+    
     log::info(format!("Bye."));
     
     process::exit(exit_code);

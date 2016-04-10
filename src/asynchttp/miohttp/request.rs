@@ -64,6 +64,14 @@ impl Request {
     pub fn path(&self) -> &String {
         self.inner.path()
     }
+    
+    pub fn method(&self) -> &String {
+        self.inner.method()
+    }
+    
+    pub fn version(&self) -> u8 {
+        self.inner.version()
+    }
 }
 
 
@@ -112,6 +120,14 @@ impl RequestInner {
 
     pub fn path(&self) -> &String {
         &(self.path)
+    }
+    
+    pub fn method(&self) -> &String {
+        &(self.method)
+    }
+    
+    pub fn version(&self) -> u8 {
+        self.version.clone()
     }
 }
 
