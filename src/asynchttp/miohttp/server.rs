@@ -205,7 +205,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
             Some((connection, old_event, timeout)) => {
                 
-                let (new_connection, request_opt) = connection.ready(events, token, event_loop);
+                let (new_connection, request_opt) = connection.ready(events, token);
                 
                 if new_connection.in_state_close() {
                     
@@ -218,7 +218,9 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
                 
                 match request_opt {
                     
-                    Some((request, respchan)) => {
+                    Some(request) => {
+                        
+                        let respchan = Respchan::new(token.clone(), event_loop.channel());
                         
                         let pack_request = (self.convert_request)((request, respchan));
                         self.channel.send(pack_request).unwrap();

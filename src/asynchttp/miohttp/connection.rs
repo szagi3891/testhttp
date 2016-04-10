@@ -1,10 +1,9 @@
-use mio::{EventLoop, Token, EventSet, TryRead, TryWrite};
+use mio::{Token, EventSet, TryRead, TryWrite};
 use mio::tcp::{TcpStream};
 use httparse;
-use asynchttp::miohttp::server::{Event, MyHandler};
+use asynchttp::miohttp::server::{Event};
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::response;
-use asynchttp::miohttp::respchan::Respchan;
 use asynchttp::log;
 
 
@@ -119,9 +118,7 @@ impl Connection {
         }
     }
     
-    pub fn ready<Out>(self, events: EventSet, token: &Token, event_loop: &mut EventLoop<MyHandler<Out>>) -> (Connection, Option<(Request, Respchan)>)
-        where
-            Out : Send + Sync + 'static {
+    pub fn ready(self, events: EventSet, token: &Token) -> (Connection, Option<Request>) {
         
         if events.is_error() {
             
@@ -135,20 +132,18 @@ impl Connection {
             return (self.replace_mode(ConnectionMode::Close), None);
         }
         
-        self.transform(events, event_loop, token)
+        self.transform(events, token)
     }
 
 
 
-    fn transform<Out>(self, events: EventSet, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<(Request, Respchan)>)
-        where
-            Out : Send + Sync + 'static {
+    fn transform(self, events: EventSet, token: &Token) -> (Connection, Option<Request>) {
 
         match self.mode {
 
             ConnectionMode::ReadingRequest(buf, done) => {
 
-                transform_from_waiting_for_user(self.stream, events, buf, done, event_loop, token)
+                transform_from_waiting_for_user(self.stream, events, buf, done, token)
             }
 
             ConnectionMode::WaitingForServerResponse(keep_alive) => {
@@ -169,9 +164,7 @@ impl Connection {
     }
 }
 
-fn transform_from_waiting_for_user<Out>(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize, event_loop: &mut EventLoop<MyHandler<Out>>, token: &Token) -> (Connection, Option<(Request, Respchan)>)
-    where
-        Out : Send + Sync + 'static {
+fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut buf: [u8; 2048], done: usize, token: &Token) -> (Connection, Option<Request>) {
 
     if events.is_readable() {
 
@@ -197,9 +190,8 @@ fn transform_from_waiting_for_user<Out>(mut stream: TcpStream, events: EventSet,
                                 Ok(request) => {
                                     
                                     let keep_alive = request.is_header_set("Connection", "keep-alive");
-                                    let respchan = Respchan::new(token.clone(), event_loop.channel());
                                     
-                                    (Connection::make(stream, ConnectionMode::WaitingForServerResponse(keep_alive)), Some((request, respchan)))
+                                    (Connection::make(stream, ConnectionMode::WaitingForServerResponse(keep_alive)), Some(request))
                                 }
 
                                 Err(err) => {
