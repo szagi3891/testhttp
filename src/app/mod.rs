@@ -4,16 +4,17 @@ mod worker;
 use std::process;
 use channels_async::{channel, Sender, Receiver, Select};
 use task_async::{TaskManager, Task};
-use asynchttp::{miohttp,log};
+use asynchttp::miohttp;
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::response::{self, Response};
 use asynchttp::miohttp::respchan::Respchan;
-
+use asynchttp::miohttp::miodown::MioDown;
 use app::api::Request  as apiRequest;
 use app::api::Response as apiResponse;
 
 use signal_end::signal_end;
 
+use task_async;
 
 /*
 
@@ -36,7 +37,7 @@ pub fn run_main() {
     
     let exit_code = run(addres.to_owned());
     
-    log::info(format!("Bye."));
+    task_async::log_info(format!("Bye."));
     
     process::exit(exit_code);
 }
@@ -105,6 +106,8 @@ runApp() {
 
 fn run(addres: String) -> i32 {
     
+    //TODO - kanały grupa ...
+    
     let (request_producer, request_consumer) = channel();
     
     
@@ -122,11 +125,19 @@ fn run(addres: String) -> i32 {
     */
     
     
-    run_mio(&addres, &request_producer, "1".to_owned());
-    run_mio(&addres, &request_producer, "2".to_owned());
+    
+    let miodown = run_mio(&addres, &request_producer, "1".to_owned());
+    let _       = run_mio(&addres, &request_producer, "2".to_owned());
     
     
-    // Return real OS error to shell, return err.raw_os_error().unwrap_or(-1)
+    task_async::spawn("api".to_owned(), move ||{
+        
+        println!("miodown: będę wyłączał");
+        task_async::sleep(5000);
+        miodown.shoutdown();
+        println!("miodown: wyłączyłem");
+    });
+    
     
     let (api_request_producer , api_request_consumer)  = channel();
     let (api_response_producer, api_response_consumer) = channel();
@@ -144,7 +155,7 @@ fn run(addres: String) -> i32 {
     
     signal_end(Box::new(move || {
 
-        log::debug("Termination signal catched.".to_owned());
+        task_async::log_debug("Termination signal catched.".to_owned());
         
         sigterm_sender.send(()).unwrap();
         
@@ -158,7 +169,7 @@ fn run(addres: String) -> i32 {
         
         let _ = sigterm_receiver.get();
         
-        log::info("Shutting down!".to_owned());
+        task_async::log_info("Shutting down!".to_owned());
         
         shutdown_sender.send(()).unwrap();
         return 0;
@@ -166,48 +177,48 @@ fn run(addres: String) -> i32 {
 }
 
 
-fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>)>, sufix: String) {
+fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>)>, sufix: String) -> MioDown {
     
     let addres           = addres.clone();
     let request_producer = request_producer.clone();
     
     let thread_name = format!("<EventLoop {}>", sufix);
     
-    log::spawn(thread_name, move ||{
-        
-                        //grupa tasków
-        let task_manager = TaskManager::new(Box::new(move||{
+                    //grupa tasków
+    let task_manager = TaskManager::new(Box::new(move||{
 
-            println!("grupa tasków zakończyłą zadanie");
-            //down_producer.send(()).unwrap();
+        println!("grupa tasków zakończyłą zadanie");
+        //down_producer.send(()).unwrap();
+    }));
+    
+    
+    let convert = Box::new(move|(req, respchan): (Request, Respchan)| -> (Request, Task<(Response)>) {
+
+        let task = task_manager.task(Box::new(move|result : Option<(Response)>|{
+
+            match result {
+
+                Some(resp) => {
+
+                    respchan.send(resp);
+                },
+
+                None => {
+                                                            //coś poszło nie tak z obsługą tego requestu
+                    respchan.send(response::Response::create_500());
+                }
+            };
+
         }));
-        
-        
-        
-        let convert = Box::new(move|(req, respchan): (Request, Respchan)| -> (Request, Task<(Response)>) {
-            
-            let task = task_manager.task(Box::new(move|result : Option<(Response)>|{
-                
-                match result {
-                    
-                    Some(resp) => {
-                        
-                        respchan.send(resp);
-                    },
-                    
-                    None => {
-                                                                //coś poszło nie tak z obsługą tego requestu
-                        respchan.send(response::Response::create_500());
-                    }
-                };
-                
-            }));
-            
-            (req, task) 
-        });
-        
-        miohttp::server::MyHandler::new(addres, 4000, 4000, request_producer, convert);        
+
+        (req, task) 
     });
+
+    
+    
+    let miodown = miohttp::server::MyHandler::new(thread_name, addres, 4000, 4000, request_producer, convert);        
+    
+    miodown
 }
 
 
@@ -216,7 +227,7 @@ fn run_api(api_request_consumer: &Receiver<apiRequest>, api_response_producer: &
     let api_request_consumer  = api_request_consumer.clone();
     let api_response_producer = api_response_producer.clone();
 
-    log::spawn("api".to_owned(), move ||{
+    task_async::spawn("api".to_owned(), move ||{
         api::run(api_request_consumer, api_response_producer);
     });
 }
@@ -227,7 +238,7 @@ fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_requ
     let api_request_producer  = api_request_producer.clone();
     let api_response_consumer = api_response_consumer.clone();
 
-    log::spawn("worker".to_owned(), move ||{
+    task_async::spawn("worker".to_owned(), move ||{
 
         enum Out {
             Result1((Request, Task<(Response)>)),
@@ -249,7 +260,7 @@ fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_requ
 
                 Ok(Out::Result2(api::Response::GetFile(result, task))) => {
 
-                    log::debug("Received file data".to_owned());
+                    task_async::log_debug("Received file data".to_owned());
                     task.result(result);
                 },
 

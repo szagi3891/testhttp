@@ -3,16 +3,16 @@ use std::io;
 use mio::{Token, EventLoop, EventSet, PollOpt, Handler, Timeout};
 use mio::tcp::{TcpListener};
 //use mio::util::Slab;                 //TODO - użyć tego modułu zamiast hashmapy
-
+use std::mem;
 use asynchttp::miohttp::response;
-use asynchttp::log;
 use asynchttp::miohttp::connection::{Connection, TimerMode};
 use asynchttp::miohttp::token_gen::TokenGen;
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::respchan::Respchan;
 use asynchttp::miohttp::new_socket::new_socket;
-
-use channels_async::{Sender};
+use asynchttp::miohttp::miodown::MioDown;
+use task_async;
+use channels_async::Sender;
 use std::time::Duration;
 
 
@@ -47,6 +47,7 @@ pub enum Event {
 
 pub enum MioMessage {
     Response(Token, response::Response),
+    Down,
 }
 
 
@@ -57,13 +58,15 @@ impl<Out> Handler for MyHandler<Out> where Out : Send + Sync + 'static {
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler<Out>>, token: Token, events: EventSet) {
 
-        log::debug(format!("miohttp {} -> ready, {:?} (is server = {})", token.as_usize(), events, token == self.token));
+        task_async::log_debug(format!("miohttp {} -> ready, {:?} (is server = {})", token.as_usize(), events, token == self.token));
 
         if token == self.token {
             self.new_connection(event_loop);
         } else {
             self.socket_ready(event_loop, &token, events);
         }
+        
+        self.test_close_mio(event_loop);
     }
 
     fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
@@ -72,45 +75,76 @@ impl<Out> Handler for MyHandler<Out> where Out : Send + Sync + 'static {
             
             MioMessage::Response(token, response) => {
                 self.send_data_to_user(event_loop, token, response);
+            },
+            
+            MioMessage::Down => {
+                
+                match mem::replace(&mut self.server, None) {
+                    
+                    Some(server) => {
+
+                        event_loop.deregister(&server).unwrap();
+                    },
+                    None => {
+                        
+                        panic!("Powielony sygnał wyłączenia event_loop-a");
+                    }
+                };
             }
         };
     }
 
-    fn timeout(&mut self, _: &mut EventLoop<Self>, token: Self::Timeout) {
+    fn timeout(&mut self, event_loop: &mut EventLoop<Self>, token: Self::Timeout) {
         
         self.timeout_trigger(&token);
+        
+        self.test_close_mio(event_loop);
     }
 }
 
 
 impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
-    pub fn new(addres: String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Out>, convert : FnConvert<Out>) {
-        
-        let server = new_socket(addres);
-        
-        let mut tokens = TokenGen::new();
+    pub fn new(thread_name: String, addres: String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Out>, convert : FnConvert<Out>) -> MioDown {
         
         let mut event_loop = EventLoop::new().unwrap();
         
-        let token = tokens.get();
+        let chan_shoutdown = event_loop.channel();
         
-        event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
+        task_async::spawn(thread_name, move ||{
+            
+            let server = new_socket(addres);
 
-        let mut inst = MyHandler::<Out> {
-            token           : token,
-            server          : Some(server),
-            hash            : HashMap::new(),
-            tokens          : tokens,
-            channel         : tx,
-            timeout_reading : timeout_reading,
-            timeout_writing : timeout_writing,
-            convert_request : convert,
-        };
+            let mut tokens = TokenGen::new();
+
+            let token = tokens.get();
+
+            event_loop.register(&server, token, EventSet::readable(), PollOpt::edge()).unwrap();
+
+            let mut inst = MyHandler::<Out> {
+                token           : token,
+                server          : Some(server),
+                hash            : HashMap::new(),
+                tokens          : tokens,
+                channel         : tx,
+                timeout_reading : timeout_reading,
+                timeout_writing : timeout_writing,
+                convert_request : convert,
+            };
+
+            event_loop.run(&mut inst).unwrap();
+        });
         
-        event_loop.run(&mut inst).unwrap();
+        MioDown::new(chan_shoutdown)
     }
-
+    
+    fn test_close_mio(&self, event_loop: &mut EventLoop<MyHandler<Out>>) {
+        
+        if self.server.is_none() && self.hash.len() == 0 {
+            event_loop.shutdown();
+        }
+    }
+    
     fn send_data_to_user(&mut self, event_loop: &mut EventLoop<MyHandler<Out>>, token: Token, response: response::Response) {
 
         match self.get_connection(&token) {
@@ -124,7 +158,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
             None => {
                 
-                log::info(format!("miohttp {} -> send_data_to_user: no socket", token.as_usize()));
+                task_async::log_info(format!("miohttp {} -> send_data_to_user: no socket", token.as_usize()));
             }
         }
     }
@@ -136,12 +170,12 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
             Some((_, _, _)) => {
                 
-                log::debug(format!("miohttp {} -> timeout_trigger ok", token.as_usize()));
+                task_async::log_debug(format!("miohttp {} -> timeout_trigger ok", token.as_usize()));
             }
 
             None => {
                 
-                log::error(format!("miohttp {} -> timeout_trigger error", token.as_usize()));
+                task_async::log_error(format!("miohttp {} -> timeout_trigger error", token.as_usize()));
             }
         }
     }
@@ -157,7 +191,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
             },
             
             &None => {
-                log::info(format!("serwer znajduje się w trybie wyłączania"));
+                task_async::log_info(format!("serwer znajduje się w trybie wyłączania"));
                 Vec::new()
             }
         };
@@ -166,7 +200,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
             
             let token = self.tokens.get();
 
-            log::info(format!("miohttp {} -> new connection, addr = {}", token.as_usize(), addr));
+            task_async::log_info(format!("miohttp {} -> new connection, addr = {}", token.as_usize(), addr));
 
             self.insert_connection(&token, connection, Event::Init, None, event_loop);
         }
@@ -191,7 +225,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
                 Err(err) => {
 
-                    log::error(format!("miohttp {} -> new connection err {}", self.token.as_usize(), err));
+                    task_async::log_error(format!("miohttp {} -> new connection err {}", self.token.as_usize(), err));
                     return list;
                 }
             };
@@ -234,7 +268,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
             None => {
                 
-                log::info(format!("miohttp {} -> socket ready: no socket by token", token.as_usize()));
+                task_async::log_info(format!("miohttp {} -> socket ready: no socket by token", token.as_usize()));
             }
         };
     }
@@ -332,7 +366,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
             match self.set_event(&connection, token, &old_event, &new_event, event_loop) {
                 Ok(str) => str,
                 Err(err) => {
-                    log::error(format!("set_event: {}", err));
+                    task_async::log_error(format!("set_event: {}", err));
                     return;
                 }
             }
@@ -344,18 +378,18 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
         let (new_timer, timer_message) = self.set_timer(token, timeout, connection.get_timer_mode(), event_loop);
         
         
-        log::debug(format!("miohttp {} -> set mode {}, {}, timer {}", token.as_usize(), connection.get_name(), mess_event, timer_message));
+        task_async::log_debug(format!("miohttp {} -> set mode {}, {}, timer {}", token.as_usize(), connection.get_name(), mess_event, timer_message));
         
         self.hash.insert(token.clone(), (connection, new_event, new_timer));
         
-        log::debug(format!("count hasmapy after insert {}", self.hash.len()));
+        task_async::log_debug(format!("count hasmapy after insert {}", self.hash.len()));
     }
     
     fn get_connection(&mut self, token: &Token) -> Option<(Connection, Event, Option<Timeout>)> {
 
         let res = self.hash.remove(&token);
         
-        log::debug(format!("hashmap after decrement {}", self.hash.len()));
+        task_async::log_debug(format!("hashmap after decrement {}", self.hash.len()));
         
         res
     }

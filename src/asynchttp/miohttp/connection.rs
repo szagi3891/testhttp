@@ -4,8 +4,7 @@ use httparse;
 use asynchttp::miohttp::server::{Event};
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::response;
-use asynchttp::log;
-
+use task_async;
 
 enum ConnectionMode {
 
@@ -79,7 +78,7 @@ impl Connection {
 
             _ => {
                 
-                log::error(format!("miohttp {} -> send_data_to_user: incorect state", token.as_usize()));
+                task_async::log_error(format!("miohttp {} -> send_data_to_user: incorect state", token.as_usize()));
                 self
             }
         }
@@ -122,13 +121,13 @@ impl Connection {
         
         if events.is_error() {
             
-            log::error(format!("miohttp {} -> ready error, {:?}", token.as_usize(), events));
+            task_async::log_error(format!("miohttp {} -> ready error, {:?}", token.as_usize(), events));
             return (self.replace_mode(ConnectionMode::Close), None);
         }
         
         if events.is_hup() {
             
-            log::info(format!("miohttp {} -> ready, event hup, {:?}", token.as_usize(), events));
+            task_async::log_info(format!("miohttp {} -> ready, event hup, {:?}", token.as_usize(), events));
             return (self.replace_mode(ConnectionMode::Close), None);
         }
         
@@ -196,7 +195,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
 
                                 Err(err) => {
                                     
-                                    log::error(format!("miohttp {} -> error prepare request, {:?}", token.as_usize(), err));
+                                    task_async::log_error(format!("miohttp {} -> error prepare request, {:?}", token.as_usize(), err));
                                     
                                     let response_400 = response::Response::create_400();
                                     (Connection::make(stream, ConnectionMode::SendingResponse(false, response_400.as_bytes(), 0)), None)
@@ -250,7 +249,7 @@ fn transform_from_waiting_for_user(mut stream: TcpStream, events: EventSet, mut 
 
             Err(err) => {
                 
-                log::error(format!("miohttp {} -> error read from socket, {:?}", token.as_usize(), err));
+                task_async::log_error(format!("miohttp {} -> error read from socket, {:?}", token.as_usize(), err));
                 
                 (Connection::make(stream, (ConnectionMode::ReadingRequest(buf, done))), None)
             }
@@ -291,7 +290,7 @@ fn transform_from_sending_to_user(mut stream: TcpStream, token: &Token, keep_ali
                                                     //eep connection
                         if keep_alive == true {
 
-                            log::debug(format!("miohttp {} -> keep alive", token.as_usize()));
+                            task_async::log_debug(format!("miohttp {} -> keep alive", token.as_usize()));
                             
                             return Connection::make(stream, (ConnectionMode::ReadingRequest([0u8; 2048], 0)));
 
@@ -322,7 +321,7 @@ fn transform_from_sending_to_user(mut stream: TcpStream, token: &Token, keep_ali
 
             Err(err) => {
 
-                log::error(format!("miohttp {} -> error write to socket, {:?}", token.as_usize(), err));
+                task_async::log_error(format!("miohttp {} -> error write to socket, {:?}", token.as_usize(), err));
                 Connection::make(stream, ConnectionMode::SendingResponse(keep_alive, str, done))
             }
         }

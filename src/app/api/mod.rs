@@ -4,9 +4,8 @@ use std::path::Path;
 use std::io;
 
 use channels_async::{Sender, Receiver};
-use asynchttp::log;
 use task_async::Task;
-
+use task_async;
 
 pub type FilesData   = Result<Vec<u8>, io::Error>;
 
@@ -29,7 +28,7 @@ pub fn run(api_request_consumer: Receiver<Request>, api_response_producer: Sende
         let api_request_consumer  = api_request_consumer.clone();
         let api_response_producer = api_response_producer.clone();
         
-        log::spawn("api worker".to_owned(), move ||{
+        task_async::spawn("api worker".to_owned(), move ||{
             worker(api_request_consumer, api_response_producer);
         });
     }
@@ -61,14 +60,14 @@ fn get_file(path_src: String, task: Task<FilesData>, tx_api_response: &Sender<Re
     
     let path = Path::new(&path_src);
 
-    log::debug(format!("Loading file {:?}", path));
+    task_async::log_debug(format!("Loading file {:?}", path));
 
     let response = match fs::metadata(path) {
         Ok(meta) => {
             
             // FIXME: Need to set a limit of max bytes read as na option maybe?
             if meta.len() > 1_000_000 {
-                log::error(format!("File {:?} is too big to serve", path));
+                task_async::log_error(format!("File {:?} is too big to serve", path));
                 Err(io::Error::new(io::ErrorKind::InvalidData, "Static file too big"))
             } else {
                 match File::open(path) {
@@ -79,7 +78,7 @@ fn get_file(path_src: String, task: Task<FilesData>, tx_api_response: &Sender<Re
 
                         match file.read_to_end(&mut file_data) {
                             Ok(_) => {
-                                log::debug(format!("Sending response ({} bytes).", file_data.len()));
+                                task_async::log_debug(format!("Sending response ({} bytes).", file_data.len()));
                                 Ok(file_data)
                             }
                             Err(err) => Err(err),
@@ -94,6 +93,6 @@ fn get_file(path_src: String, task: Task<FilesData>, tx_api_response: &Sender<Re
     };
 
     tx_api_response.send(Response::GetFile(response, task)).unwrap();
-    log::debug(format!("Response sent."));
+    task_async::log_debug(format!("Response sent."));
 }
 
