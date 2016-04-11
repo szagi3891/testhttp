@@ -1,7 +1,7 @@
 [package]
 name = "mio-test"
 version = "0.1.0"
-authors = ["grzegorz"]
+authors = ["szagi3891 <szeligagrzegorz@gmail.com>", "sfisol <sfisol@gmail.com>"]
 
 [dependencies]
 #mio = "0.5.0"

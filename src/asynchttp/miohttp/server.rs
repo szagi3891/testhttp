@@ -5,14 +5,13 @@ use mio::tcp::{TcpListener};
 //use mio::util::Slab;                 //TODO - użyć tego modułu zamiast hashmapy
 use std::mem;
 use asynchttp::miohttp::response;
-use asynchttp::log;
 use asynchttp::miohttp::connection::{Connection, TimerMode};
 use asynchttp::miohttp::token_gen::TokenGen;
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::respchan::Respchan;
 use asynchttp::miohttp::new_socket::new_socket;
 use asynchttp::miohttp::miodown::MioDown;
-
+use task_async;
 use channels_async::Sender;
 use std::time::Duration;
 
@@ -59,7 +58,7 @@ impl<Out> Handler for MyHandler<Out> where Out : Send + Sync + 'static {
 
     fn ready(&mut self, event_loop: &mut EventLoop<MyHandler<Out>>, token: Token, events: EventSet) {
 
-        log::debug(format!("miohttp {} -> ready, {:?} (is server = {})", token.as_usize(), events, token == self.token));
+        task_async::log_debug(format!("miohttp {} -> ready, {:?} (is server = {})", token.as_usize(), events, token == self.token));
 
         if token == self.token {
             self.new_connection(event_loop);
@@ -84,7 +83,7 @@ impl<Out> Handler for MyHandler<Out> where Out : Send + Sync + 'static {
                     
                     Some(server) => {
 
-                        event_loop.deregister(&server);
+                        event_loop.deregister(&server).unwrap();
                     },
                     None => {
                         
@@ -112,7 +111,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
         
         let chan_shoutdown = event_loop.channel();
         
-        log::spawn(thread_name, move ||{
+        task_async::spawn(thread_name, move ||{
             
             let server = new_socket(addres);
 
@@ -142,7 +141,6 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
     fn test_close_mio(&self, event_loop: &mut EventLoop<MyHandler<Out>>) {
         
         if self.server.is_none() && self.hash.len() == 0 {
-            println!("wyłączam mio");
             event_loop.shutdown();
         }
     }
@@ -160,7 +158,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
             None => {
                 
-                log::info(format!("miohttp {} -> send_data_to_user: no socket", token.as_usize()));
+                task_async::log_info(format!("miohttp {} -> send_data_to_user: no socket", token.as_usize()));
             }
         }
     }
@@ -172,12 +170,12 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
             Some((_, _, _)) => {
                 
-                log::debug(format!("miohttp {} -> timeout_trigger ok", token.as_usize()));
+                task_async::log_debug(format!("miohttp {} -> timeout_trigger ok", token.as_usize()));
             }
 
             None => {
                 
-                log::error(format!("miohttp {} -> timeout_trigger error", token.as_usize()));
+                task_async::log_error(format!("miohttp {} -> timeout_trigger error", token.as_usize()));
             }
         }
     }
@@ -193,7 +191,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
             },
             
             &None => {
-                log::info(format!("serwer znajduje się w trybie wyłączania"));
+                task_async::log_info(format!("serwer znajduje się w trybie wyłączania"));
                 Vec::new()
             }
         };
@@ -202,7 +200,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
             
             let token = self.tokens.get();
 
-            log::info(format!("miohttp {} -> new connection, addr = {}", token.as_usize(), addr));
+            task_async::log_info(format!("miohttp {} -> new connection, addr = {}", token.as_usize(), addr));
 
             self.insert_connection(&token, connection, Event::Init, None, event_loop);
         }
@@ -227,7 +225,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
                 Err(err) => {
 
-                    log::error(format!("miohttp {} -> new connection err {}", self.token.as_usize(), err));
+                    task_async::log_error(format!("miohttp {} -> new connection err {}", self.token.as_usize(), err));
                     return list;
                 }
             };
@@ -270,7 +268,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
             None => {
                 
-                log::info(format!("miohttp {} -> socket ready: no socket by token", token.as_usize()));
+                task_async::log_info(format!("miohttp {} -> socket ready: no socket by token", token.as_usize()));
             }
         };
     }
@@ -368,7 +366,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
             match self.set_event(&connection, token, &old_event, &new_event, event_loop) {
                 Ok(str) => str,
                 Err(err) => {
-                    log::error(format!("set_event: {}", err));
+                    task_async::log_error(format!("set_event: {}", err));
                     return;
                 }
             }
@@ -380,18 +378,18 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
         let (new_timer, timer_message) = self.set_timer(token, timeout, connection.get_timer_mode(), event_loop);
         
         
-        log::debug(format!("miohttp {} -> set mode {}, {}, timer {}", token.as_usize(), connection.get_name(), mess_event, timer_message));
+        task_async::log_debug(format!("miohttp {} -> set mode {}, {}, timer {}", token.as_usize(), connection.get_name(), mess_event, timer_message));
         
         self.hash.insert(token.clone(), (connection, new_event, new_timer));
         
-        log::debug(format!("count hasmapy after insert {}", self.hash.len()));
+        task_async::log_debug(format!("count hasmapy after insert {}", self.hash.len()));
     }
     
     fn get_connection(&mut self, token: &Token) -> Option<(Connection, Event, Option<Timeout>)> {
 
         let res = self.hash.remove(&token);
         
-        log::debug(format!("hashmap after decrement {}", self.hash.len()));
+        task_async::log_debug(format!("hashmap after decrement {}", self.hash.len()));
         
         res
     }

@@ -4,7 +4,7 @@ mod worker;
 use std::process;
 use channels_async::{channel, Sender, Receiver, Select};
 use task_async::{TaskManager, Task};
-use asynchttp::{miohttp,log};
+use asynchttp::miohttp;
 use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::response::{self, Response};
 use asynchttp::miohttp::respchan::Respchan;
@@ -14,8 +14,7 @@ use app::api::Response as apiResponse;
 
 use signal_end::signal_end;
 
-use std::thread::sleep;
-use std::time::Duration;
+use task_async;
 
 /*
 
@@ -38,7 +37,7 @@ pub fn run_main() {
     
     let exit_code = run(addres.to_owned());
     
-    log::info(format!("Bye."));
+    task_async::log_info(format!("Bye."));
     
     process::exit(exit_code);
 }
@@ -131,10 +130,10 @@ fn run(addres: String) -> i32 {
     let _       = run_mio(&addres, &request_producer, "2".to_owned());
     
     
-    log::spawn("api".to_owned(), move ||{
+    task_async::spawn("api".to_owned(), move ||{
         
         println!("miodown: będę wyłączał");
-        sleep(Duration::from_millis(5000));
+        task_async::sleep(5000);
         miodown.shoutdown();
         println!("miodown: wyłączyłem");
     });
@@ -156,7 +155,7 @@ fn run(addres: String) -> i32 {
     
     signal_end(Box::new(move || {
 
-        log::debug("Termination signal catched.".to_owned());
+        task_async::log_debug("Termination signal catched.".to_owned());
         
         sigterm_sender.send(()).unwrap();
         
@@ -170,7 +169,7 @@ fn run(addres: String) -> i32 {
         
         let _ = sigterm_receiver.get();
         
-        log::info("Shutting down!".to_owned());
+        task_async::log_info("Shutting down!".to_owned());
         
         shutdown_sender.send(()).unwrap();
         return 0;
@@ -228,7 +227,7 @@ fn run_api(api_request_consumer: &Receiver<apiRequest>, api_response_producer: &
     let api_request_consumer  = api_request_consumer.clone();
     let api_response_producer = api_response_producer.clone();
 
-    log::spawn("api".to_owned(), move ||{
+    task_async::spawn("api".to_owned(), move ||{
         api::run(api_request_consumer, api_response_producer);
     });
 }
@@ -239,7 +238,7 @@ fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_requ
     let api_request_producer  = api_request_producer.clone();
     let api_response_consumer = api_response_consumer.clone();
 
-    log::spawn("worker".to_owned(), move ||{
+    task_async::spawn("worker".to_owned(), move ||{
 
         enum Out {
             Result1((Request, Task<(Response)>)),
@@ -261,7 +260,7 @@ fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_requ
 
                 Ok(Out::Result2(api::Response::GetFile(result, task))) => {
 
-                    log::debug("Received file data".to_owned());
+                    task_async::log_debug("Received file data".to_owned());
                     task.result(result);
                 },
 
