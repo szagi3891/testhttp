@@ -83,3 +83,7 @@ dobra biblioteka do wyciągania informacji o typach
 https://github.com/aldanor/typeinfo
 http://ivansmirnov.io/typeinfo/typeinfo/index.html
 
+
+
+https://github.com/sfackler/rust-postgres
+http://sfackler.github.io/rust-postgres/doc/v0.11.7/postgres/types/trait.ToSql.html
