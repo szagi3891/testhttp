@@ -16,6 +16,8 @@ use signal_end::signal_end;
 
 use task_async;
 
+use std::boxed::FnBox;
+
 /*
 
 https://github.com/carllerche/mio/issues/186
@@ -216,8 +218,13 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>
 
     
     
-    let miodown = miohttp::server::MyHandler::new(thread_name, addres, 4000, 4000, request_producer, convert);        
+    let (miodown, miostart) = miohttp::server::MyHandler::new(addres, 4000, 4000, request_producer, convert);        
     
+    task_async::spawn(thread_name, ||{
+        
+        (miostart as Box<FnBox()>)();
+    });
+        
     miodown
 }
 
