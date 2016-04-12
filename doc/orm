@@ -4,3 +4,82 @@ https://github.com/deuterium-orm/deuterium-orm
 https://github.com/rust-lang/crates.io/blob/master/src/model.rs
 
 https://news.ycombinator.com/item?id=7810053
+
+
+
+                        //http://is.gd/E2GaBu
+fn main() {
+    use std::mem;
+    
+    #[derive(Debug)]
+    struct test {
+        field1 : u8,
+        field2 : u8
+    }
+    
+    let zm = test {
+        field1 : 3,
+        field2 : 5
+    };
+    
+    println!("test1 {:?}", zm);
+    
+    let mut array: [u8;2] = unsafe { mem::transmute(zm) };
+    println!("test2 {:?}", array);
+    array[1] = 42;
+    
+    let zm2 : test = unsafe { mem::transmute(array) };
+    
+    println!("test3 {:?}", zm2);
+}
+
+
+
+
+                refleksja konkretnego typu
+
+use type_info::{TypeInfo, TypeInfoFor, GetTypeInfo};
+use phf;
+
+macro_rules! reflection_for {
+  ($ty:ty, $name:expr) => {
+    impl GetTypeInfo for $ty {
+      fn get_type_info(_: Option<$ty>) -> TypeInfoFor<$ty> {
+        static TYPE_INFO: TypeInfo = TypeInfo {
+          name: $name,
+          attributes: &phf_map!()
+        };
+        TypeInfoFor(&TYPE_INFO)
+      }
+    }
+  }
+}
+
+reflection_for!(i8, "i8");
+reflection_for!(i16, "i16");
+reflection_for!(i32, "i32");
+reflection_for!(i64, "i64");
+reflection_for!(u8, "u8");
+reflection_for!(u16, "u16");
+reflection_for!(u32, "u32");
+reflection_for!(u64, "u64");
+
+reflection_for!(char, "char");
+reflection_for!(String, "String");
+
+reflection_for!(f32, "f32");
+reflection_for!(f64, "f64");
+
+
+
+https://doc.rust-lang.org/std/any/
+https://doc.rust-lang.org/std/any/struct.TypeId.html
+https://doc.rust-lang.org/std/any/trait.Any.html
+
+
+
+dobra biblioteka do wyciągania informacji o typach
+
+https://github.com/aldanor/typeinfo
+http://ivansmirnov.io/typeinfo/typeinfo/index.html
+
