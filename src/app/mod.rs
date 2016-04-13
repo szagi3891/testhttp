@@ -4,17 +4,14 @@ mod worker;
 use std::process;
 use channels_async::{channel, Sender, Receiver, Select};
 use task_async::{TaskManager, Task};
-use asynchttp::miohttp;
-use asynchttp::miohttp::request::Request;
-use asynchttp::miohttp::response::{self, Response};
-use asynchttp::miohttp::respchan::Respchan;
-use asynchttp::miohttp::miodown::MioDown;
+use miohttp::{new_server, Request, Response, Respchan, MioDown};
 use app::api::Request  as apiRequest;
 use app::api::Response as apiResponse;
 
 use signal_end::signal_end;
 
 use task_async;
+
 
 /*
 
@@ -205,7 +202,7 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>
 
                 None => {
                                                             //coś poszło nie tak z obsługą tego requestu
-                    respchan.send(response::Response::create_500());
+                    respchan.send(Response::create_500());
                 }
             };
 
@@ -216,7 +213,7 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>
 
     
     
-    let (miodown, miostart) = miohttp::server::MyHandler::new(addres, 4000, 4000, request_producer, convert);        
+    let (miodown, miostart) = new_server(addres, 4000, 4000, request_producer, convert);        
     
     task_async::spawn(thread_name, ||{
         

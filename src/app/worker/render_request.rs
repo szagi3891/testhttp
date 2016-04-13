@@ -2,14 +2,13 @@ use std::io;
 use std::path::Path;
 use channels_async::Sender;
 
-use asynchttp::miohttp::{request, response};
-use asynchttp::miohttp::response::Response;
+use miohttp::{Request, Response, Type, Code};
 use app::api;
 use task_async::Task;
 use task_async;
 
 
-pub fn render_request(request: request::Request, task: Task<(Response)>, api_request_producer: &Sender<api::Request>) {
+pub fn render_request(request: Request, task: Task<(Response)>, api_request_producer: &Sender<api::Request>) {
     
     
     let path_src = "./static".to_owned() + request.path().trim();
@@ -33,11 +32,11 @@ pub fn render_request(request: request::Request, task: Task<(Response)>, api_req
                         let buffer = buffer.to_owned();
 
                         let path         = Path::new(&path_src);
-                        let content_type = response::Type::create_from_path(&path);
+                        let content_type = Type::create_from_path(&path);
 
                         task_async::log_info(format!("200, {}, {}", content_type, request.path()));
                         
-                        let response = response::Response::create_from_buf(response::Code::Code200, content_type, buffer);
+                        let response = Response::create_from_buf(Code::Code200, content_type, buffer);
 
                         task.result(response)
                     }
@@ -49,8 +48,8 @@ pub fn render_request(request: request::Request, task: Task<(Response)>, api_req
                             io::ErrorKind::NotFound => {
 
                                 let mess     = "Not found".to_owned();
-                                let response = response::Response::create(response::Code::Code404, response::Type::TextHtml, mess.clone());
-                                task_async::log_debug(format!("404, {}, {}. {:?} ", response::Type::TextHtml, request.path(), err));
+                                let response = Response::create(Code::Code404, Type::TextHtml, mess.clone());
+                                task_async::log_debug(format!("404, {}, {}. {:?} ", Type::TextHtml, request.path(), err));
 
                                 task.result(response)
                             }
