@@ -3,7 +3,7 @@ use std::path::Path;
 use channels_async::Sender;
 
 use miohttp::{Request, Response, Type, Code};
-use app::api;
+use api;
 use task_async::Task;
 use task_async;
 
