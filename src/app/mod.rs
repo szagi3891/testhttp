@@ -16,8 +16,6 @@ use signal_end::signal_end;
 
 use task_async;
 
-use std::boxed::FnBox;
-
 /*
 
 https://github.com/carllerche/mio/issues/186
@@ -222,7 +220,7 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>
     
     task_async::spawn(thread_name, ||{
         
-        (miostart as Box<FnBox()>)();
+        miostart.exec();
     });
         
     miodown

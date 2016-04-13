@@ -11,10 +11,9 @@ use asynchttp::miohttp::request::Request;
 use asynchttp::miohttp::respchan::Respchan;
 use asynchttp::miohttp::new_socket::new_socket;
 use asynchttp::miohttp::miodown::MioDown;
-use task_async;
+use task_async::{self, callback0};
 use channels_async::Sender;
 use std::time::Duration;
-use std::boxed::FnBox;
 
 
 
@@ -105,13 +104,13 @@ impl<Out> Handler for MyHandler<Out> where Out : Send + Sync + 'static {
 
 impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
 
-    pub fn new(addres: String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Out>, convert : FnConvert<Out>) -> (MioDown, Box<FnBox() + Send + Sync + 'static>) {
+    pub fn new(addres: String, timeout_reading: u64, timeout_writing:u64, tx: Sender<Out>, convert : FnConvert<Out>) -> (MioDown, callback0::CallbackBox) {
         
         let mut event_loop = EventLoop::new().unwrap();
         
         let chan_shoutdown = event_loop.channel();
         
-        let fn_start = Box::new(move ||{
+        let fn_start = callback0::new(Box::new(move ||{
             
             let server = new_socket(addres);
 
@@ -133,7 +132,7 @@ impl<Out> MyHandler<Out> where Out : Send + Sync + 'static {
             };
 
             event_loop.run(&mut inst).unwrap();
-        });
+        }));
         
         (MioDown::new(chan_shoutdown), fn_start)
     }

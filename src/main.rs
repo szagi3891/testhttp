@@ -1,6 +1,5 @@
 //#![feature(plugin)]
 //#![plugin(clippy)]
-#![feature(fnbox)]
 
 extern crate mio;                   //miohttp
 extern crate httparse;              //miohttp
