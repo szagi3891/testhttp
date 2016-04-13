@@ -19,5 +19,5 @@ git = "https://github.com/szagi3891/channels_async-rs"
 git = "https://github.com/szagi3891/task_async-rs"
 
 [dependencies.miohttp]
-#git = "https://github.com/szagi3891/miohttp-rs"
-path = "../miohttp-rs"
+git = "https://github.com/szagi3891/miohttp-rs"
+#path = "../miohttp-rs"
