@@ -4,7 +4,7 @@ version = "0.1.0"
 dependencies = [
  "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
  "ctrlc 1.1.1 (git+https://github.com/Detegr/rust-ctrlc)",
- "miohttp 0.1.0",
+ "miohttp 0.1.0 (git+https://github.com/szagi3891/miohttp-rs)",
  "task_async 0.1.0 (git+https://github.com/szagi3891/task_async-rs)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -87,6 +87,7 @@ dependencies = [
 [[package]]
 name = "miohttp"
 version = "0.1.0"
+source = "git+https://github.com/szagi3891/miohttp-rs#fddf7e29b158edcf9cad8d182da609045374990d"
 dependencies = [
  "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
