@@ -14,10 +14,9 @@ mod signal_end;
 
 use std::process;
 use channels_async::{channel, Sender, Receiver, Select};
-use task_async::Task;
+use task_async::{Task, callback0};
 use miohttp::{new_server, Request, Response, Respchan, MioDown};
-use api::Request  as apiRequest;
-use api::Response as apiResponse;
+use api::Request as apiRequest;                                        //TODO - To powinna być struktura ukryta przed światem zewnętrznym
 
 use signal_end::signal_end;
 
@@ -50,18 +49,6 @@ https://github.com/tailhook/rotor-http/blob/master/examples/threaded_reuse_port.
 
 */
 
-fn main() {
-    
-    let addres = "0.0.0.0:2222";
-    
-    println!("server running - {}", &addres);
-    
-    let exit_code = run(addres.to_owned());
-    
-    task_async::log_info(format!("Bye."));
-    
-    process::exit(exit_code);
-}
 
 
 /*
@@ -140,6 +127,35 @@ runApp() {
     
 
 
+/*
+
+let _       = run_mio(&addres, &request_producer);
+    
+    task_async::spawn("api".to_owned(), move ||{
+        
+        println!("miodown: będę wyłączał");
+        task_async::sleep(5000);
+        miodown.shoutdown();
+        println!("miodown: wyłączyłem");
+    });    
+*/
+
+
+
+fn main() {
+    
+    let addres = "0.0.0.0:2222";
+    
+    println!("server running - {}", &addres);
+    
+    let exit_code = run(addres.to_owned());
+    
+    task_async::log_info(format!("Bye."));
+    
+    process::exit(exit_code);
+}
+
+
 
 fn run(addres: String) -> i32 {
     
@@ -147,18 +163,19 @@ fn run(addres: String) -> i32 {
     
     let (request_producer, request_consumer) = channel();
     let (api_request_producer , api_request_consumer)  = channel();
-    let (api_response_producer, api_response_consumer) = channel();         //wylatuje ...
+    
+    let (worker_job_producer, worker_job_consumer) = channel();
     
     
     
     let miodown = run_mio(&addres, &request_producer);
     
     
-    run_api(&api_request_consumer, &api_response_producer);
+    run_api(&api_request_consumer, &worker_job_producer);
     
     
     for _ in 0..4 {
-        run_worker(&request_consumer, &api_request_producer, &api_response_consumer);
+        run_worker(&request_consumer, &api_request_producer, &worker_job_consumer);
     }
     
     
@@ -240,33 +257,33 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>
 }
 
 
-fn run_api(api_request_consumer: &Receiver<apiRequest>, api_response_producer: &Sender<apiResponse>) {
+fn run_api(api_request_consumer: &Receiver<apiRequest>, worker_job_producer: &Sender<callback0::CallbackBox>) {
     
-    let api_request_consumer  = api_request_consumer.clone();
-    let api_response_producer = api_response_producer.clone();
+    let api_request_consumer = api_request_consumer.clone();
+    let worker_job_producer  = worker_job_producer.clone();
     
     task_async::spawn("api".to_owned(), move ||{
-        api::run(api_request_consumer, api_response_producer);
+        api::run(api_request_consumer, worker_job_producer);
     });
 }
 
-fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_request_producer: &Sender<apiRequest>, api_response_consumer: &Receiver<apiResponse>) {
+fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_request_producer: &Sender<apiRequest>, worker_job_consumer: &Receiver<callback0::CallbackBox>) {
     
-    let request_consumer      = request_consumer.clone();
-    let api_request_producer  = api_request_producer.clone();
-    let api_response_consumer = api_response_consumer.clone();
-
+    let request_consumer     = request_consumer.clone();
+    let api_request_producer = api_request_producer.clone();
+    let worker_job_consumer  = worker_job_consumer.clone();
+    
     task_async::spawn("worker".to_owned(), move ||{
 
         enum Out {
             Result1((Request, Task<(Response)>)),
-            Result2(apiResponse),
+            Result2(callback0::CallbackBox),
         }
 
         let select: Select<Out> = Select::new();
 
-        select.add(request_consumer     , Box::new(Out::Result1));
-        select.add(api_response_consumer, Box::new(Out::Result2));
+        select.add(request_consumer   , Box::new(Out::Result1));
+        select.add(worker_job_consumer, Box::new(Out::Result2));
 
         loop {
             match select.get() {
@@ -276,10 +293,9 @@ fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_requ
                     worker::render_request(request, task, &api_request_producer);
                 },
                 
-                Ok(Out::Result2(api::Response::GetFile(result, task))) => {
-
-                    task_async::log_debug("Received file data".to_owned());
-                    task.result(result);
+                Ok(Out::Result2(job)) => {
+                    
+                    job.exec();
                 },
 
                 Err(_) => {
@@ -291,19 +307,5 @@ fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_requ
         }
     });
 }
-
-
-/*
-
-let _       = run_mio(&addres, &request_producer);
-    
-    task_async::spawn("api".to_owned(), move ||{
-        
-        println!("miodown: będę wyłączał");
-        task_async::sleep(5000);
-        miodown.shoutdown();
-        println!("miodown: wyłączyłem");
-    });    
-*/
 
 

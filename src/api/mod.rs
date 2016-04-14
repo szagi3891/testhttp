@@ -4,7 +4,7 @@ use std::path::Path;
 use std::io;
 
 use channels_async::{Sender, Receiver};
-use task_async::Task;
+use task_async::{Task, callback0};
 use task_async;
 
 pub type FilesData   = Result<Vec<u8>, io::Error>;
@@ -15,36 +15,33 @@ pub enum Request {
     GetFile(String, Task<FilesData>),        //get file content
 }
 
-pub enum Response {
-    GetFile(FilesData, Task<FilesData>),     //get file content
-}
 
 
-
-pub fn run(api_request_consumer: Receiver<Request>, api_response_producer: Sender<Response>) {
+pub fn run(api_request_consumer: Receiver<Request>, worker_job_producer: Sender<callback0::CallbackBox>) {
 
     for _ in 0..5 {
         
-        let api_request_consumer  = api_request_consumer.clone();
-        let api_response_producer = api_response_producer.clone();
+        let api_request_consumer = api_request_consumer.clone();
+        let worker_job_producer  = worker_job_producer.clone();
         
         task_async::spawn("api worker".to_owned(), move ||{
-            worker(api_request_consumer, api_response_producer);
+            worker(api_request_consumer, worker_job_producer);
         });
     }
 
     //TODO - dodać monitoring działania workerów
 }
 
-fn worker(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) {
+
+fn worker(api_request_consumer: Receiver<Request>, worker_job_producer: Sender<callback0::CallbackBox>) {
 
     loop {
         
-        match rx_api_request.get() {
+        match api_request_consumer.get() {
 
-            Ok(Request::GetFile(path_src, callback)) => {
+            Ok(Request::GetFile(path_src, task)) => {
                 
-                get_file(path_src, callback, &tx_api_response);
+                get_file(path_src, task, &worker_job_producer);
             }
             Err(_) => {
                 
@@ -56,12 +53,12 @@ fn worker(rx_api_request: Receiver<Request>, tx_api_response: Sender<Response>) 
 }
 
 
-fn get_file(path_src: String, task: Task<FilesData>, tx_api_response: &Sender<Response>) {
+fn get_file(path_src: String, task: Task<FilesData>, worker_job_producer: &Sender<callback0::CallbackBox>) {
     
     let path = Path::new(&path_src);
 
     task_async::log_debug(format!("Loading file {:?}", path));
-
+    
     let response = match fs::metadata(path) {
         Ok(meta) => {
             
@@ -91,8 +88,11 @@ fn get_file(path_src: String, task: Task<FilesData>, tx_api_response: &Sender<Re
         }
         Err(err) => Err(err), 
     };
-
-    tx_api_response.send(Response::GetFile(response, task)).unwrap();
-    task_async::log_debug(format!("Response sent."));
+    
+    let job = callback0::new(Box::new(move||{
+        task.result(response)
+    }));
+    
+    worker_job_producer.send(job).unwrap();
 }
 
