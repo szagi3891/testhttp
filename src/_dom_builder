@@ -1,0 +1,18 @@
+
+/*
+    html builder
+    
+    let div = create("div");
+    
+    create<String>
+    create<&str>
+    create<&str 'static>
+    
+    spróbować zaimplementować funkcję dla kilku typów
+    
+    domElement
+        .set("alt", "costam")
+        .create("div")
+    
+*/
+
