@@ -1,4 +1,12 @@
 
+run mio
+    przekazujemy jako paramet, callback, który zostanie uruchomiony gdy się mio wyłączy całkowicie
+    
+do api poszczególnych, też przekazujemy callbacka
+    zostanie on wywołany w momencie gdy poszczególne api się całkowicie wyłączą
+
+
+
 /*
     worker::render_request(Request, task<Response>, &api_request_producer) {
         

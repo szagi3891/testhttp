@@ -14,7 +14,7 @@ mod signal_end;
 
 use std::process;
 use channels_async::{channel, Sender, Receiver, Select};
-use task_async::{TaskManager, Task};
+use task_async::Task;
 use miohttp::{new_server, Request, Response, Respchan, MioDown};
 use api::Request  as apiRequest;
 use api::Response as apiResponse;
@@ -175,7 +175,7 @@ fn run(addres: String) -> i32 {
     let (shutdown_sender, shutdown_receiver) = channel();
     
     signal_end(Box::new(move || {
-
+        
         task_async::log_debug("Termination signal catched.".to_owned());
         
         sigterm_sender.send(()).unwrap();
@@ -205,17 +205,10 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>
     
     let thread_name = format!("<EventLoop {}>", sufix);
     
-                    //grupa tasków
-    let task_manager = TaskManager::new(Box::new(move||{
-
-        println!("grupa tasków zakończyłą zadanie");
-        //down_producer.send(()).unwrap();
-    }));
-    
     
     let convert = Box::new(move|(req, respchan): (Request, Respchan)| -> (Request, Task<(Response)>) {
 
-        let task = task_manager.task(Box::new(move|result : Option<(Response)>|{
+        let task = Task::new(Box::new(move|result : Option<(Response)>|{
 
             match result {
 
@@ -238,6 +231,16 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>
     
     
     let (miodown, miostart) = new_server(addres, 4000, 4000, request_producer, convert);        
+    
+    
+    /*
+    Box::new(move||{
+        
+        println!("grupa tasków zakończyłą zadanie");
+        //down_producer.send(()).unwrap();
+    })
+    */
+    
     
     task_async::spawn(thread_name, ||{
         
