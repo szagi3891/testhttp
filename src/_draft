@@ -1,0 +1,108 @@
+
+/*
+    worker::render_request(Request, task<Response>, &api_request_producer) {
+        
+        let task1 = task.async(Box::new(move|Option<String>|{
+            
+            //konstrukcja kodu odpowiedzi
+            //konstrukcja mime ...
+            
+            //przetwarzaj odpowiedź
+            //wynikowy response
+            task.result(ResponseOut);
+        }));
+        
+                        //wysłanie żądania pobrania pliku do api
+        api_request_producer.send(RequestApi::GetFile(plik, task1.get_callback()));
+    }
+    
+    task1.get_callback()
+        trzeba zaimplementować metodę (zamozjadającą siebie) która konwertuje task do callbacka ...
+        
+    get_callback - na razie będzie działał tak, że produkuje nowego clousera który odpalony
+    wywoła funkcję result struktury task ...
+*/
+
+/*
+    request do api, powinien zawierać namiar na kanał z odpowiedzią na którą ma zostać odesłana odpowiedź
+    
+    api_plikowe     - wątek
+    api_bazy_danych - wątek
+    
+    api_stanu       - wątek
+    
+    
+    api musi operować wyłącznie na callbackach
+        wszystkie api mają zwrotny kanał Box<FnBox()>
+        więc wszystkie api wysyłają odpowiedzi na jeden kanał
+    
+    
+    task
+    
+    api.get(32, Box::new(move|Option<String>|{
+        
+        match res {
+            Some(dane) => {
+                task.result(Response);
+            }
+        }
+    }));
+*/
+    
+/*  
+    obiekt zbiorczego api
+    
+    api struct {
+        file_api : file_api,
+        site_state : site_state,        namiar na kanał file_api...
+    }
+    
+    api.getPage(id, task) {
+        
+        api_file::get(self.api_file, move|content|{
+            
+            //konstruuj obiekt odpowiedzi
+            task.result(Response);
+        })
+    }
+    
+    api.getDir(page, taks) {
+        
+        api_file::get_dir_list(self.api_file, move|lista|{
+            
+            //konstruuj obiekt odpowiedz
+            task.response(Response);
+        })
+    })
+    
+    api.getMainPage(task) {
+        
+        let (task1, task2) = task.async2(Box::new(move|task, result1, result2|{
+            
+            //przetwarzaj
+            task.result(Response)
+        }))
+        
+        api_file::get(self.api_file, path1, task1.callback());
+        
+        api_file::get(self.api_file, path2, task2.callback());
+    });
+*/
+
+/*
+    api {
+        api_file            - wątek
+        api_db              - wątek
+        api_app_state       - wątek
+    }
+
+    render::request(request, api, task<Response>)
+        -> ...
+        
+    render::page(request, api, task<Response>)
+        -> ...
+    
+    zbiór statycznych metod ...
+    aż do osiągnięcia odpowiedniego stopnia złożoności i działającej strony ...
+*/
+    
