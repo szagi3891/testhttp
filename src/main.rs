@@ -124,16 +124,9 @@ runApp() {
 */
 
 
-
-fn run(addres: String) -> i32 {
-    
-    //TODO - kanały grupa ...
-    
-    let (request_producer, request_consumer) = channel();
-    
     
     /*
-    Counter - ilość działąjących mio,
+    Counter - ilość działąjących mio,                   --> ilość działających wątków
     
     let count = Counter::new(||{
         //liczba mio spadła do zera
@@ -145,23 +138,21 @@ fn run(addres: String) -> i32 {
     
     */
     
+
+
+
+fn run(addres: String) -> i32 {
     
+    //TODO - kanały grupa ...
     
-    let miodown = run_mio(&addres, &request_producer, "1".to_owned());
-    let _       = run_mio(&addres, &request_producer, "2".to_owned());
-    
-    
-    task_async::spawn("api".to_owned(), move ||{
-        
-        println!("miodown: będę wyłączał");
-        task_async::sleep(5000);
-        miodown.shoutdown();
-        println!("miodown: wyłączyłem");
-    });
-    
-    
+    let (request_producer, request_consumer) = channel();
     let (api_request_producer , api_request_consumer)  = channel();
-    let (api_response_producer, api_response_consumer) = channel();
+    let (api_response_producer, api_response_consumer) = channel();         //wylatuje ...
+    
+    
+    
+    let miodown = run_mio(&addres, &request_producer);
+    
     
     run_api(&api_request_consumer, &api_response_producer);
     
@@ -171,18 +162,8 @@ fn run(addres: String) -> i32 {
     }
     
     
-    let (sigterm_sender , sigterm_receiver ) = channel();
-    let (shutdown_sender, shutdown_receiver) = channel();
+    let sigterm_receiver = install_signal_end();
     
-    signal_end(Box::new(move || {
-        
-        task_async::log_debug("Termination signal catched.".to_owned());
-        
-        sigterm_sender.send(()).unwrap();
-        
-        // oczekuj na zakończenie procedury wyłączania
-        let _ = shutdown_receiver.get();
-    }));
     
     
     // główna pętla sterująca podwątkami
@@ -190,20 +171,29 @@ fn run(addres: String) -> i32 {
         
         let _ = sigterm_receiver.get();
         
-        task_async::log_info("Shutting down!".to_owned());
-        
-        shutdown_sender.send(()).unwrap();
         return 0;
     }
 }
 
 
-fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>)>, sufix: String) -> MioDown {
+fn install_signal_end() -> Receiver<()> {
+    
+    let (sigterm_sender , sigterm_receiver ) = channel();
+    
+    signal_end(Box::new(move || {
+        
+        sigterm_sender.send(()).unwrap();
+    }));
+    
+    sigterm_receiver
+}
+
+
+fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>)>) -> MioDown {
+    
     
     let addres           = addres.clone();
     let request_producer = request_producer.clone();
-    
-    let thread_name = format!("<EventLoop {}>", sufix);
     
     
     let convert = Box::new(move|(req, respchan): (Request, Respchan)| -> (Request, Task<(Response)>) {
@@ -227,7 +217,6 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>
 
         (req, task) 
     });
-
     
     
     let (miodown, miostart) = new_server(addres, 4000, 4000, request_producer, convert);        
@@ -242,7 +231,7 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>
     */
     
     
-    task_async::spawn(thread_name, ||{
+    task_async::spawn("<EventLoop>".to_owned(), ||{
         
         miostart.exec();
     });
@@ -255,7 +244,7 @@ fn run_api(api_request_consumer: &Receiver<apiRequest>, api_response_producer: &
     
     let api_request_consumer  = api_request_consumer.clone();
     let api_response_producer = api_response_producer.clone();
-
+    
     task_async::spawn("api".to_owned(), move ||{
         api::run(api_request_consumer, api_response_producer);
     });
@@ -286,7 +275,7 @@ fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_requ
 
                     worker::render_request(request, task, &api_request_producer);
                 },
-
+                
                 Ok(Out::Result2(api::Response::GetFile(result, task))) => {
 
                     task_async::log_debug("Received file data".to_owned());
@@ -302,4 +291,19 @@ fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_requ
         }
     });
 }
+
+
+/*
+
+let _       = run_mio(&addres, &request_producer);
+    
+    task_async::spawn("api".to_owned(), move ||{
+        
+        println!("miodown: będę wyłączał");
+        task_async::sleep(5000);
+        miodown.shoutdown();
+        println!("miodown: wyłączyłem");
+    });    
+*/
+
 
