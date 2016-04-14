@@ -206,37 +206,14 @@ fn install_signal_end() -> Receiver<()> {
 }
 
 
-fn run_mio(addres: &String, request_producer: &Sender<(Request, Task<(Response)>)>) -> MioDown {
+fn run_mio(addres: &String, request_producer: &Sender<(Request, Respchan)>) -> MioDown {
     
     
     let addres           = addres.clone();
     let request_producer = request_producer.clone();
     
     
-    let convert = Box::new(move|(req, respchan): (Request, Respchan)| -> (Request, Task<(Response)>) {
-
-        let task = Task::new(Box::new(move|result : Option<(Response)>|{
-
-            match result {
-
-                Some(resp) => {
-
-                    respchan.send(resp);
-                },
-
-                None => {
-                                                            //coś poszło nie tak z obsługą tego requestu
-                    respchan.send(Response::create_500());
-                }
-            };
-
-        }));
-
-        (req, task) 
-    });
-    
-    
-    let (miodown, miostart) = new_server(addres, 4000, 4000, request_producer, convert);        
+    let (miodown, miostart) = new_server(addres, 4000, 4000, request_producer);        
     
     
     /*
@@ -267,7 +244,7 @@ fn run_api(api_request_consumer: &Receiver<apiRequest>, worker_job_producer: &Se
     });
 }
 
-fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_request_producer: &Sender<apiRequest>, worker_job_consumer: &Receiver<callback0::CallbackBox>) {
+fn run_worker(request_consumer: &Receiver<(Request, Respchan)>, api_request_producer: &Sender<apiRequest>, worker_job_consumer: &Receiver<callback0::CallbackBox>) {
     
     let request_consumer     = request_consumer.clone();
     let api_request_producer = api_request_producer.clone();
@@ -276,7 +253,7 @@ fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_requ
     task_async::spawn("worker".to_owned(), move ||{
 
         enum Out {
-            Result1((Request, Task<(Response)>)),
+            Result1((Request, Respchan)),
             Result2(callback0::CallbackBox),
         }
 
@@ -288,9 +265,26 @@ fn run_worker(request_consumer: &Receiver<(Request, Task<(Response)>)>, api_requ
         loop {
             match select.get() {
 
-                Ok(Out::Result1((request, task))) => {
+                Ok(Out::Result1((request, respchan))) => {
+                    
+                                                                                        //task gwarantuje drop-a
+                    let task = Task::new(Box::new(move|result : Option<(Response)>|{
+                        
+                        match result {
 
-                    worker::render_request(request, task, &api_request_producer);
+                            Some(resp) => {
+                                
+                                respchan.send(resp);
+                            },
+
+                            None => {
+                                                                        //coś poszło nie tak z obsługą tego requestu
+                                respchan.send(Response::create_500());
+                            }
+                        };
+                    }));
+                    
+                    worker::render_request(&api_request_producer, request, task);
                 },
                 
                 Ok(Out::Result2(job)) => {

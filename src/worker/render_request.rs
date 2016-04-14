@@ -8,7 +8,7 @@ use task_async::Task;
 use task_async;
 
 
-pub fn render_request(request: Request, task: Task<(Response)>, api_request_producer: &Sender<api::Request>) {
+pub fn render_request(api_request_producer: &Sender<api::Request>, request: Request, task: Task<(Response)>) {
     
     
     let path_src = "./static".to_owned() + request.path().trim();

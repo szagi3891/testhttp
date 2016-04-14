@@ -87,7 +87,7 @@ dependencies = [
 [[package]]
 name = "miohttp"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/miohttp-rs#fddf7e29b158edcf9cad8d182da609045374990d"
+source = "git+https://github.com/szagi3891/miohttp-rs#d62c707f78e101d7aff676df43b6c53df585e9e8"
 dependencies = [
  "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
