@@ -1,14 +1,12 @@
 use std::io;
 use std::path::Path;
-use channels_async::Sender;
 
 use miohttp::{Request, Response, Type, Code};
-use api;
-use task_async::Task;
-use task_async;
+use api_file::{self, Api as Api_file};
+use task_async::{self, Task};
 
 
-pub fn render_request(api_request_producer: &Sender<api::Request>, request: Request, task: Task<(Response)>) {
+pub fn render_request(api_file: &Api_file, request: Request, task: Task<(Response)>) {
     
     
     let path_src = "./static".to_owned() + request.path().trim();
@@ -18,7 +16,7 @@ pub fn render_request(api_request_producer: &Sender<api::Request>, request: Requ
     
     let path = path_src.clone();
     
-    let task_get_file = task.async1(Box::new(move|task: Task<(Response)>, response: Option<api::FilesData>|{
+    let task_get_file = task.async1(Box::new(move|task: Task<(Response)>, response: Option<api_file::FilesData>|{
         
         task_async::log_debug(format!("Invoked request's callback in response"));
         
@@ -69,5 +67,6 @@ pub fn render_request(api_request_producer: &Sender<api::Request>, request: Requ
         }
     }));
     
-    api_request_producer.send(api::Request::GetFile(path, task_get_file)).unwrap();
+    
+    api_file.get_file(path, task_get_file);
 }

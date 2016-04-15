@@ -8,15 +8,17 @@ extern crate task_async;
 extern crate ctrlc;
 extern crate miohttp;
 
-mod api;
-mod worker;
 mod signal_end;
+mod api_file;
+
+mod worker;
+
 
 use std::process;
 use channels_async::{channel, Sender, Receiver, Select};
 use task_async::{Task, callback0};
 use miohttp::{new_server, Request, Response, Respchan, MioDown};
-use api::Request as apiRequest;                                        //TODO - To powinna być struktura ukryta przed światem zewnętrznym
+use api_file::{Api as Api_file, Request as apiRequest};
 
 use signal_end::signal_end;
 
@@ -171,11 +173,12 @@ fn run(addres: String) -> i32 {
     let miodown = run_mio(&addres, &request_producer);
     
     
-    run_api(&api_request_consumer, &worker_job_producer);
+    let api_file = run_api(&api_request_producer, &api_request_consumer, &worker_job_producer);
     
     
     for _ in 0..4 {
-        run_worker(&request_consumer, &api_request_producer, &worker_job_consumer);
+        
+        run_worker(&request_consumer, &api_file, &worker_job_consumer);
     }
     
     
@@ -234,20 +237,26 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Respchan)>) -> M
 }
 
 
-fn run_api(api_request_consumer: &Receiver<apiRequest>, worker_job_producer: &Sender<callback0::CallbackBox>) {
+fn run_api(api_request_producer: &Sender<apiRequest>, api_request_consumer: &Receiver<apiRequest>, worker_job_producer: &Sender<callback0::CallbackBox>) -> api_file::Api {
     
+    let api_request_producer = api_request_producer.clone();
     let api_request_consumer = api_request_consumer.clone();
     let worker_job_producer  = worker_job_producer.clone();
     
+    let (api, start_api) = api_file::run(api_request_producer, api_request_consumer, worker_job_producer);
+    
     task_async::spawn("api".to_owned(), move ||{
-        api::run(api_request_consumer, worker_job_producer);
+        start_api.exec();
     });
+    
+    api
 }
 
-fn run_worker(request_consumer: &Receiver<(Request, Respchan)>, api_request_producer: &Sender<apiRequest>, worker_job_consumer: &Receiver<callback0::CallbackBox>) {
+
+fn run_worker(request_consumer: &Receiver<(Request, Respchan)>, api_file: &Api_file, worker_job_consumer: &Receiver<callback0::CallbackBox>) {
     
     let request_consumer     = request_consumer.clone();
-    let api_request_producer = api_request_producer.clone();
+    let api_file             = api_file.clone();
     let worker_job_consumer  = worker_job_consumer.clone();
     
     task_async::spawn("worker".to_owned(), move ||{
@@ -256,7 +265,7 @@ fn run_worker(request_consumer: &Receiver<(Request, Respchan)>, api_request_prod
             Result1((Request, Respchan)),
             Result2(callback0::CallbackBox),
         }
-
+        
         let select: Select<Out> = Select::new();
 
         select.add(request_consumer   , Box::new(Out::Result1));
@@ -284,7 +293,7 @@ fn run_worker(request_consumer: &Receiver<(Request, Respchan)>, api_request_prod
                         };
                     }));
                     
-                    worker::render_request(&api_request_producer, request, task);
+                    worker::render_request(&api_file, request, task);
                 },
                 
                 Ok(Out::Result2(job)) => {

@@ -3,57 +3,13 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::io;
 
-use channels_async::{Sender, Receiver};
-use task_async::{Task, callback0};
-use task_async;
-
-pub type FilesData   = Result<Vec<u8>, io::Error>;
-
-//TODO - odwrócić kolejność, najpierw task
-
-pub enum Request {
-    GetFile(String, Task<FilesData>),        //get file content
-}
+use channels_async::{Sender};
+use api_file::{FilesData};
+use task_async::{self, Task, callback0};
 
 
 
-pub fn run(api_request_consumer: Receiver<Request>, worker_job_producer: Sender<callback0::CallbackBox>) {
-
-    for _ in 0..5 {
-        
-        let api_request_consumer = api_request_consumer.clone();
-        let worker_job_producer  = worker_job_producer.clone();
-        
-        task_async::spawn("api worker".to_owned(), move ||{
-            worker(api_request_consumer, worker_job_producer);
-        });
-    }
-
-    //TODO - dodać monitoring działania workerów
-}
-
-
-fn worker(api_request_consumer: Receiver<Request>, worker_job_producer: Sender<callback0::CallbackBox>) {
-
-    loop {
-        
-        match api_request_consumer.get() {
-
-            Ok(Request::GetFile(path_src, task)) => {
-                
-                get_file(path_src, task, &worker_job_producer);
-            }
-            Err(_) => {
-                
-                //TODO - logowanie błędu w strumień błędów ... ?
-                return;
-            }
-        }
-    }
-}
-
-
-fn get_file(path_src: String, task: Task<FilesData>, worker_job_producer: &Sender<callback0::CallbackBox>) {
+pub fn exec(path_src: String, task: Task<FilesData>, worker_job_producer: &Sender<callback0::CallbackBox>) {
     
     let path = Path::new(&path_src);
 
@@ -95,4 +51,3 @@ fn get_file(path_src: String, task: Task<FilesData>, worker_job_producer: &Sende
     
     worker_job_producer.send(job).unwrap();
 }
-
