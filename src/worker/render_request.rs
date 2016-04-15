@@ -6,7 +6,7 @@ use api_file::{self, Api as Api_file};
 use task_async::{self, Task};
 
 
-pub fn render_request(api_file: &Api_file, request: Request, task: Task<(Response)>) {
+pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response)>) {
     
     
     let path_src = "./static".to_owned() + request.path().trim();

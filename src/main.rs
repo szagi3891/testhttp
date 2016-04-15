@@ -15,7 +15,7 @@ mod worker;
 
 
 use std::process;
-use channels_async::{channel, Sender, Receiver, Select};
+use channels_async::{channel, Sender, Receiver};
 use task_async::{Task, callback0};
 use miohttp::{new_server, Request, Response, Respchan, MioDown};
 use api_file::{Api as Api_file, Request as apiRequest};
@@ -157,28 +157,30 @@ fn main() {
     process::exit(exit_code);
 }
 
+//request_consumer: &Receiver<(Request, Respchan)>, 
 
 
 fn run(addres: String) -> i32 {
     
     //TODO - kanały grupa ...
     
-    let (request_producer, request_consumer) = channel();
+    
     let (api_request_producer , api_request_consumer)  = channel();
     
-    let (worker_job_producer, worker_job_consumer) = channel();
+    let (job_producer, job_consumer) = channel();
     
     
     
-    let miodown = run_mio(&addres, &request_producer);
+    let api_file = run_api(&api_request_producer, &api_request_consumer, &job_producer);
     
     
-    let api_file = run_api(&api_request_producer, &api_request_consumer, &worker_job_producer);
+    let miodown = run_mio(&addres, &api_file, &job_producer);
+    
     
     
     for _ in 0..4 {
         
-        run_worker(&request_consumer, &api_file, &worker_job_consumer);
+        run_worker(&job_consumer);
     }
     
     
@@ -209,23 +211,42 @@ fn install_signal_end() -> Receiver<()> {
 }
 
 
-fn run_mio(addres: &String, request_producer: &Sender<(Request, Respchan)>) -> MioDown {
+fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0::CallbackBox>) -> MioDown {
     
+    let addres       = addres.clone();
+    let api_file     = api_file.clone();
+    let job_producer = job_producer.clone();
     
-    let addres           = addres.clone();
-    let request_producer = request_producer.clone();
-    
-    
-    let (miodown, miostart) = new_server(addres, 4000, 4000, request_producer);        
-    
-    
-    /*
-    Box::new(move||{
+    let convert = Box::new(move|(request, respchan):(Request, Respchan)| -> callback0::CallbackBox {
         
-        println!("grupa tasków zakończyłą zadanie");
-        //down_producer.send(()).unwrap();
-    })
-    */
+                                                                   //task gwarantuje drop-a
+        let task = Task::new(Box::new(move|result : Option<(Response)>|{
+
+            match result {
+
+                Some(resp) => {
+
+                    respchan.send(resp);
+                },
+
+                None => {
+                                                            //coś poszło nie tak z obsługą tego requestu
+                    respchan.send(Response::create_500());
+                }
+            };
+        }));
+        
+        
+        let api_file = api_file.clone();
+        
+        callback0::new(Box::new(move||{
+            
+            worker::render_request(api_file, request, task);
+        }))
+    });
+    
+    
+    let (miodown, miostart) = new_server(addres, 4000, 4000, job_producer, convert);        
     
     
     task_async::spawn("<EventLoop>".to_owned(), ||{
@@ -234,16 +255,29 @@ fn run_mio(addres: &String, request_producer: &Sender<(Request, Respchan)>) -> M
     });
         
     miodown
+    
+    
+    /*
+    let convert = Box::new(move|(request, respchan):(Request, Respchan)| -> callback0::CallbackBox {
+
+        
+        callback0::new(Box::new(move||{
+            
+            worker::render_request(&api_file, request, task);
+        }))
+    });
+    */
+    
 }
 
 
-fn run_api(api_request_producer: &Sender<apiRequest>, api_request_consumer: &Receiver<apiRequest>, worker_job_producer: &Sender<callback0::CallbackBox>) -> api_file::Api {
+fn run_api(api_request_producer: &Sender<apiRequest>, api_request_consumer: &Receiver<apiRequest>, job_producer: &Sender<callback0::CallbackBox>) -> api_file::Api {
     
     let api_request_producer = api_request_producer.clone();
     let api_request_consumer = api_request_consumer.clone();
-    let worker_job_producer  = worker_job_producer.clone();
+    let job_producer  = job_producer.clone();
     
-    let (api, start_api) = api_file::run(api_request_producer, api_request_consumer, worker_job_producer);
+    let (api, start_api) = api_file::run(api_request_producer, api_request_consumer, job_producer);
     
     task_async::spawn("api".to_owned(), move ||{
         start_api.exec();
@@ -253,50 +287,16 @@ fn run_api(api_request_producer: &Sender<apiRequest>, api_request_consumer: &Rec
 }
 
 
-fn run_worker(request_consumer: &Receiver<(Request, Respchan)>, api_file: &Api_file, worker_job_consumer: &Receiver<callback0::CallbackBox>) {
+fn run_worker(job_consumer: &Receiver<callback0::CallbackBox>) {
     
-    let request_consumer     = request_consumer.clone();
-    let api_file             = api_file.clone();
-    let worker_job_consumer  = worker_job_consumer.clone();
+    let job_consumer = job_consumer.clone();
     
     task_async::spawn("worker".to_owned(), move ||{
-
-        enum Out {
-            Result1((Request, Respchan)),
-            Result2(callback0::CallbackBox),
-        }
         
-        let select: Select<Out> = Select::new();
-
-        select.add(request_consumer   , Box::new(Out::Result1));
-        select.add(worker_job_consumer, Box::new(Out::Result2));
-
         loop {
-            match select.get() {
+            match job_consumer.get() {
 
-                Ok(Out::Result1((request, respchan))) => {
-                    
-                                                                                        //task gwarantuje drop-a
-                    let task = Task::new(Box::new(move|result : Option<(Response)>|{
-                        
-                        match result {
-
-                            Some(resp) => {
-                                
-                                respchan.send(resp);
-                            },
-
-                            None => {
-                                                                        //coś poszło nie tak z obsługą tego requestu
-                                respchan.send(Response::create_500());
-                            }
-                        };
-                    }));
-                    
-                    worker::render_request(&api_file, request, task);
-                },
-                
-                Ok(Out::Result2(job)) => {
+                Ok(job) => {
                     
                     job.exec();
                 },
