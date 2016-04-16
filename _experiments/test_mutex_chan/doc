@@ -1,7 +1,0 @@
-https://doc.rust-lang.org/std/ops/trait.Deref.html      - dereferencja, np w przypadku mutexa
-
-https://doc.rust-lang.org/std/prelude/                  - automatycznie dołączane traits przez język
-
-https://doc.rust-lang.org/book/traits.html      - kursik
-
-https://doc.rust-lang.org/std/borrow/trait.ToOwned.html
