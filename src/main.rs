@@ -15,10 +15,10 @@ mod worker;
 
 
 use std::process;
-use channels_async::{channel, Sender, Receiver};
+use channels_async::{channel, Sender, Receiver, Group};
 use task_async::{Task, callback0};
 use miohttp::{new_server, Request, Response, Respchan, MioDown};
-use api_file::{Api as Api_file, Request as apiRequest};
+use api_file::{Api as Api_file};
 
 use signal_end::signal_end;
 
@@ -162,16 +162,15 @@ fn main() {
 
 fn run(addres: String) -> i32 {
     
-    //TODO - kanały grupa ...
+    
+    let mut channel_group = Group::new();
     
     
-    let (api_request_producer , api_request_consumer)  = channel();
-    
-    let (job_producer, job_consumer) = channel();
+    let (job_producer, job_consumer) = channel_group.channel();
     
     
     
-    let api_file = run_api(&api_request_producer, &api_request_consumer, &job_producer);
+    let api_file = run_api(&mut channel_group, &job_producer);
     
     
     let miodown = run_mio(&addres, &api_file, &job_producer);
@@ -236,7 +235,6 @@ fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0
             };
         }));
         
-        
         let api_file = api_file.clone();
         
         callback0::new(Box::new(move||{
@@ -255,29 +253,12 @@ fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0
     });
         
     miodown
-    
-    
-    /*
-    let convert = Box::new(move|(request, respchan):(Request, Respchan)| -> callback0::CallbackBox {
-
-        
-        callback0::new(Box::new(move||{
-            
-            worker::render_request(&api_file, request, task);
-        }))
-    });
-    */
-    
 }
 
 
-fn run_api(api_request_producer: &Sender<apiRequest>, api_request_consumer: &Receiver<apiRequest>, job_producer: &Sender<callback0::CallbackBox>) -> api_file::Api {
+fn run_api(channel_group: &mut Group, job_producer: &Sender<callback0::CallbackBox>) -> api_file::Api {
     
-    let api_request_producer = api_request_producer.clone();
-    let api_request_consumer = api_request_consumer.clone();
-    let job_producer  = job_producer.clone();
-    
-    let (api, start_api) = api_file::run(api_request_producer, api_request_consumer, job_producer);
+    let (api, start_api) = api_file::create(channel_group, job_producer);
     
     task_async::spawn("api".to_owned(), move ||{
         start_api.exec();

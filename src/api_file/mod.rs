@@ -1,24 +1,16 @@
 use std::io;
 
-use channels_async::{Sender, Receiver};
+use channels_async::{Group, Sender};
 use task_async::{self, Task, callback0};
+
+
+mod get_file;
 
 
 pub type FilesData = Result<Vec<u8>, io::Error>;
 
 
-mod get_file;
-//pub use self::get_file;
-
-/*
-mod render_request;
-pub use self::render_request::render_request;
-*/
-
-
-
-                                                        //TODO - ta zmienna powinna być prywatna
-pub enum Request {
+enum Request {
     GetFile(String, Task<FilesData>),        //get file content
 }
 
@@ -28,7 +20,12 @@ pub struct Api {
     request_chan : Sender<Request>,
 }
 
-pub fn run(api_request_producer: Sender<Request>, api_request_consumer: Receiver<Request>, worker_job_producer: Sender<callback0::CallbackBox>) -> (Api, callback0::CallbackBox) {
+pub fn create(channel_group: &mut Group, worker_job_producer: &Sender<callback0::CallbackBox>) -> (Api, callback0::CallbackBox) {
+    
+    
+    let (api_request_producer, api_request_consumer) = channel_group.channel();
+    let worker_job_producer                          = worker_job_producer.clone();
+    
     
     let start = callback0::new(Box::new(move||{
         
