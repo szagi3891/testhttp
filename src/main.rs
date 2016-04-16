@@ -146,21 +146,76 @@ let _       = run_mio(&addres, &request_producer);
 
 fn main() {
     
-    let addres = "0.0.0.0:2222";
+    let (all_off_producer, all_off_consumer) = channel();
     
-    println!("server running - {}", &addres);
+    let exit_code = run_supervisor(all_off_producer);
     
-    let exit_code = run(addres.to_owned());
+    let _ = all_off_consumer.get();             //czekaj aż wszystkie zadania zostaną wyłączone poprawnie
+    
     
     task_async::log_info(format!("Bye."));
     
     process::exit(exit_code);
 }
 
-//request_consumer: &Receiver<(Request, Respchan)>, 
+
+fn run_supervisor(all_off_producer: Sender<()>) -> i32 {
+    
+    let addres = "0.0.0.0:2222";
+    
+    println!("server running - {}", &addres);
+    
+    
+    let sigterm_receiver = install_signal_end();
+    
+    /*
+        licznik liczący wszystkie wątki
+            gdy wszystkie się wyłączą, to wykonaj :
+                all_off_producer.send(()).unwrap();
+    */
+    
+    
+                                        //odpalenie całęgo drzewa procesów
+        
+    let miodown /* (miodown, kanał informujący o awarii) */ = run_app_instance(addres.to_owned());
+    
+    //TODO - temp
+    let _ = sigterm_receiver.get();
+    
+    
+    // główna pętla sterująca podwątkami
+    loop {
+        
+        
+        /*
+                                let sigterm = sigterm_receiver.get();
+
+        
+        select
+            sigterm -> {
+                miodown.exec();
+                return 1;
+            }
+            
+            obserwator_padu -> {
+                miodown.exec();
+                        //nastąpi restart 
+            }
+        */
+        
+        
+    }
+    
+    0;
+}
 
 
-fn run(addres: String) -> i32 {
+fn run_app_instance(addres: String) -> MioDown {
+    
+    
+        //Twórz obiekt obserwujący czy padł jakikolwiek wątek
+        //zwróci kanał jako drugą wartość tupli z tej funkcji
+            
     
     
     let mut channel_group = Group::new();
@@ -175,6 +230,9 @@ fn run(addres: String) -> i32 {
     
     let miodown = run_mio(&addres, &api_file, &job_producer);
     
+    //run_mio(&addres, &api_file, &job_producer, callback
+        //callback będzie uruchamiany w momencie gdy mio obsłyżył już wszystkie połączenia
+        //w tym momencie odpalamy zamykanie grupy
     
     
     for _ in 0..4 {
@@ -182,18 +240,7 @@ fn run(addres: String) -> i32 {
         run_worker(&job_consumer);
     }
     
-    
-    let sigterm_receiver = install_signal_end();
-    
-    
-    
-    // główna pętla sterująca podwątkami
-    loop {
-        
-        let _ = sigterm_receiver.get();
-        
-        return 0;
-    }
+    miodown
 }
 
 
