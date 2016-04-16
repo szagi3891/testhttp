@@ -159,6 +159,11 @@ fn main() {
 }
 
 
+//TODO - odpalić htop, ubić jakiś wątek
+    //aplikacja powinna zrestartować cały swój stan
+    //ale chyba się nie da do pojedynczego wątka ubić
+
+
 fn run_supervisor(all_off_producer: Sender<()>) -> i32 {
     
     let addres = "0.0.0.0:2222";
@@ -184,7 +189,7 @@ fn run_supervisor(all_off_producer: Sender<()>) -> i32 {
     
     
     // główna pętla sterująca podwątkami
-    loop {
+    //loop {
         
         
         /*
@@ -204,9 +209,9 @@ fn run_supervisor(all_off_producer: Sender<()>) -> i32 {
         */
         
         
-    }
+    //}
     
-    0;
+    0
 }
 
 
