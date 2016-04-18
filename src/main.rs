@@ -22,13 +22,7 @@ use api_file::{Api as Api_file};
 
 use signal_end::signal_end;
 
-
-
-
-// #[derive(Debug)]
-
-//TODO - respchan       - trzeba zaimplementować dropa który będzie sprawdzał czy wysłana była odpowiedź, jeśli nie to ma rzucać panic
-
+use std::mem;
 
 //TODO - funkcję spawn, można by wsadzić do liba z taskami
     //funkcja spawn powinna współpracować z logowaniem
@@ -36,10 +30,7 @@ use signal_end::signal_end;
     //natomiast logowanie powinno pozwalać na zgrupowanie logów względem poszczególnych wątków
 
 
-
-
 /*
-
 https://github.com/carllerche/mio/issues/186
 https://lwn.net/Articles/542629/
 
@@ -48,123 +39,59 @@ https://github.com/rust-lang-nursery/net2-rs
 http://www.unixguide.net/network/socketfaq/4.5.shtml
 http://man7.org/linux/man-pages/man7/socket.7.html
 https://github.com/tailhook/rotor-http/blob/master/examples/threaded_reuse_port.rs
-
 */
 
 
 
-/*
+//http://stackoverflow.com/questions/29963449/golang-like-defer-in-rust
 
-for _ in 0..3 {
-    runApp();
+struct Defer {
+    func: callback0::CallbackBox
 }
 
-    lub pętla nieskończona
-
-ctrl-c trzeba obsłużyć
-
-runApp() {
+impl Drop for Defer {
     
-    let reset_count = 5;
-    
-    let (api_prod, api_cons)   = channels();
-    let (type_prod, type_cons) = channels();
-    
-    //...
-    
-    //uzupełnienie kanału tworzącego
-    
-    //wrzuć jedno api
-    //wrzuć jedno 5 workerów
-    
-    (new, api)
-    (renev, api)
-    
-    loop {
-        match type_cons.get() {
+    fn drop(&mut self) {
         
-            ("new", "api") => {
-                run_api("api", api_prod.clone(), api_cons.clone(), type_prod);
-                        //jak się wysypie api, to powinien zostać jeszcze raz komunikat wysłany
-            }
-            
-            //inne startowanie
-            
-            (renew, type) {
-                to samo, tylko że zostaje licznik restartów zmniejszony
-                    jeśli jest 0, to wychodzimy z procedury
-                    
-                type_prod.send(()"api", type)
-            }
+        let empty_clouser = callback0::new(Box::new(||{}));
+        let func = mem::replace(&mut self.func, empty_clouser);
+        
+		func.exec();
+    }
+}
+
+impl Defer {
+    
+    fn new(func : callback0::CallbackBox) -> Defer {
+        Defer {
+            func : func
         }
     }
-    
-
 }
 
-*/
 
-
-/*
-    TODO - zarządca
-
-    jeśli pod rząd nie może uruchomić programu 3 razy, to fail
-    w przypadku gdy poleci panic, to wznawiaj taki proces ...
-*/
-
-
-    
-    /*
-    Counter - ilość działąjących mio,                   --> ilość działających wątków
-    
-    let count = Counter::new(||{
-        //liczba mio spadła do zera
-    })
-    
-    let offMio = newMio(adress, count.clone());     //otwierać współdzielonego socketa
-    
-    offMio();       //wysyła kanałem informację do eventloopa że ma się on wyłączyć
-    
-    */
-    
-
-
-/*
-
-let _       = run_mio(&addres, &request_producer);
-    
-    task_async::spawn("api".to_owned(), move ||{
-        
-        println!("miodown: będę wyłączał");
-        task_async::sleep(5000);
-        miodown.shoutdown();
-        println!("miodown: wyłączyłem");
-    });    
-*/
 
 
 
 fn main() {
     
-    let (all_off_producer, all_off_consumer) = channel();
-    
-    let exit_code = run_supervisor(all_off_producer);
-    
-    let _ = all_off_consumer.get();             //czekaj aż wszystkie zadania zostaną wyłączone poprawnie
-    
-    
-    task_async::log_info(format!("Bye."));
+    let exit_code = run_main();
     
     process::exit(exit_code);
 }
 
+fn run_main() -> i32 {
+    
+    let exit_code = run_supervisor();
+    
+    task_async::log_info(format!("Bye."));
+    
+    exit_code
+}
 
-//TODO - odpalić htop, ubić jakiś wątek
-    //aplikacja powinna zrestartować cały swój stan
-    //ale chyba się nie da do pojedynczego wątka ubić
 
 
-fn run_supervisor(all_off_producer: Sender<()>) -> i32 {
+fn run_supervisor() -> i32 {
     
     let addres = "0.0.0.0:2222";
     
@@ -173,39 +100,65 @@ fn run_supervisor(all_off_producer: Sender<()>) -> i32 {
     
     let sigterm_receiver = install_signal_end();
     
-    /*
-        licznik liczący wszystkie wątki
-            gdy wszystkie się wyłączą, to wykonaj :
-                all_off_producer.send(()).unwrap();
-    */
+    let (crash_chan_producer, crash_chan_consumer) = channel();
+    
     
     
                                         //odpalenie całęgo drzewa procesów
         
-    let miodown /* (miodown, kanał informujący o awarii) */ = run_app_instance(addres.to_owned());
-    
-    //TODO - temp
-    let _ = sigterm_receiver.get();
+    let mut miodown = Some(run_app_instance(addres.to_owned(), crash_chan_producer.clone()));
     
     
-    // główna pętla sterująca podwątkami
+                            //TODO - temp
+                            let _ = sigterm_receiver.get();
+    
+    
+    
+    
+    
     //loop {
         
         
         /*
-                                let sigterm = sigterm_receiver.get();
-
         
-        select
-            sigterm -> {
-                miodown.exec();
-                return 1;
-            }
+        miodown = obserwe_crash(miodown);
+        
+        
+        if miodown.is_nond() {
+                                //czekaj aż wszystkie wątki wyparują
+            loop {
             
-            obserwator_padu -> {
-                miodown.exec();
-                        //nastąpi restart 
+                match crach_chan.get() {
+                    Err(_) => return 1;     //kanał niezdatny do odczytu - wtedy dopiero można spokojnie zakończyć żywot
+                    Ok(_) => {}             //czekaj dalej
+                }
             }
+        }
+        
+        
+        
+        fn obserwe_crash(miodown) {
+                                let sigterm = sigterm_receiver.get();
+            //trzeba skeić selecta
+    
+            select {
+                sigterm -> {
+
+                    miodown.exec();
+
+                    None
+                }
+
+                obserwator_padu -> {
+
+                    let miodown2 = run_app_instance(addres.to_owned(), kanał informujący o awariach nadawca)
+
+                    miodown.exec();
+
+                    miodown2
+                }
+            }
+        }
         */
         
         
@@ -215,11 +168,13 @@ fn run_supervisor(all_off_producer: Sender<()>) -> i32 {
 }
 
 
-fn run_app_instance(addres: String) -> MioDown {
+fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown {
     
     
-        //Twórz obiekt obserwujący czy padł jakikolwiek wątek
-        //zwróci kanał jako drugą wartość tupli z tej funkcji
+    //drugi kanał kanał, on będzie zwracał informację o padniętym wątku
+        //zwróci ten kanał jako drugą wartość tej tupli
+        //ten kanał przekazujemy do wszystkich podwątków
+            //instalowane wysłanie wartości będzie na span, z użyciem defer ...
             
     
     
@@ -230,10 +185,39 @@ fn run_app_instance(addres: String) -> MioDown {
     
     
     
-    let api_file = run_api(&mut channel_group, &job_producer);
+    let (api_file, start_api) = api_file::create(&mut channel_group, &job_producer);
+    
+    task_async::spawn("api".to_owned(), move ||{
+        
+        let _defer = Defer::new(callback0::new(Box::new(move||{
+            
+            println!("defer1");
+        })));
+        
+        start_api.exec();
+    });
     
     
-    let miodown = run_mio(&addres, &api_file, &job_producer);
+    
+    
+    let crash_chan_producer = crash_chan_producer.clone();
+    
+    let (miodown, miostart) = run_mio(&addres, &api_file, &job_producer);
+    
+    task_async::spawn("<EventLoop>".to_owned(), ||{
+        
+        let _defer = Defer::new(callback0::new(Box::new(move||{
+
+            println!("defer2");
+        })));
+        
+        miostart.exec();
+    });
+    
+    
+    
+    
+    
     
     //run_mio(&addres, &api_file, &job_producer, callback
         //callback będzie uruchamiany w momencie gdy mio obsłyżył już wszystkie połączenia
@@ -242,7 +226,17 @@ fn run_app_instance(addres: String) -> MioDown {
     
     for _ in 0..4 {
         
-        run_worker(&job_consumer);
+        let start_worker = run_worker(&job_consumer);
+        
+        task_async::spawn("worker".to_owned(), move ||{
+            
+            let _defer = Defer::new(callback0::new(Box::new(move||{
+
+                println!("defer3");
+            })));
+            
+            start_worker.exec();
+        });
     }
     
     miodown
@@ -262,7 +256,7 @@ fn install_signal_end() -> Receiver<()> {
 }
 
 
-fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0::CallbackBox>) -> MioDown {
+fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0::CallbackBox>) -> (MioDown, callback0::CallbackBox) {
     
     let addres       = addres.clone();
     let api_file     = api_file.clone();
@@ -296,35 +290,16 @@ fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0
     });
     
     
-    let (miodown, miostart) = new_server(addres, 4000, 4000, job_producer, convert);        
-    
-    
-    task_async::spawn("<EventLoop>".to_owned(), ||{
-        
-        miostart.exec();
-    });
-        
-    miodown
+    new_server(addres, 4000, 4000, job_producer, convert)
 }
 
 
-fn run_api(channel_group: &mut Group, job_producer: &Sender<callback0::CallbackBox>) -> api_file::Api {
-    
-    let (api, start_api) = api_file::create(channel_group, job_producer);
-    
-    task_async::spawn("api".to_owned(), move ||{
-        start_api.exec();
-    });
-    
-    api
-}
 
-
-fn run_worker(job_consumer: &Receiver<callback0::CallbackBox>) {
+fn run_worker(job_consumer: &Receiver<callback0::CallbackBox>) -> callback0::CallbackBox {
     
     let job_consumer = job_consumer.clone();
     
-    task_async::spawn("worker".to_owned(), move ||{
+    let start = callback0::new(Box::new(move ||{
         
         loop {
             match job_consumer.get() {
@@ -341,7 +316,9 @@ fn run_worker(job_consumer: &Receiver<callback0::CallbackBox>) {
                 }
             }
         }
-    });
+    }));
+    
+    start
 }
 
 
