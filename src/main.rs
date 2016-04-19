@@ -106,13 +106,30 @@ fn run_supervisor() -> i32 {
     
                                         //odpalenie całęgo drzewa procesów
         
-    let mut miodown = Some(run_app_instance(addres.to_owned(), crash_chan_producer.clone()));
+    let miodown = Some(run_app_instance(addres.to_owned(), crash_chan_producer));
     
     
                             //TODO - temp
                             let _ = sigterm_receiver.get();
     
+    println!("odebrałem syhnał zakończenia");
     
+                            //TODO - temp
+    
+    if let Some(down) = miodown {
+        down.shoutdown();
+    }
+    
+                            //TODO - temp - czekaj na zakończenie wszystkich wątków
+    loop {
+            
+        match crash_chan_consumer.get() {
+            Err(_) => {
+                return 1;     //kanał niezdatny do odczytu - wtedy dopiero można spokojnie zakończyć żywot
+            },
+            Ok(_) => {}             //czekaj dalej
+        }
+    }
     
     
     
@@ -144,7 +161,7 @@ fn run_supervisor() -> i32 {
             select {
                 sigterm -> {
 
-                    miodown.exec();
+                    miodown.shoutdown();
 
                     None
                 }
@@ -153,7 +170,7 @@ fn run_supervisor() -> i32 {
 
                     let miodown2 = run_app_instance(addres.to_owned(), kanał informujący o awariach nadawca)
 
-                    miodown.exec();
+                    miodown.shoutdown();
 
                     miodown2
                 }
@@ -161,21 +178,15 @@ fn run_supervisor() -> i32 {
         }
         */
         
-        
+    
     //}
     
-    0
+    //0
 }
 
 
 fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown {
     
-    
-    //drugi kanał kanał, on będzie zwracał informację o padniętym wątku
-        //zwróci ten kanał jako drugą wartość tej tupli
-        //ten kanał przekazujemy do wszystkich podwątków
-            //instalowane wysłanie wartości będzie na span, z użyciem defer ...
-            
     
     
     let mut channel_group = Group::new();
@@ -187,11 +198,14 @@ fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown 
     
     let (api_file, start_api) = api_file::create(&mut channel_group, &job_producer);
     
+    let crash_chan_producer_api = crash_chan_producer.clone();
+    
     task_async::spawn("api".to_owned(), move ||{
         
         let _defer = Defer::new(callback0::new(Box::new(move||{
             
-            println!("defer1");
+            println!("api down (defer)");
+            crash_chan_producer_api.send(()).unwrap();
         })));
         
         start_api.exec();
@@ -200,15 +214,17 @@ fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown 
     
     
     
-    let crash_chan_producer = crash_chan_producer.clone();
-    
     let (miodown, miostart) = run_mio(&addres, &api_file, &job_producer);
+    
+    let crash_chan_producer_mio = crash_chan_producer.clone();
     
     task_async::spawn("<EventLoop>".to_owned(), ||{
         
         let _defer = Defer::new(callback0::new(Box::new(move||{
-
-            println!("defer2");
+            
+            println!("mio down (defer)");
+            channel_group.close();
+            crash_chan_producer_mio.send(()).unwrap();
         })));
         
         miostart.exec();
@@ -217,22 +233,21 @@ fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown 
     
     
     
-    
-    
-    //run_mio(&addres, &api_file, &job_producer, callback
-        //callback będzie uruchamiany w momencie gdy mio obsłyżył już wszystkie połączenia
-        //w tym momencie odpalamy zamykanie grupy
+    //TODO - dorobić funkcję : task_async::spawn_defer(move||{ ... }, move||{ ... })
     
     
     for _ in 0..4 {
         
         let start_worker = run_worker(&job_consumer);
         
+        let crash_chan_producer = crash_chan_producer.clone();
+        
         task_async::spawn("worker".to_owned(), move ||{
             
             let _defer = Defer::new(callback0::new(Box::new(move||{
 
-                println!("defer3");
+                println!("worker down (defer)");
+                crash_chan_producer.send(()).unwrap();
             })));
             
             start_worker.exec();
