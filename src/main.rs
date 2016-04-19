@@ -112,7 +112,9 @@ fn run_supervisor() -> i32 {
                             //TODO - temp
                             let _ = sigterm_receiver.get();
     
-    println!("odebrałem syhnał zakończenia");
+    
+    task_async::log_info("sigterm".to_owned());         //TODO - temp
+    
     
                             //TODO - temp
     
@@ -200,11 +202,11 @@ fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown 
     
     let crash_chan_producer_api = crash_chan_producer.clone();
     
-    task_async::spawn("api".to_owned(), move ||{
+    task_async::spawn("<api>".to_owned(), move ||{
         
         let _defer = Defer::new(callback0::new(Box::new(move||{
             
-            println!("api down (defer)");
+            task_async::log_info("down".to_owned());
             crash_chan_producer_api.send(()).unwrap();
         })));
         
@@ -222,7 +224,7 @@ fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown 
         
         let _defer = Defer::new(callback0::new(Box::new(move||{
             
-            println!("mio down (defer)");
+            task_async::log_info("down".to_owned());
             channel_group.close();
             crash_chan_producer_mio.send(()).unwrap();
         })));
@@ -242,11 +244,11 @@ fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown 
         
         let crash_chan_producer = crash_chan_producer.clone();
         
-        task_async::spawn("worker".to_owned(), move ||{
+        task_async::spawn("<worker>".to_owned(), move ||{
             
             let _defer = Defer::new(callback0::new(Box::new(move||{
 
-                println!("worker down (defer)");
+                task_async::log_info("down".to_owned());
                 crash_chan_producer.send(()).unwrap();
             })));
             
