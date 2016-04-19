@@ -15,7 +15,7 @@ mod worker;
 
 
 use std::process;
-use channels_async::{channel, Sender, Receiver, Group};
+use channels_async::{channel, Sender, Receiver, Group, Select};
 use task_async::{Task, callback0};
 use miohttp::{new_server, Request, Response, Respchan, MioDown};
 use api_file::{Api as Api_file};
@@ -71,124 +71,151 @@ impl Defer {
 
 
 
+//kill -INT 1988        - Terminates the program (like Ctrl+C)
+
 
 
 fn main() {
-    
-    let exit_code = run_main();
-    
-    process::exit(exit_code);
-}
-
-fn run_main() -> i32 {
     
     let exit_code = run_supervisor();
     
     task_async::log_info(format!("Bye."));
     
-    exit_code
+    process::exit(exit_code);
 }
 
 
 
+enum Out {
+    Crash(u64),
+    Int(()),
+}
+    
+
 fn run_supervisor() -> i32 {
     
-    let addres = "0.0.0.0:2222";
+    let addres = "0.0.0.0:2222".to_owned();
     
     println!("server running - {}", &addres);
     
     
     let sigterm_receiver = install_signal_end();
     
+    
+    let (exit_code_producer , exit_code_consumer)  = channel();
     let (crash_chan_producer, crash_chan_consumer) = channel();
     
     
-    
-                                        //odpalenie całęgo drzewa procesów
+    let make_app = {
         
-    let miodown = Some(run_app_instance(addres.to_owned(), crash_chan_producer));
+        let addres              = addres.clone();
+        let crash_chan_producer = crash_chan_producer.clone();
+        
+        Box::new(move|app_counter: u64| -> MioDown {
+            run_app_instance(&addres, &crash_chan_producer, app_counter)
+        })
+    };
     
     
-                            //TODO - temp
-                            let _ = sigterm_receiver.get();
+    //złożenie selecta z sygnału ctrl+c i z sygnału craszu
     
     
-    task_async::log_info("sigterm".to_owned());         //TODO - temp
+    
+    let select: Select<Out> = Select::new();
+
+    select.add(sigterm_receiver   , Box::new(Out::Int));
+    select.add(crash_chan_consumer, Box::new(Out::Crash));
     
     
-                            //TODO - temp
+    let app_counter = 1;
+    let miodown     = make_app(app_counter.clone());
     
-    if let Some(down) = miodown {
-        down.shoutdown();
+    
+    run_waiting(app_counter, Some(miodown), select, make_app, 0, exit_code_producer);
+    
+    
+    match exit_code_consumer.get() {
+        
+        Ok(code) => code,
+        Err(_) => 1,
     }
-    
-                            //TODO - temp - czekaj na zakończenie wszystkich wątków
-    loop {
-            
-        match crash_chan_consumer.get() {
-            Err(_) => {
-                return 1;     //kanał niezdatny do odczytu - wtedy dopiero można spokojnie zakończyć żywot
-            },
-            Ok(_) => {}             //czekaj dalej
-        }
-    }
-    
-    
-    
-    //loop {
-        
-        
-        /*
-        
-        miodown = obserwe_crash(miodown);
-        
-        
-        if miodown.is_nond() {
-                                //czekaj aż wszystkie wątki wyparują
-            loop {
-            
-                match crach_chan.get() {
-                    Err(_) => return 1;     //kanał niezdatny do odczytu - wtedy dopiero można spokojnie zakończyć żywot
-                    Ok(_) => {}             //czekaj dalej
-                }
-            }
-        }
-        
-        
-        
-        fn obserwe_crash(miodown) {
-                                let sigterm = sigterm_receiver.get();
-            //trzeba skeić selecta
-    
-            select {
-                sigterm -> {
-
-                    miodown.shoutdown();
-
-                    None
-                }
-
-                obserwator_padu -> {
-
-                    let miodown2 = run_app_instance(addres.to_owned(), kanał informujący o awariach nadawca)
-
-                    miodown.shoutdown();
-
-                    miodown2
-                }
-            }
-        }
-        */
-        
-    
-    //}
-    
-    //0
 }
 
 
-fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown {
-    
+fn run_waiting(current_app_id: u64, miodown_opt: Option<MioDown>, select: Select<Out>, make_app: Box<Fn(u64) -> MioDown + Send + Sync + 'static>, exit_code: i32, exit_code_producer: Sender<i32>) {
+
+    task_async::spawn("<supervisor>".to_owned(), move ||{
+        
+        match select.get() {
+
+                                                    //sygnał ctrl+c
+            Ok(Out::Int(())) => {
+                
+                println!("waiting: int");
+                
+                if let Some(miodown) = miodown_opt {
+                    miodown.shoutdown();
+                }
+                
+                
+                task_async::spawn("<sdown>".to_owned(), move ||{
+                    loop {
+                        match select.get() {
+                            Ok(_) => {},
+                            Err(_) => {
+                                
+                                exit_code_producer.send(0).unwrap();
+                                return;
+                            }
+                        }
+                    }
+                });
+            },
+
+                                                    //padł wątek w instancji aplikacji
+            Ok(Out::Crash(app_id)) => {
+                
+                println!("waiting: crash : {}", app_id);
+                
+                if current_app_id == app_id {
+                    
+                    if let Some(miodown) = miodown_opt {
+                        
+                        let miodown2 = make_app(app_id + 1);
+                        
+                        miodown.shoutdown();
+                        
+                        run_waiting(app_id + 1, Some(miodown2), select, make_app, 0, exit_code_producer);
+                        
+                    } else {
+                        
+                        run_waiting(app_id, None, select, make_app, 0, exit_code_producer);
+                    }
+
+                    
+
+                } else {
+
+                    run_waiting(app_id, None, select, make_app, 0, exit_code_producer);
+                }
+            },
+
+            Err(_) => {
+                
+                println!("waiting: error");
+                
+                exit_code_producer.send(0).unwrap();
+                return;
+            }
+        }
+    });
+}
+
+
+
+
+
+fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_app_counter: u64) -> MioDown {
     
     
     let mut channel_group = Group::new();
@@ -197,40 +224,45 @@ fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown 
     let (job_producer, job_consumer) = channel_group.channel();
     
     
-    
     let (api_file, start_api) = api_file::create(&mut channel_group, &job_producer);
     
-    let crash_chan_producer_api = crash_chan_producer.clone();
-    
-    task_async::spawn("<api>".to_owned(), move ||{
+    {
+        let crash_chan_producer = crash_chan_producer.clone();
+        let current_app_counter = current_app_counter.clone();
         
-        let _defer = Defer::new(callback0::new(Box::new(move||{
-            
-            task_async::log_info("down".to_owned());
-            crash_chan_producer_api.send(()).unwrap();
-        })));
-        
-        start_api.exec();
-    });
+        task_async::spawn("<api>".to_owned(), move ||{
+
+            let _defer = Defer::new(callback0::new(Box::new(move||{
+
+                task_async::log_info("down".to_owned());
+                crash_chan_producer.send(current_app_counter).unwrap();
+            })));
+
+            start_api.exec();
+        });
+    }
     
     
     
     
     let (miodown, miostart) = run_mio(&addres, &api_file, &job_producer);
     
-    let crash_chan_producer_mio = crash_chan_producer.clone();
-    
-    task_async::spawn("<EventLoop>".to_owned(), ||{
+    {
+        let crash_chan_producer = crash_chan_producer.clone();
+        let current_app_counter = current_app_counter.clone();
         
-        let _defer = Defer::new(callback0::new(Box::new(move||{
-            
-            task_async::log_info("down".to_owned());
-            channel_group.close();
-            crash_chan_producer_mio.send(()).unwrap();
-        })));
-        
-        miostart.exec();
-    });
+        task_async::spawn("<EventLoop>".to_owned(), move||{
+
+            let _defer = Defer::new(callback0::new(Box::new(move||{
+
+                task_async::log_info("down".to_owned());
+                channel_group.close();
+                crash_chan_producer.send(current_app_counter).unwrap();
+            })));
+
+            miostart.exec();
+        });
+    }
     
     
     
@@ -243,13 +275,14 @@ fn run_app_instance(addres: String, crash_chan_producer: Sender<()>) -> MioDown 
         let start_worker = run_worker(&job_consumer);
         
         let crash_chan_producer = crash_chan_producer.clone();
+        let current_app_counter = current_app_counter.clone();
         
         task_async::spawn("<worker>".to_owned(), move ||{
             
             let _defer = Defer::new(callback0::new(Box::new(move||{
 
                 task_async::log_info("down".to_owned());
-                crash_chan_producer.send(()).unwrap();
+                crash_chan_producer.send(current_app_counter).unwrap();
             })));
             
             start_worker.exec();
