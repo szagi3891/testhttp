@@ -14,7 +14,6 @@ mod api_file;
 mod worker;
 
 
-use std::process;
 use channels_async::{channel, Sender, Receiver, Group, Select};
 use task_async::{Task, callback0};
 use miohttp::{new_server, Request, Response, Respchan, MioDown};
@@ -77,11 +76,24 @@ impl Defer {
 
 fn main() {
     
-    let exit_code = run_supervisor();
+    let select = run_supervisor();
     
-    task_async::log_info(format!("Bye."));
     
-    process::exit(exit_code);
+    loop {
+        match select.get() {
+
+            Ok(_) => {
+                //wątek został wyłączony
+            },
+            Err(_) => {
+                
+                task_async::log_info(format!("Bye."));
+                
+                return;
+            }
+        }
+    }
+    
 }
 
 
@@ -92,7 +104,7 @@ enum Out {
 }
     
 
-fn run_supervisor() -> i32 {
+fn run_supervisor() -> Select<Out> {
     
     let addres = "0.0.0.0:2222".to_owned();
     
@@ -138,27 +150,12 @@ fn run_supervisor() -> i32 {
                                                     //sygnał ctrl+c
             Ok(Out::Int(())) => {
                 
-                println!("waiting: int");
-                
                 match mem::replace(&mut miodown, None) {
                     Some(down) => down.shoutdown(),
                     None => {},
                 }
                 
-                loop {
-                    match select.get() {
-                        
-                        Ok(_) => {
-                            println!("pad 1 ...");
-                        },
-                        Err(_) => {
-
-                            println!("pad 2 ...");
-
-                            return 0;
-                        }
-                    }
-                }
+                return select;
             },
 
                                                     //padł wątek w instancji aplikacji
@@ -179,7 +176,7 @@ fn run_supervisor() -> i32 {
 
             Err(_) => {
                 
-                return 0;
+                return select;
             }
         }
     }
@@ -241,7 +238,7 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
     
     
     
-    //TODO - dorobić funkcję : task_async::spawn_defer(move||{ ... }, move||{ ... })
+    //TODO - dorobić funkcję : task_async::spawn_defer(move||{ ... }, move||{ ... }) -- ?
     
     
     for _ in 0..4 {
@@ -272,57 +269,15 @@ fn install_signal_end() -> Receiver<()> {
     let (sigterm_sender , sigterm_receiver) = channel();
     
     
-    
     task_async::spawn("<sigterm>".to_owned(), move ||{
-        
-        task_async::sleep(5000);
-        sigterm_sender.send(()).unwrap();
-        
-        /*
-        println!("odpalam 000");
         
         signal_end(callback0::new(Box::new(move||{
-            
-            
-            let _defer = Defer::new(callback0::new(Box::new(move||{
-                
-                task_async::log_info("defer signal_end".to_owned());
-            })));
-            
-            
-            println!("odpalam 111");
-            
+
             sigterm_sender.send(()).unwrap();
-            
-            println!("odpalam 222");
         })));
-        */
-    });
-    
-    
-    sigterm_receiver
-    
-    /*
-    println!("odpalam ... sigterm");
-    
-    
-    task_async::spawn("<sigterm>".to_owned(), move ||{
-        
-        //task_async::sleep(5000);
-        //sigterm_sender.send(()).unwrap();
-        
-        println!("odpalam 000");
-        
-        signal_end(Box::new(move || {
-            
-            println!("odpalam 111");
-            sigterm_sender.send(()).unwrap();
-            println!("odpalam 222");
-        }));
     });
     
     sigterm_receiver
-    */
 }
 
 
