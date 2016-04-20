@@ -27,7 +27,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "channels_async"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/channels_async-rs#4f133506c785f6066d058ad643bccb50cde6038a"
+source = "git+https://github.com/szagi3891/channels_async-rs#716d6ee1d4c8200c89cbffd3966244865263d766"
 
 [[package]]
 name = "ctrlc"
@@ -87,7 +87,7 @@ dependencies = [
 [[package]]
 name = "miohttp"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/miohttp-rs#3edb45167dc63d5ecb42d9e12a309da2c17dcba4"
+source = "git+https://github.com/szagi3891/miohttp-rs#47ed518d5216c77072bbf8952561f9d011539e18"
 dependencies = [
  "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -137,7 +137,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "task_async"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/task_async-rs#10806514f900f0a83c39d1c280a33a9f4634881f"
+source = "git+https://github.com/szagi3891/task_async-rs#8e454464c910aed04fb16b82ffc5cdf82e8f205e"
 dependencies = [
  "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
 ]
