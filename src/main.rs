@@ -111,36 +111,19 @@ fn run_supervisor() -> Select<Out> {
     println!("server running - {}", &addres);
     
     
-    let sigterm_receiver = install_signal_end();
+    let sigterm_receiver                 = install_signal_end();
+    let (crash_producer, crash_consumer) = channel();
     
     
-    let (crash_chan_producer, crash_chan_consumer) = channel();
-    
-    
-    let make_app = {
-        
-        let addres              = addres.clone();
-        let crash_chan_producer = crash_chan_producer.clone();
-        
-        Box::new(move|app_counter: u64| -> MioDown {
-            run_app_instance(&addres, &crash_chan_producer, app_counter)
-        })
-    };
-    
-    
-    //złożenie selecta z sygnału ctrl+c i z sygnału craszu
-    
-    
-    
+                        //złożenie selecta z sygnału ctrl+c i z sygnału craszu
     let select: Select<Out> = Select::new();
 
-    select.add(sigterm_receiver   , Box::new(Out::Int));
-    select.add(crash_chan_consumer, Box::new(Out::Crash));
+    select.add(sigterm_receiver, Box::new(Out::Int));
+    select.add(crash_consumer  , Box::new(Out::Crash));
     
     
     let mut app_counter = 1;
-    let mut miodown     = Some(make_app(app_counter.clone()));
-    
+    let mut miodown     = Some(run_app_instance(&addres, &crash_producer, app_counter.clone()));
     
     loop {
         
@@ -173,8 +156,8 @@ fn run_supervisor() -> Select<Out> {
                     
                     task_async::log_info(format!("restart app, new app_id={}", app_counter));
                     
-                    let miodown2 = make_app(app_counter);
-
+                    let miodown2 = run_app_instance(&addres, &crash_producer, app_counter);
+                    
                     match mem::replace(&mut miodown, Some(miodown2)) {
                         Some(down) => down.shoutdown(),
                         None => {},
@@ -194,7 +177,7 @@ fn run_supervisor() -> Select<Out> {
 
 
 
-fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_app_counter: u64) -> MioDown {
+fn run_app_instance(addres: &String, crash_producer: &Sender<u64>, current_app_counter: u64) -> MioDown {
     
     
     let mut channel_group = Group::new();
@@ -206,7 +189,7 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
     let (api_file, start_api) = api_file::create(&mut channel_group, &job_producer);
     
     {
-        let crash_chan_producer = crash_chan_producer.clone();
+        let crash_producer = crash_producer.clone();
         let current_app_counter = current_app_counter.clone();
         
         task_async::spawn("<api>".to_owned(), move ||{
@@ -214,7 +197,7 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
             let _defer = Defer::new(callback0::new(Box::new(move||{
 
                 task_async::log_info("down".to_owned());
-                crash_chan_producer.send(current_app_counter).unwrap();
+                crash_producer.send(current_app_counter).unwrap();
             })));
 
             start_api.exec();
@@ -227,7 +210,7 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
     let (miodown, miostart) = run_mio(&addres, &api_file, &job_producer);
     
     {
-        let crash_chan_producer = crash_chan_producer.clone();
+        let crash_producer = crash_producer.clone();
         let current_app_counter = current_app_counter.clone();
         
         task_async::spawn("<EventLoop>".to_owned(), move||{
@@ -236,7 +219,7 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
 
                 task_async::log_info("down".to_owned());
                 channel_group.close();
-                crash_chan_producer.send(current_app_counter).unwrap();
+                crash_producer.send(current_app_counter).unwrap();
             })));
 
             miostart.exec();
@@ -253,7 +236,7 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
         
         let start_worker = run_worker(&job_consumer);
         
-        let crash_chan_producer = crash_chan_producer.clone();
+        let crash_producer = crash_producer.clone();
         let current_app_counter = current_app_counter.clone();
         
         task_async::spawn("<worker>".to_owned(), move ||{
@@ -261,7 +244,7 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
             let _defer = Defer::new(callback0::new(Box::new(move||{
 
                 task_async::log_info("down".to_owned());
-                crash_chan_producer.send(current_app_counter).unwrap();
+                crash_producer.send(current_app_counter).unwrap();
             })));
             
             start_worker.exec();
