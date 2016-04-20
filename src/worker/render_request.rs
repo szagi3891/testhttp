@@ -8,6 +8,10 @@ use task_async::{self, Task};
 
 pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response)>) {
     
+    if request.path().trim() == "/crash" {
+        
+        panic!("the simulated failure");
+    }
     
     let path_src = "./static".to_owned() + request.path().trim();
     task_async::log_info(format!("Path requested: {}", &path_src));

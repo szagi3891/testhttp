@@ -3,22 +3,20 @@ https://github.com/Detegr/rust-ctrlc
 */
 
 use ctrlc::CtrlC;
+use task_async::callback0;
+use channels_async::channel;
 
-pub fn signal_end(funk : Box<Fn() + Send + Sync + 'static>) {
+
+pub fn signal_end(func : callback0::CallbackBox) {
+    
+    let (send, recv) = channel();
     
     CtrlC::set_handler(move || {
-        funk();
-    });
-}
-
-/*
-use simple_signal::{Signals, Signal};
-
-fn signal_end(funk : Fn()) {
-    
-    Signals::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
         
-        funk();
+        send.send(()).unwrap();
     });
+    
+    let _ = recv.get();
+    
+    func.exec();
 }
-*/

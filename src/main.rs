@@ -14,7 +14,6 @@ mod api_file;
 mod worker;
 
 
-use std::process;
 use channels_async::{channel, Sender, Receiver, Group, Select};
 use task_async::{Task, callback0};
 use miohttp::{new_server, Request, Response, Respchan, MioDown};
@@ -77,11 +76,24 @@ impl Defer {
 
 fn main() {
     
-    let exit_code = run_supervisor();
+    let select = run_supervisor();
     
-    task_async::log_info(format!("Bye."));
     
-    process::exit(exit_code);
+    loop {
+        match select.get() {
+
+            Ok(_) => {
+                //wątek został wyłączony
+            },
+            Err(_) => {
+                
+                task_async::log_info(format!("Bye."));
+                
+                return;
+            }
+        }
+    }
+    
 }
 
 
@@ -92,7 +104,7 @@ enum Out {
 }
     
 
-fn run_supervisor() -> i32 {
+fn run_supervisor() -> Select<Out> {
     
     let addres = "0.0.0.0:2222".to_owned();
     
@@ -102,7 +114,6 @@ fn run_supervisor() -> i32 {
     let sigterm_receiver = install_signal_end();
     
     
-    let (exit_code_producer , exit_code_consumer)  = channel();
     let (crash_chan_producer, crash_chan_consumer) = channel();
     
     
@@ -127,88 +138,56 @@ fn run_supervisor() -> i32 {
     select.add(crash_chan_consumer, Box::new(Out::Crash));
     
     
-    let app_counter = 1;
-    let miodown     = make_app(app_counter.clone());
+    let mut app_counter = 1;
+    let mut miodown     = Some(make_app(app_counter.clone()));
     
     
-    run_waiting(app_counter, Some(miodown), select, make_app, 0, exit_code_producer);
-    
-    
-    match exit_code_consumer.get() {
+    loop {
         
-        Ok(code) => code,
-        Err(_) => 1,
-    }
-}
 
-
-fn run_waiting(current_app_id: u64, miodown_opt: Option<MioDown>, select: Select<Out>, make_app: Box<Fn(u64) -> MioDown + Send + Sync + 'static>, exit_code: i32, exit_code_producer: Sender<i32>) {
-
-    task_async::spawn("<supervisor>".to_owned(), move ||{
-        
         match select.get() {
 
                                                     //sygnał ctrl+c
             Ok(Out::Int(())) => {
                 
-                println!("waiting: int");
-                
-                if let Some(miodown) = miodown_opt {
-                    miodown.shoutdown();
+                match mem::replace(&mut miodown, None) {
+                    Some(down) => {
+                        
+                        task_async::log_info("signal INT".to_owned());
+                        task_async::log_info(format!("miodown, app_id={}", app_counter));
+                        
+                        down.shoutdown();
+                    },
+                    None => {},
                 }
                 
-                
-                task_async::spawn("<sdown>".to_owned(), move ||{
-                    loop {
-                        match select.get() {
-                            Ok(_) => {},
-                            Err(_) => {
-                                
-                                exit_code_producer.send(0).unwrap();
-                                return;
-                            }
-                        }
-                    }
-                });
+                return select;
             },
 
                                                     //padł wątek w instancji aplikacji
             Ok(Out::Crash(app_id)) => {
                 
-                println!("waiting: crash : {}", app_id);
-                
-                if current_app_id == app_id {
+                if app_counter == app_id && miodown.is_some() {
                     
-                    if let Some(miodown) = miodown_opt {
-                        
-                        let miodown2 = make_app(app_id + 1);
-                        
-                        miodown.shoutdown();
-                        
-                        run_waiting(app_id + 1, Some(miodown2), select, make_app, 0, exit_code_producer);
-                        
-                    } else {
-                        
-                        run_waiting(app_id, None, select, make_app, 0, exit_code_producer);
+                    app_counter = app_counter + 1;
+                    
+                    task_async::log_info(format!("restart app, new app_id={}", app_counter));
+                    
+                    let miodown2 = make_app(app_counter);
+
+                    match mem::replace(&mut miodown, Some(miodown2)) {
+                        Some(down) => down.shoutdown(),
+                        None => {},
                     }
-
-                    
-
-                } else {
-
-                    run_waiting(app_id, None, select, make_app, 0, exit_code_producer);
                 }
             },
 
             Err(_) => {
                 
-                println!("waiting: error");
-                
-                exit_code_producer.send(0).unwrap();
-                return;
+                return select;
             }
         }
-    });
+    }
 }
 
 
@@ -221,7 +200,7 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
     let mut channel_group = Group::new();
     
     
-    let (job_producer, job_consumer) = channel_group.channel();
+    let (job_producer, job_consumer) = channel_group.channel::<callback0::CallbackBox>();
     
     
     let (api_file, start_api) = api_file::create(&mut channel_group, &job_producer);
@@ -267,7 +246,7 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
     
     
     
-    //TODO - dorobić funkcję : task_async::spawn_defer(move||{ ... }, move||{ ... })
+    //TODO - dorobić funkcję : task_async::spawn_defer(move||{ ... }, move||{ ... }) -- ?
     
     
     for _ in 0..4 {
@@ -295,12 +274,16 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
 
 fn install_signal_end() -> Receiver<()> {
     
-    let (sigterm_sender , sigterm_receiver ) = channel();
+    let (sigterm_sender , sigterm_receiver) = channel();
     
-    signal_end(Box::new(move || {
+    
+    task_async::spawn("<sigterm>".to_owned(), move ||{
         
-        sigterm_sender.send(()).unwrap();
-    }));
+        signal_end(callback0::new(Box::new(move||{
+
+            sigterm_sender.send(()).unwrap();
+        })));
+    });
     
     sigterm_receiver
 }
