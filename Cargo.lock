@@ -2,7 +2,7 @@
 name = "mio-test"
 version = "0.1.0"
 dependencies = [
- "channels_async 0.1.0",
+ "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
  "ctrlc 1.1.1 (git+https://github.com/Detegr/rust-ctrlc)",
  "miohttp 0.1.0 (git+https://github.com/szagi3891/miohttp-rs)",
  "task_async 0.1.0 (git+https://github.com/szagi3891/task_async-rs)",
@@ -28,10 +28,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "channels_async"
 version = "0.1.0"
 source = "git+https://github.com/szagi3891/channels_async-rs#4f133506c785f6066d058ad643bccb50cde6038a"
-
-[[package]]
-name = "channels_async"
-version = "0.1.0"
 
 [[package]]
 name = "ctrlc"

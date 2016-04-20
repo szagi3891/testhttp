@@ -102,7 +102,6 @@ fn run_supervisor() -> i32 {
     let sigterm_receiver = install_signal_end();
     
     
-    let (exit_code_producer , exit_code_consumer)  = channel();
     let (crash_chan_producer, crash_chan_consumer) = channel();
     
     
@@ -127,25 +126,13 @@ fn run_supervisor() -> i32 {
     select.add(crash_chan_consumer, Box::new(Out::Crash));
     
     
-    let app_counter = 1;
-    let miodown     = make_app(app_counter.clone());
+    let mut app_counter = 1;
+    let mut miodown     = Some(make_app(app_counter.clone()));
     
     
-    run_waiting(app_counter, Some(miodown), select, make_app, 0, exit_code_producer);
-    
-    
-    match exit_code_consumer.get() {
+    loop {
         
-        Ok(code) => code,
-        Err(_) => 1,
-    }
-}
 
-
-fn run_waiting(current_app_id: u64, miodown_opt: Option<MioDown>, select: Select<Out>, make_app: Box<Fn(u64) -> MioDown + Send + Sync + 'static>, exit_code: i32, exit_code_producer: Sender<i32>) {
-
-    task_async::spawn("<supervisor>".to_owned(), move ||{
-        
         match select.get() {
 
                                                     //sygnał ctrl+c
@@ -153,57 +140,49 @@ fn run_waiting(current_app_id: u64, miodown_opt: Option<MioDown>, select: Select
                 
                 println!("waiting: int");
                 
-                if let Some(miodown) = miodown_opt {
-                    miodown.shoutdown();
+                match mem::replace(&mut miodown, None) {
+                    Some(down) => down.shoutdown(),
+                    None => {},
                 }
                 
-                
-                task_async::spawn("<sdown>".to_owned(), move ||{
-                    loop {
-                        match select.get() {
-                            Ok(_) => {
-                                println!("pad 1 ...");
-                            },
-                            Err(_) => {
-                                
-                                println!("pad 2 ...");
-                                
-                                exit_code_producer.send(0).unwrap();
-                                return;
-                            }
+                loop {
+                    match select.get() {
+                        
+                        Ok(_) => {
+                            println!("pad 1 ...");
+                        },
+                        Err(_) => {
+
+                            println!("pad 2 ...");
+
+                            return 0;
                         }
                     }
-                });
-                
-                return;
+                }
             },
 
                                                     //padł wątek w instancji aplikacji
             Ok(Out::Crash(app_id)) => {
                 
-                if current_app_id == app_id {
-                    
-                    if let Some(miodown) = miodown_opt {
+                if app_counter == app_id && miodown.is_some() {
 
-                        let miodown2 = make_app(app_id + 1);
+                    let miodown2 = make_app(app_counter + 1);
 
-                        miodown.shoutdown();
-
-                        run_waiting(app_id + 1, Some(miodown2), select, make_app, 0, exit_code_producer);
-                        return;
+                    match mem::replace(&mut miodown, Some(miodown2)) {
+                        Some(down) => down.shoutdown(),
+                        None => {},
                     }
+
+                    app_counter = app_counter + 1;
                 }
-                
-                run_waiting(app_id, None, select, make_app, 0, exit_code_producer);
             },
 
             Err(_) => {
                 
-                exit_code_producer.send(0).unwrap();
-                return;
+                return 0;
             }
         }
-    });
+    }
 }
 
 
@@ -216,7 +195,7 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
     let mut channel_group = Group::new();
     
     
-    let (job_producer, job_consumer) = channel_group.channel();
+    let (job_producer, job_consumer) = channel_group.channel::<callback0::CallbackBox>();
     
     
     let (api_file, start_api) = api_file::create(&mut channel_group, &job_producer);
