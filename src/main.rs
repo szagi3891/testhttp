@@ -161,8 +161,12 @@ fn run_waiting(current_app_id: u64, miodown_opt: Option<MioDown>, select: Select
                 task_async::spawn("<sdown>".to_owned(), move ||{
                     loop {
                         match select.get() {
-                            Ok(_) => {},
+                            Ok(_) => {
+                                println!("pad 1 ...");
+                            },
                             Err(_) => {
+                                
+                                println!("pad 2 ...");
                                 
                                 exit_code_producer.send(0).unwrap();
                                 return;
@@ -170,39 +174,30 @@ fn run_waiting(current_app_id: u64, miodown_opt: Option<MioDown>, select: Select
                         }
                     }
                 });
+                
+                return;
             },
 
                                                     //padł wątek w instancji aplikacji
             Ok(Out::Crash(app_id)) => {
                 
-                println!("waiting: crash : {}", app_id);
-                
                 if current_app_id == app_id {
                     
                     if let Some(miodown) = miodown_opt {
-                        
+
                         let miodown2 = make_app(app_id + 1);
-                        
+
                         miodown.shoutdown();
-                        
+
                         run_waiting(app_id + 1, Some(miodown2), select, make_app, 0, exit_code_producer);
-                        
-                    } else {
-                        
-                        run_waiting(app_id, None, select, make_app, 0, exit_code_producer);
+                        return;
                     }
-
-                    
-
-                } else {
-
-                    run_waiting(app_id, None, select, make_app, 0, exit_code_producer);
                 }
+                
+                run_waiting(app_id, None, select, make_app, 0, exit_code_producer);
             },
 
             Err(_) => {
-                
-                println!("waiting: error");
                 
                 exit_code_producer.send(0).unwrap();
                 return;
@@ -295,14 +290,60 @@ fn run_app_instance(addres: &String, crash_chan_producer: &Sender<u64>, current_
 
 fn install_signal_end() -> Receiver<()> {
     
-    let (sigterm_sender , sigterm_receiver ) = channel();
+    let (sigterm_sender , sigterm_receiver) = channel();
     
-    signal_end(Box::new(move || {
+    
+    
+    task_async::spawn("<sigterm>".to_owned(), move ||{
         
+        task_async::sleep(5000);
         sigterm_sender.send(()).unwrap();
-    }));
+        
+        /*
+        println!("odpalam 000");
+        
+        signal_end(callback0::new(Box::new(move||{
+            
+            
+            let _defer = Defer::new(callback0::new(Box::new(move||{
+                
+                task_async::log_info("defer signal_end".to_owned());
+            })));
+            
+            
+            println!("odpalam 111");
+            
+            sigterm_sender.send(()).unwrap();
+            
+            println!("odpalam 222");
+        })));
+        */
+    });
+    
     
     sigterm_receiver
+    
+    /*
+    println!("odpalam ... sigterm");
+    
+    
+    task_async::spawn("<sigterm>".to_owned(), move ||{
+        
+        //task_async::sleep(5000);
+        //sigterm_sender.send(()).unwrap();
+        
+        println!("odpalam 000");
+        
+        signal_end(Box::new(move || {
+            
+            println!("odpalam 111");
+            sigterm_sender.send(()).unwrap();
+            println!("odpalam 222");
+        }));
+    });
+    
+    sigterm_receiver
+    */
 }
 
 
