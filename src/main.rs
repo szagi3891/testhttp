@@ -151,7 +151,13 @@ fn run_supervisor() -> Select<Out> {
             Ok(Out::Int(())) => {
                 
                 match mem::replace(&mut miodown, None) {
-                    Some(down) => down.shoutdown(),
+                    Some(down) => {
+                        
+                        task_async::log_info("signal INT".to_owned());
+                        task_async::log_info(format!("miodown, app_id={}", app_counter));
+                        
+                        down.shoutdown();
+                    },
                     None => {},
                 }
                 
@@ -162,15 +168,17 @@ fn run_supervisor() -> Select<Out> {
             Ok(Out::Crash(app_id)) => {
                 
                 if app_counter == app_id && miodown.is_some() {
-
-                    let miodown2 = make_app(app_counter + 1);
+                    
+                    app_counter = app_counter + 1;
+                    
+                    task_async::log_info(format!("restart app, new app_id={}", app_counter));
+                    
+                    let miodown2 = make_app(app_counter);
 
                     match mem::replace(&mut miodown, Some(miodown2)) {
                         Some(down) => down.shoutdown(),
                         None => {},
                     }
-
-                    app_counter = app_counter + 1;
                 }
             },
 

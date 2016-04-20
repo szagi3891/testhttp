@@ -3,24 +3,20 @@ https://github.com/Detegr/rust-ctrlc
 */
 
 use ctrlc::CtrlC;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use task_async::callback0;
+use channels_async::channel;
+
 
 pub fn signal_end(func : callback0::CallbackBox) {
     
-    let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
+    let (send, recv) = channel();
+    
     CtrlC::set_handler(move || {
-        r.store(false, Ordering::SeqCst);
+        
+        send.send(()).unwrap();
     });
     
-    println!("Waiting for Ctrl-C... 0");
-    while running.load(Ordering::SeqCst) {}
-
-    println!("Got it! Exiting... 1");
+    let _ = recv.get();
     
     func.exec();
-    
-    println!("Got it! Exiting... 2");
 }
