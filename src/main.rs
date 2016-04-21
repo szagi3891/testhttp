@@ -201,10 +201,6 @@ fn run_app_instance(addres: &String, crash_producer: &Sender<u64>, current_app_c
     
     
     
-    
-    //TODO - dorobić funkcję : task_async::spawn_defer(move||{ ... }, move||{ ... }) -- ?
-    
-    
     for _ in 0..4 {
         
         let start_worker = run_worker(&job_consumer);
