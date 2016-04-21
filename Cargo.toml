@@ -14,9 +14,9 @@ git = "https://github.com/Detegr/rust-ctrlc"
 git = "https://github.com/szagi3891/channels_async-rs"
 #path = "../channels_async-rs"
 
-
 [dependencies.task_async]
 git = "https://github.com/szagi3891/task_async-rs"
+#path = "../task_async-rs"
 
 [dependencies.miohttp]
 git = "https://github.com/szagi3891/miohttp-rs"

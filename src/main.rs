@@ -42,32 +42,6 @@ https://github.com/tailhook/rotor-http/blob/master/examples/threaded_reuse_port.
 
 
 
-//http://stackoverflow.com/questions/29963449/golang-like-defer-in-rust
-
-struct Defer {
-    func: callback0::CallbackBox
-}
-
-impl Drop for Defer {
-    
-    fn drop(&mut self) {
-        
-        let empty_clouser = callback0::new(Box::new(||{}));
-        let func = mem::replace(&mut self.func, empty_clouser);
-        
-		func.exec();
-    }
-}
-
-impl Defer {
-    
-    fn new(func : callback0::CallbackBox) -> Defer {
-        Defer {
-            func : func
-        }
-    }
-}
-
 
 
 //kill -INT 1988        - Terminates the program (like Ctrl+C)
@@ -183,7 +157,8 @@ fn run_app_instance(addres: &String, crash_producer: &Sender<u64>, current_app_c
     let mut channel_group = Group::new();
     
     
-    let (job_producer, job_consumer) = channel_group.channel::<callback0::CallbackBox>();
+                                                                //channel_group.channel::<callback0::CallbackBox>();
+    let (job_producer, job_consumer) = channel_group.channel();
     
     
     let (api_file, start_api) = api_file::create(&mut channel_group, &job_producer);
@@ -192,15 +167,14 @@ fn run_app_instance(addres: &String, crash_producer: &Sender<u64>, current_app_c
         let crash_producer = crash_producer.clone();
         let current_app_counter = current_app_counter.clone();
         
-        task_async::spawn("<api>".to_owned(), move ||{
-
-            let _defer = Defer::new(callback0::new(Box::new(move||{
-
-                task_async::log_info("down".to_owned());
-                crash_producer.send(current_app_counter).unwrap();
-            })));
-
+        task_async::spawn_defer("<api>".to_owned(), move ||{
+            
             start_api.exec();
+            
+        }, move||{
+            
+            task_async::log_info("down".to_owned());
+            crash_producer.send(current_app_counter).unwrap();
         });
     }
     
@@ -213,16 +187,15 @@ fn run_app_instance(addres: &String, crash_producer: &Sender<u64>, current_app_c
         let crash_producer = crash_producer.clone();
         let current_app_counter = current_app_counter.clone();
         
-        task_async::spawn("<EventLoop>".to_owned(), move||{
-
-            let _defer = Defer::new(callback0::new(Box::new(move||{
-
-                task_async::log_info("down".to_owned());
-                channel_group.close();
-                crash_producer.send(current_app_counter).unwrap();
-            })));
-
+        task_async::spawn_defer("<EventLoop>".to_owned(), move||{
+            
             miostart.exec();
+        
+        }, move||{
+
+            task_async::log_info("down".to_owned());
+            crash_producer.send(current_app_counter).unwrap();
+            channel_group.close();
         });
     }
     
@@ -239,20 +212,21 @@ fn run_app_instance(addres: &String, crash_producer: &Sender<u64>, current_app_c
         let crash_producer = crash_producer.clone();
         let current_app_counter = current_app_counter.clone();
         
-        task_async::spawn("<worker>".to_owned(), move ||{
-            
-            let _defer = Defer::new(callback0::new(Box::new(move||{
-
-                task_async::log_info("down".to_owned());
-                crash_producer.send(current_app_counter).unwrap();
-            })));
+        task_async::spawn_defer("<worker>".to_owned(), move ||{
             
             start_worker.exec();
+            
+        }, move||{
+
+            task_async::log_info("down".to_owned());
+            crash_producer.send(current_app_counter).unwrap();
         });
     }
     
     miodown
 }
+
+
 
 
 fn install_signal_end() -> Receiver<()> {
@@ -306,7 +280,9 @@ fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0
     });
     
     
-    new_server(addres, 4000, 4000, job_producer, convert)
+    let (miodown, start_mio) = new_server(addres, 4000, 4000, job_producer, convert);
+    
+    (miodown, start_mio)
 }
 
 

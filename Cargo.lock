@@ -3,7 +3,7 @@ name = "mio-test"
 version = "0.1.0"
 dependencies = [
  "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
- "ctrlc 1.1.1 (git+https://github.com/Detegr/rust-ctrlc)",
+ "ctrlc 2.0.0 (git+https://github.com/Detegr/rust-ctrlc)",
  "miohttp 0.1.0 (git+https://github.com/szagi3891/miohttp-rs)",
  "task_async 0.1.0 (git+https://github.com/szagi3891/task_async-rs)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -31,8 +31,8 @@ source = "git+https://github.com/szagi3891/channels_async-rs#716d6ee1d4c8200c89c
 
 [[package]]
 name = "ctrlc"
-version = "1.1.1"
-source = "git+https://github.com/Detegr/rust-ctrlc#6e09346683626669da6045ea72eb06ac88fe36ba"
+version = "2.0.0"
+source = "git+https://github.com/Detegr/rust-ctrlc#9db992c73028094d38024302cd4a894605693f69"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -137,7 +137,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "task_async"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/task_async-rs#8e454464c910aed04fb16b82ffc5cdf82e8f205e"
+source = "git+https://github.com/szagi3891/task_async-rs#29cf64c337f275921b4ff55bf201ce5cbce953f7"
 dependencies = [
  "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
 ]
