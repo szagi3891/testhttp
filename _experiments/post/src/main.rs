@@ -5,7 +5,6 @@ pub type HashMapFn<T> = HashMap<String, Box<Fn(&mut T, Vec<u8>) -> bool>>;
 
 pub trait ModelBind {
     fn model_bind() -> (Self, HashMapFn<Self>);
-    //fn bind() -> Option<Self>;
 }
 
 pub trait ModelConvert<T> where Self: Sized {
@@ -15,6 +14,14 @@ pub trait ModelConvert<T> where Self: Sized {
 struct ModelBuilder<T> where T : ModelBind {
     model : T,
     map   : HashMapFn<T>,
+}
+
+
+#[derive(PartialEq)]
+enum ModelBuilderStatus {
+    ErrModel,
+    ErrConvert,
+    Ok
 }
 
 impl<T> ModelBuilder<T> where T : ModelBind {
@@ -29,15 +36,18 @@ impl<T> ModelBuilder<T> where T : ModelBind {
         }
     }
     
-    fn set(&mut self, field: String, value: Vec<u8>) -> bool {
+    fn set(&mut self, field: String, value: Vec<u8>) -> ModelBuilderStatus {
         
         match self.map.remove(&field) {
             Some(fn_set) => {
-                fn_set(&mut self.model, value);
-                true
+                if fn_set(&mut self.model, value) {
+                    ModelBuilderStatus::Ok
+                } else {
+                    ModelBuilderStatus::ErrConvert
+                }
             },
             None => {
-                false
+                ModelBuilderStatus::ErrModel
             },
         }
     }
@@ -47,7 +57,7 @@ impl<T> ModelBuilder<T> where T : ModelBind {
         if self.map.len() == 0 {
             Some(self.model)
         } else {
-            None
+            None                            //nie udało się dopasować wszystkich pól
         }
     }
 }
@@ -119,8 +129,28 @@ impl ModelBind for User {
             }
         }));
         
+        map.insert("bad".to_owned() , Box::new(|model: &mut User, value: Vec<u8>| -> bool {
+            
+            match ModelConvert::from(value) {
+                Ok(value) => {
+                    model.bad = value;
+                    true
+                },
+                Err(()) => false,
+            }
+        }));
+        
         (model, map)
     }
+    
+    //fn model_get -> zwraca hashmapę ? a może sprytny iterator jakiś
+    /*
+        dobrze jeśli ta funkcja byłaby parametryzowana generycznie
+        automatycznie wartości zwracane byłyby konwertowane na typ parametur generyczny
+        
+        dzięki temu można by zrobić łatwiejsze rzutowanie na stringa np. bazodanowego ...
+            który byłby osobnym polem
+    */
 }
 
 
@@ -128,41 +158,34 @@ fn make_model(login: Vec<u8>, pass: Vec<u8>, bad: Vec<u8>) -> Option<User> {
     
     let mut builder : ModelBuilder<User> = ModelBuilder::new();
     
-    if builder.set("login".to_owned(), login) == false {
+    if builder.set("login".to_owned(), login) != ModelBuilderStatus::Ok {
         return None
     }
     
-    if builder.set("pass".to_owned(), pass) == false {
+    if builder.set("pass".to_owned(), pass) != ModelBuilderStatus::Ok {
         return None;
     }
     
-    if builder.set("bad".to_owned(), bad) == false {
+    if builder.set("bad".to_owned(), bad) != ModelBuilderStatus::Ok {
         return None;
     }
     
     builder.get()
 }
 
+//TODO - zrobić testy, sprawdzające różne warianty
+
 fn main() {
     
-    let login : Vec<u8> = "Grzegorz".to_owned().into_bytes();
-    let pass  : Vec<u8> = "tajne hasło".to_owned().into_bytes();
-    let bad   : Vec<u8> = vec![129, 129, 129];
+    let login  = "Grzegorz".to_owned().into_bytes();
+    let pass   = "tajne hasło".to_owned().into_bytes();
+    let bad    = vec![129, 200, 200];
+    //let bad    = vec![];
+    //let bad = "taj".to_owned().into_bytes();
     
     let user_opt = make_model(login, pass, bad);
     
-    /*
-    match user_opt {
-        Some(user) => {
-            
-            match login.String() && pass.String() {
-                
-            }
-        }
-    }
-    */
-    
-    println!("Hello, world! {:?}", user_opt);
+    println!("Hello, world2! {:?}", user_opt);
 }
 
 
