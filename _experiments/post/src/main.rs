@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::str;
 
+extern crate rustc_serialize;
+//use rustc_serialize::json;
+
 pub type HashMapFn<T> = HashMap<String, Box<Fn(&mut T, Vec<u8>) -> bool>>;
 
-pub trait ModelBind {
-    fn model_bind() -> (Self, HashMapFn<Self>);
+pub trait ModelBind : Default {
+    fn model_bind() -> HashMapFn<Self>;
 }
 
 pub trait ModelConvert<T> where Self: Sized {
@@ -28,11 +31,9 @@ impl<T> ModelBuilder<T> where T : ModelBind {
     
     fn new() -> ModelBuilder<T> {
         
-        let (model, map) = T::model_bind();
-        
         ModelBuilder {
-            model : model,
-            map   : map,
+            model : Default::default(),
+            map   : T::model_bind(),
         }
     }
     
@@ -102,9 +103,7 @@ struct User {
 
 impl ModelBind for User {
     
-    fn model_bind() -> (User, HashMapFn<User>) {
-        
-        let model = Default::default();
+    fn model_bind() -> HashMapFn<User> {
         
         let mut map: HashMapFn<User> = HashMap::new();
         
@@ -140,7 +139,7 @@ impl ModelBind for User {
             }
         }));
         
-        (model, map)
+        map
     }
     
     //fn model_get -> zwraca hashmapę ? a może sprytny iterator jakiś
@@ -150,6 +149,19 @@ impl ModelBind for User {
         
         dzięki temu można by zrobić łatwiejsze rzutowanie na stringa np. bazodanowego ...
             który byłby osobnym polem
+    */
+    
+    /*
+        Fn (callback_result: Option<model>) {
+
+            model::Default()
+            
+            let mut mapa i jakiś stan
+            getPost(
+                Box<Fn(name: String, value: Vec<u8>) -> bool>,          //true, wartość, ok, kontynuuj
+                Box<FnOnce()>                                           //gdy już nie będzie kolejnych danych
+            )
+        }
     */
 }
 
@@ -174,6 +186,18 @@ fn make_model(login: Vec<u8>, pass: Vec<u8>, bad: Vec<u8>) -> Option<User> {
 }
 
 //TODO - zrobić testy, sprawdzające różne warianty
+
+
+#[derive(RustcEncodable, RustcDecodable)]
+struct test {
+    name : String,
+    password : String,
+}
+
+//rustc ./src/main.rs -Z unstable-options --pretty expanded
+
+
+
 
 fn main() {
     
