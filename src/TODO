@@ -1,0 +1,10 @@
+http://doc.rust-lang.org/std/macro.file!.html
+http://doc.rust-lang.org/std/macro.line!.html
+
+można dodać informację o czasie wykonywania poszczególnych asonchrynic<nych tasków
+
+1. hash wersji + plik + linia + czas trwania taska
+
+to powinno wystarczyć do analizowania i wychwytywania wąskich gardeł ...
+
+

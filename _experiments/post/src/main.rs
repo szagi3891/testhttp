@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::str;
 
-extern crate rustc_serialize;
-//use rustc_serialize::json;
 
 pub type HashMapFn<T> = HashMap<String, Box<Fn(&mut T, Vec<u8>) -> bool>>;
 
@@ -188,11 +186,6 @@ fn make_model(login: Vec<u8>, pass: Vec<u8>, bad: Vec<u8>) -> Option<User> {
 //TODO - zrobić testy, sprawdzające różne warianty
 
 
-#[derive(RustcEncodable, RustcDecodable)]
-struct test {
-    name : String,
-    password : String,
-}
 
 //rustc ./src/main.rs -Z unstable-options --pretty expanded
 
