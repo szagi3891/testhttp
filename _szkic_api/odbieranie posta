@@ -1,0 +1,78 @@
+
+gdzieś nieznacznie wyżej, trait z miohttp musi być zaimplementowany dla buildera
+    odseparowanie obu bibliotek
+    
+
+requrest.getPost(builder<Model>, FnOnce(Option<Model>))
+    
+    builder.set(String, Vec<u8>) -> bool         bool - określa czy udało się ustawić ten parametr
+
+    builder.get()    -> opcja na model, zjada buildera ...
+
+
+
+
+
+fn api.getPost<Model>(Request, kanaj_jobow, task<Option<User>>) {
+
+    let builder = builder::<Model>::new();
+
+    requrest.getPost(builder<Model>, FnOnce(Option<Model>){
+
+        kanaj_jobow.send(callback1::new(Box::new(||{
+
+                                        //ten task dostaje dane modelem
+            task.result(opcja_model);
+
+        }))).unwrap();
+    });
+}
+
+
+
+
+let set_resp = task.async1(Box::new(|task, opt_user: Option<Option<User>>|{
+    
+    match opt_user {
+    
+        Some(Some(user)) => {
+            
+            //przetwarzaj otrzymany model
+        },
+        
+        Some(None) => {
+        
+            //przesłane dane nie pasują do modelu, czyli ktoś cos kombinuje po stronie przeglądarki
+        },
+        
+        None => {
+            //jakiś timeout
+        }
+    }
+}));
+
+
+api.getPost(request, set_resp);
+
+
+kanał jobów, ma operować na czystym callbacku ... nie powiązanym z biblioteką task_async
+
+
+
+
+stany czytania post-a dla miohttp
+
+
+
+połączenie
+
+
+enum ConnectionMode {
+
+                                                    //czytanie requestu
+    ReadingRequest([u8; 2048], usize),
+                                                    //oczekiwanie na wygenerowanie odpowiedzi serwera (bool to keep alive)
+    WaitingForServerResponse(bool),
+                                                    //wysyłanie odpowiedz (bool to keep alive)
+    SendingResponse(bool, Vec<u8>, usize)
+}

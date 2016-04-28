@@ -1,0 +1,18 @@
+serwowanie dużych plików
+
+
+https://github.com/rust-lang/rust/issues/18100
+	strumieniowanie plików
+
+response powinien mieć wewnętrzny stan enum
+    pierwszy wariant, kompletna odpowiedź   -- standardowa kompletna zwrotka
+    drugi wariant, strumień z którego napływają kolejne dane
+    
+        ten obiekt musiałby spinać sprynie kanał do mio
+        oraz kanał do api plikowego, które dostarczałoby kolejne dane serwowanego pliku
+
+
+
+
+
+obsługa pobierania części pliku "range" ?

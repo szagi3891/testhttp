@@ -13,6 +13,15 @@ pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response
         panic!("the simulated failure");
     }
     
+    
+    if request.path().trim() == "/post_action" {
+        
+        let resp = Response::create(Code::Code200, Type::TextHtml, "odbieram dane postem".to_owned());
+        task.result(resp);
+        return;
+    }
+    
+    
     let path_src = "./static".to_owned() + request.path().trim();
     task_async::log_info(format!("Path requested: {}", &path_src));
     
