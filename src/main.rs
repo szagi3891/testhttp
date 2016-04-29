@@ -248,7 +248,7 @@ fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0
     let api_file     = api_file.clone();
     let job_producer = job_producer.clone();
     
-    let convert = Box::new(move|(request, respchan):(Request, Respchan)| -> callback0::CallbackBox {
+    let recive_request = Box::new(move|(request, respchan):(Request, Respchan)| {
         
                                                                    //task gwarantuje drop-a
         let task = Task::new(Box::new(move|result : Option<(Response)>|{
@@ -269,14 +269,15 @@ fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0
         
         let api_file = api_file.clone();
         
-        callback0::new(Box::new(move||{
+        job_producer.send(callback0::new(Box::new(move||{
             
             worker::render_request(api_file, request, task);
-        }))
+            
+        }))).unwrap();
     });
     
     
-    let (miodown, start_mio) = new_server(addres, 4000, 4000, job_producer, convert);
+    let (miodown, start_mio) = new_server(addres, 4000, 4000, recive_request);
     
     (miodown, start_mio)
 }
