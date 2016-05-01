@@ -75,7 +75,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "mio"
 version = "0.5.0"
-source = "git+https://github.com/carllerche/mio#60d54772f19199c8888876df1194b75eb72c6c53"
+source = "git+https://github.com/carllerche/mio#7d4778f226e3f2479e802ccb0934e1e8db3b31a1"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -91,13 +91,12 @@ dependencies = [
 [[package]]
 name = "miohttp"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/miohttp-rs#8016b496b14ff076a0ee7c7f6ee129b3dcdff01a"
+source = "git+https://github.com/szagi3891/miohttp-rs#c9b1b6e1cc916e12099f7b3aa66292427295884a"
 dependencies = [
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.0 (git+https://github.com/carllerche/mio)",
  "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
- "task_async 0.1.0 (git+https://github.com/szagi3891/task_async-rs)",
 ]
 
 [[package]]

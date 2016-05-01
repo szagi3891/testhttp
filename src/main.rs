@@ -16,7 +16,7 @@ mod worker;
 
 use channels_async::{channel, Sender, Receiver, Group, Select};
 use task_async::{Task, callback0};
-use miohttp::{new_server, Request, Response, Respchan, MioDown};
+use miohttp::{new_server, Request, Response, Respchan, MioDown, MioStart};
 use api_file::{Api as Api_file};
 
 use signal_end::signal_end;
@@ -181,7 +181,7 @@ fn run_app_instance(addres: &String, crash_producer: &Sender<u64>, current_app_c
     
     
     
-    let (miodown, miostart) = run_mio(&addres, &api_file, &job_producer);
+    let (miostart, miodown) = run_mio(&addres, &api_file, &job_producer);
     
     {
         let crash_producer = crash_producer.clone();
@@ -189,7 +189,7 @@ fn run_app_instance(addres: &String, crash_producer: &Sender<u64>, current_app_c
         
         task_async::spawn_defer("<EventLoop>".to_owned(), move||{
             
-            miostart.exec();
+            miostart.start();
         
         }, move||{
 
@@ -242,14 +242,29 @@ fn install_signal_end() -> Receiver<()> {
 }
 
 
-fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0::CallbackBox>) -> (MioDown, callback0::CallbackBox) {
+fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0::CallbackBox>) -> (MioStart, MioDown) {
     
     let addres       = addres.clone();
     let api_file     = api_file.clone();
     let job_producer = job_producer.clone();
     
+        
     
-    new_server(addres, 4000, 4000, Box::new(move|(request, respchan):(Request, Respchan)| {
+    
+    let log_error = Box::new(|is_error : bool, message:String|{
+        
+        if is_error {
+            
+            println!("ERROR: {}", message);
+            
+        } else {
+            
+            println!("LOG  : {}", message);
+        }
+    });
+    
+        
+    new_server(addres, 4000, 4000, Some(log_error), Box::new(move|(request, respchan):(Request, Respchan)| {
         
         let api_file = api_file.clone();
         
