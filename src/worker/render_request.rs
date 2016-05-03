@@ -16,8 +16,24 @@ pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response
     
     if request.path().trim() == "/post_action" {
         
-        let resp = Response::create(Code::Code200, Type::TextHtml, "odbieram dane postem".to_owned());
-        task.result(resp);
+        if request.is_post() {
+            
+            request.get_post(Box::new(move|dane: Vec<u8>|{
+
+                let mes  = format!("odbieram dane postem: {}", dane.len());
+
+                let resp = Response::create(Code::Code200, Type::TextHtml, mes);
+                task.result(resp);
+            }));
+            
+        } else {
+            
+            let mes  = format!("postownie: żądanie wysłane getem");
+            
+            let resp = Response::create(Code::Code200, Type::TextHtml, mes);
+            task.result(resp);
+        }
+        
         return;
     }
     
