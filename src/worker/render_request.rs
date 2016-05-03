@@ -18,12 +18,23 @@ pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response
         
         if request.is_post() {
             
-            request.get_post(Box::new(move|dane: Vec<u8>|{
+            request.get_post(Box::new(move|dane_opt: Option<Vec<u8>>|{
+                
+                match dane_opt {
+                    
+                    Some(dane) => {
+                        
+                        let mes  = format!("odbieram dane postem: {}", dane.len());
 
-                let mes  = format!("odbieram dane postem: {}", dane.len());
-
-                let resp = Response::create(Code::Code200, Type::TextHtml, mes);
-                task.result(resp);
+                        let resp = Response::create(Code::Code200, Type::TextHtml, mes);
+                        task.result(resp);
+                    },
+                    
+                    None => {
+                        
+                        //nieobsłużenie spowoduje błąd 500
+                    }
+                }
             }));
             
         } else {

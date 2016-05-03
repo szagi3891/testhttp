@@ -255,11 +255,11 @@ fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0
         
         if is_error {
             
-            println!("ERROR: {}", message);
+            task_async::log_error(message);
             
         } else {
             
-            println!("LOG  : {}", message);
+            task_async::log_info(message);
         }
     });
     
