@@ -87,7 +87,7 @@ dependencies = [
 [[package]]
 name = "miohttp"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/miohttp-rs#4e79d05cdfb1d173220463c463cf00191d56af18"
+source = "git+https://github.com/szagi3891/miohttp-rs#10039fb7cad70d5afce2184580121bd9d60f1d53"
 dependencies = [
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
