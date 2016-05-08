@@ -15,8 +15,8 @@ mod worker;
 
 
 use channels_async::{channel, Sender, Receiver, Group, Select};
-use task_async::{Task, callback0};
-use miohttp::{new_server, Request, Response, Respchan, MioDown, MioStart};
+use task_async::{callback0};
+use miohttp::{new_server, Request, MioDown, MioStart};
 use api_file::{Api as Api_file};
 
 use signal_end::signal_end;
@@ -264,30 +264,14 @@ fn run_mio(addres: &String, api_file: &Api_file, job_producer: &Sender<callback0
     });
     
         
-    new_server(addres, 4000, 4000, Some(log_error), Box::new(move|(request, respchan):(Request, Respchan)| {
+    new_server(addres, 4000, 4000, Some(log_error), Box::new(move|request:Request| {
         
         let api_file = api_file.clone();
         
         job_producer.send(callback0::new(Box::new(move||{
             
-                                                                   //task gwarantuje drop-a
-
-            worker::render_request(api_file, request, Task::new(Box::new(move|result : Option<(Response)>|{
-
-                match result {
-
-                    Some(resp) => {
-
-                        respchan.send(resp);
-                    },
-
-                    None => {
-                                                                //coś poszło nie tak z obsługą tego requestu
-                        respchan.send(Response::create_500());
-                    }
-                };
-            })));
-        
+            worker::render_request(api_file, request);
+            
         }))).unwrap();
     }))
 }

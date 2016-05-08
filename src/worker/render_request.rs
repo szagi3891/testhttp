@@ -6,7 +6,7 @@ use api_file::{self, Api as Api_file};
 use task_async::{self, Task};
 
 
-pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response)>) {
+pub fn render_request(api_file: Api_file, request: Request) {
     
     if request.path().trim() == "/crash" {
         
@@ -18,7 +18,7 @@ pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response
         
         if request.is_post() {
             
-            request.get_post(Box::new(move|dane_opt: Option<Vec<u8>>|{
+            request.get_post(Box::new(move|request: Request, dane_opt: Option<Vec<u8>>|{
                 
                 match dane_opt {
                     
@@ -27,7 +27,7 @@ pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response
                         let mes  = format!("odbieram dane postem: {}", dane.len());
 
                         let resp = Response::create(Code::Code200, Type::TextHtml, mes);
-                        task.result(resp);
+                        request.send(resp);
                     },
                     
                     None => {
@@ -42,7 +42,7 @@ pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response
             let mes  = format!("postownie: żądanie wysłane getem");
             
             let resp = Response::create(Code::Code200, Type::TextHtml, mes);
-            task.result(resp);
+            request.send(resp);
         }
         
         return;
@@ -53,8 +53,26 @@ pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response
     task_async::log_info(format!("Path requested: {}", &path_src));
     
     
+    let path         = path_src.clone();
+    let request_path = request.path().clone();
     
-    let path = path_src.clone();
+    let task = Task::new(Box::new(move|resonse : Option<(Response)>|{
+        
+        
+        match resonse {
+            Some(resp) => {
+                request.send(resp);
+            },
+            None => {
+                //domyślny mechanizm
+            }
+        };
+        
+    }));
+    
+    
+    
+
     
     let task_get_file = task.async1(Box::new(move|task: Task<(Response)>, response: Option<api_file::FilesData>|{
         
@@ -72,7 +90,7 @@ pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response
                         let path         = Path::new(&path_src);
                         let content_type = Type::create_from_path(&path);
 
-                        task_async::log_info(format!("200, {}, {}", content_type, request.path()));
+                        task_async::log_info(format!("200, {}, {}", content_type, request_path));
                         
                         let response = Response::create_from_buf(Code::Code200, content_type, buffer);
 
@@ -84,10 +102,10 @@ pub fn render_request(api_file: Api_file, request: Request, task: Task<(Response
                         match err.kind() {
 
                             io::ErrorKind::NotFound => {
-
+                                
                                 let mess     = "Not found".to_owned();
                                 let response = Response::create(Code::Code404, Type::TextHtml, mess.clone());
-                                task_async::log_debug(format!("404, {}, {}. {:?} ", Type::TextHtml, request.path(), err));
+                                task_async::log_debug(format!("404, {}, {}. {:?} ", Type::TextHtml, request_path, err));
 
                                 task.result(response)
                             }
