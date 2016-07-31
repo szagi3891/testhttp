@@ -7,7 +7,7 @@ mod api_file;
 mod server;
 
 fn main() {
-    println!("test ...");
+    println!("server start: 127.0.0.1:9876");
 
     //Twórz api plików
     //Twórz api workera - zależne od api plików
@@ -17,7 +17,7 @@ fn main() {
     
     //łap wszystkie sygnały ubitego wątku
     
-    let api_file = api_file::Api_File::new();
+    let api_file = api_file::ApiFile::new();
     let server = server::Server::new(api_file);
     
     create_mio(server);     //uruchamia i zatrzymuje wątek w tym miejscu

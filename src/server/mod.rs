@@ -1,16 +1,16 @@
 use std::io;
 use std::path::Path;
-use api_file::{Api_File, FilesData};
+use api_file::{ApiFile, FilesData};
 use miohttp::{Request, Response, Code, Type};
 use task_async::{self, Task};
 
 pub struct Server {
-    api_file: Api_File
+    api_file: ApiFile
 }
 
 impl Server {
 
-    pub fn new(api_file: Api_File) -> Server {
+    pub fn new(api_file: ApiFile) -> Server {
         Server{
             api_file: api_file
         }
@@ -88,43 +88,38 @@ impl Server {
 
             match response {
 
-                Some(resp_result) => {
-                    match resp_result {
+                Some(Ok(buffer)) => {
 
-                        Ok(buffer) => {
+                    let buffer = buffer.to_owned();
 
-                            let buffer = buffer.to_owned();
+                    let path         = Path::new(&path_src);
+                    let content_type = Type::create_from_path(&path);
 
-                            let path         = Path::new(&path_src);
-                            let content_type = Type::create_from_path(&path);
+                    task_async::log_info(format!("200, {}, {}", content_type, request_path));
 
-                            task_async::log_info(format!("200, {}, {}", content_type, request_path));
+                    let response = Response::create_from_buf(Code::Code200, content_type, buffer);
 
-                            let response = Response::create_from_buf(Code::Code200, content_type, buffer);
+                    task.result(response)
+                }
+
+                Some(Err(err)) => {
+
+                    match err.kind() {
+
+                        io::ErrorKind::NotFound => {
+
+                            let mess     = "Not found".to_owned();
+                            let response = Response::create(Code::Code404, Type::TextHtml, mess.clone());
+                            task_async::log_debug(format!("404, {}, {}. {:?} ", Type::TextHtml, request_path, err));
 
                             task.result(response)
                         }
+                        _ => {
 
-                        Err(err) => {
-
-                            match err.kind() {
-
-                                io::ErrorKind::NotFound => {
-
-                                    let mess     = "Not found".to_owned();
-                                    let response = Response::create(Code::Code404, Type::TextHtml, mess.clone());
-                                    task_async::log_debug(format!("404, {}, {}. {:?} ", Type::TextHtml, request_path, err));
-
-                                    task.result(response)
-                                }
-                                _ => {
-
-                                    task_async::log_error(format!("errrrr {:?}", err));
-                                }
-                            }
-
+                            task_async::log_error(format!("errrrr {:?}", err));
                         }
                     }
+
                 }
 
                 None => {
@@ -132,6 +127,8 @@ impl Server {
                 }
             }
         }));
+        
+        self.api_file.get_file(path, task_get_file);
         
         /*
         let resp = Response::create(Code::Code200, Type::TextHtml, "Hello world2 -> ".to_owned() + request.path());
