@@ -19,11 +19,6 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "channels_async"
-version = "0.1.0"
-source = "git+https://github.com/szagi3891/channels_async-rs#90afb84b1a9cf41f49c097d99c004b656c89238b"
-
-[[package]]
 name = "ctrlc"
 version = "2.0.0"
 source = "git+https://github.com/Detegr/rust-ctrlc#9db992c73028094d38024302cd4a894605693f69"
@@ -65,7 +60,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "mio"
 version = "0.6.0-dev"
-source = "git+https://github.com/carllerche/mio#4184a9d69be927e58ebf3fcc4ce2635c6ed9583e"
+source = "git+https://github.com/szagi3891/mio#206769906a132f2e4294fa9e37aced1bc779ea80"
 dependencies = [
  "libc 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -79,11 +74,11 @@ dependencies = [
 [[package]]
 name = "miohttp"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/miohttp-rs#553e837d439aa198a1e71737467ed0415695649e"
+source = "git+https://github.com/szagi3891/miohttp-rs#1a956e7aa43539494c2cfb46ddad3d28c2a9f6f5"
 dependencies = [
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.6.0-dev (git+https://github.com/carllerche/mio)",
+ "mio 0.6.0-dev (git+https://github.com/szagi3891/mio)",
  "net2 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -144,10 +139,7 @@ source = "git+https://github.com/carllerche/slab?rev=5476efcafb#5476efcafbc5ef4d
 [[package]]
 name = "task_async"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/task_async-rs#29cf64c337f275921b4ff55bf201ce5cbce953f7"
-dependencies = [
- "channels_async 0.1.0 (git+https://github.com/szagi3891/channels_async-rs)",
-]
+source = "git+https://github.com/szagi3891/task_async-rs#9104dc91550c874cf567e0ff0c97922a858946e6"
 
 [[package]]
 name = "time"

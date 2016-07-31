@@ -56,7 +56,7 @@ impl Server {
             return;
         }
 
-
+        
         //serwujemy statyczną zawartość
         
         let path_src = "./static".to_owned() + request.path().trim();
@@ -65,8 +65,7 @@ impl Server {
         let path         = path_src.clone();
         let request_path = request.path().clone();
 
-        let task = Task::new(Box::new(move|resonse : Option<(Response)>|{
-
+        let task = Task::new(Box::new(move|resonse : Option<Response>|{
 
             match resonse {
                 Some(resp) => {
@@ -83,7 +82,7 @@ impl Server {
 
 
 
-        let task_get_file = task.async1(Box::new(move|task: Task<(Response)>, response: Option<FilesData>|{
+        let task_get_file = task.async1(Box::new(move|task: Task<Response>, response: Option<FilesData>|{
 
             task_async::log_debug(format!("Invoked request's callback in response"));
 
@@ -133,11 +132,12 @@ impl Server {
                 }
             }
         }));
-
         
+        /*
         let resp = Response::create(Code::Code200, Type::TextHtml, "Hello world2 -> ".to_owned() + request.path());
         
         request.send(resp);
+        */
     }
 }
 
