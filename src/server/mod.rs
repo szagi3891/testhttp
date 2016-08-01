@@ -21,7 +21,7 @@ impl Server {
         if request.path().trim() == "/crash" {
             panic!("the simulated failure");
         }
-        
+
         if request.path().trim() == "/post_action" {
 
             if request.is_post() {
@@ -57,14 +57,10 @@ impl Server {
         }
 
         
-        //serwujemy statyczną zawartość
+        let (path_disk, path_requested) = self.get_static_path(&request);
         
-        let path_src = "./static".to_owned() + request.path().trim();
-        task_async::log_info(format!("Path requested: {}", &path_src));
-
-        let path         = path_src.clone();
-        let request_path = request.path().clone();
-
+        task_async::log_info(format!("Path requested: {}", &path_disk));
+        
         let task = Task::new(Box::new(move|resonse : Option<Response>|{
 
             match resonse {
@@ -79,9 +75,8 @@ impl Server {
         }));
 
 
-
-
-
+        let path_disk_clone = path_disk.clone();
+        
         let task_get_file = task.async1(Box::new(move|task: Task<Response>, response: Option<FilesData>|{
 
             task_async::log_debug(format!("Invoked request's callback in response"));
@@ -92,10 +87,10 @@ impl Server {
 
                     let buffer = buffer.to_owned();
 
-                    let path         = Path::new(&path_src);
+                    let path         = Path::new(&path_disk);
                     let content_type = Type::create_from_path(&path);
 
-                    task_async::log_info(format!("200, {}, {}", content_type, request_path));
+                    task_async::log_info(format!("200, {}, {}", content_type, path_requested));
 
                     let response = Response::create_from_buf(Code::Code200, content_type, buffer);
 
@@ -110,7 +105,7 @@ impl Server {
 
                             let mess     = "Not found".to_owned();
                             let response = Response::create(Code::Code404, Type::TextHtml, mess.clone());
-                            task_async::log_debug(format!("404, {}, {}. {:?} ", Type::TextHtml, request_path, err));
+                            task_async::log_debug(format!("404, {}, {}. {:?} ", Type::TextHtml, path_requested, err));
 
                             task.result(response)
                         }
@@ -128,13 +123,28 @@ impl Server {
             }
         }));
         
-        self.api_file.get_file(path, task_get_file);
-        
+        self.api_file.get_file(path_disk_clone, task_get_file);
+
+
         /*
-        let resp = Response::create(Code::Code200, Type::TextHtml, "Hello world2 -> ".to_owned() + request.path());
-        
+        let resp = Response::create(Code::Code200, Type::TextHtml, "Hello world2 -> ".to_owned() + request.path());        
         request.send(resp);
         */
+    }
+    
+    fn get_static_path(&self, request: &Request) -> (String, String) {
+
+        let path = request.path().trim();
+        
+        let path_requested = if path == "/" {
+            "/index.html"
+        } else {
+            path
+        };
+
+        let path_disk = "./static".to_owned() + path_requested;
+
+        (path_disk, path_requested.to_owned())
     }
 }
 
