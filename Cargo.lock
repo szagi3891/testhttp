@@ -24,7 +24,7 @@ version = "2.0.0"
 source = "git+https://github.com/Detegr/rust-ctrlc#9db992c73028094d38024302cd4a894605693f69"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -49,7 +49,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "libc"
-version = "0.2.14"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -62,7 +62,7 @@ name = "mio"
 version = "0.6.0-dev"
 source = "git+https://github.com/szagi3891/mio#206769906a132f2e4294fa9e37aced1bc779ea80"
 dependencies = [
- "libc 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "net2 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -100,7 +100,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -112,7 +112,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -147,7 +147,7 @@ version = "0.1.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -175,3 +175,26 @@ dependencies = [
  "winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
+[metadata]
+"checksum bitflags 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8dead7461c1127cf637931a1e50934eb6eee8bff2f74433ac7909e9afcee04a3"
+"checksum cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de1e760d7b6535af4241fca8bd8adf68e2e7edacc6b29f5d399050c5e48cf88c"
+"checksum ctrlc 2.0.0 (git+https://github.com/Detegr/rust-ctrlc)" = "<none>"
+"checksum httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "46534074dbb80b070d60a5cb8ecadd8963a00a438ae1a95268850a7ef73b67ae"
+"checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
+"checksum libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "e32a70cf75e5846d53a673923498228bbec6a8624708a9ea5645f075d6276122"
+"checksum libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)" = "23e3757828fa702a20072c37ff47938e9dd331b92fac6e223d26d4b7a55f7ee2"
+"checksum log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "ab83497bf8bf4ed2a74259c1c802351fcd67a65baa86394b6ba73c36f4838054"
+"checksum mio 0.6.0-dev (git+https://github.com/szagi3891/mio)" = "<none>"
+"checksum miohttp 0.1.0 (git+https://github.com/szagi3891/miohttp-rs)" = "<none>"
+"checksum miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d5bfc6782530ac8ace97af10a540054a37126b63b0702ddaaa243b73b5745b9a"
+"checksum net2 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)" = "5edf9cb6be97212423aed9413dd4729d62b370b5e1c571750e882cebbbc1e3e2"
+"checksum nix 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7a7bb1da2be7da3cbffda73fc681d509ffd9e665af478d2bee1907cee0bc64b2"
+"checksum rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "c5f5376ea5e30ce23c03eb77cbe4962b988deead10910c372b226388b594c084"
+"checksum semver 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)" = "d4f410fedcf71af0345d7607d246e7ad15faaadd49d240ee3b24e5dc21a820ac"
+"checksum slab 0.2.0 (git+https://github.com/carllerche/slab?rev=5476efcafb)" = "<none>"
+"checksum task_async 0.1.0 (git+https://github.com/szagi3891/task_async-rs)" = "<none>"
+"checksum time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)" = "3c7ec6d62a20df54e07ab3b78b9a3932972f4b7981de295563686849eb3989af"
+"checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+"checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
+"checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
+"checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
