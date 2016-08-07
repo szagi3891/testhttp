@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Sender};
 use std::collections::HashMap;
 use task_async::{Task};
@@ -5,14 +6,14 @@ use std::thread;
 use std::collections::VecDeque;
 
 use thread_pool::{ThreadPool};
-use thread_pool::types::{ParamTrait, RespTrait, CounterType, WorkerFunctionType};
+use thread_pool::types::{ParamTrait, CounterType, WorkerFunctionType};
 use thread_pool::sender_id::{SenderId};
 use thread_pool::receiver_id::{ReceiverId};
 use thread_pool::autoid::{AutoId};
 
-pub struct Inner<Param: ParamTrait, Resp: RespTrait> {
+pub struct Inner<Param: ParamTrait> {
     autoid       : AutoId,
-    task         : VecDeque<(Param, Task<Resp>)>,
+    task         : VecDeque<(Param)>,
     workers_busy : HashMap<CounterType  , SenderId<Param>>,
     workers_idle : HashMap<CounterType  , SenderId<Param>>,
 }
@@ -27,9 +28,9 @@ pub struct Inner<Param: ParamTrait, Resp: RespTrait> {
     }
 */
 
-impl<Param, Resp> Inner<Param, Resp> where Param: ParamTrait, Resp: RespTrait {
+impl<Param> Inner<Param> where Param: ParamTrait {
         
-    pub fn new() -> Inner<Param, Resp> {
+    pub fn new() -> Inner<Param> {
         Inner {
             autoid       : AutoId::new(),
             task         : VecDeque::new(),
@@ -39,23 +40,28 @@ impl<Param, Resp> Inner<Param, Resp> where Param: ParamTrait, Resp: RespTrait {
     }
 
     pub fn create_worker(&mut self,
-        thread_pool: ThreadPool<Param, Resp>,
+        inner: Arc<Mutex<Inner<Param>>>,
         workerFunction: WorkerFunctionType<Param>) {
 
         let (sender, receiver) = channel();
 
         let id = self.autoid.get();
+
         let sender_id = SenderId::new(id.clone(), sender);
+        self.workers_idle.insert(id.clone(), sender_id);
+
         let receiver_id = ReceiverId::new(id, receiver);
-        
-        self.move_to_idle(sender_id);
 
         thread::spawn(move || {
+
             loop {
                 match receiver_id.recv() {
                     Some(param) => {
-                        //let result =          //TODO - dodać wartość zwracaną przez tą funkcję
+
                         (workerFunction)(param);
+
+                        let mut guard = inner.lock().unwrap();
+                        guard.set_as_idle(receiver_id.id());
                     },
                     None => {
                         return;
@@ -64,9 +70,24 @@ impl<Param, Resp> Inner<Param, Resp> where Param: ParamTrait, Resp: RespTrait {
             }
         });
     }
-    
-    fn move_to_idle(&mut self, sender_id: SenderId<Param>) {
-        let id = sender_id.id();
-        self.workers_idle.insert(id, sender_id);
+
+    fn set_as_idle(&mut self, id: CounterType) {
+        
+        let value = self.workers_busy.remove(&id);
+        
+        match value {
+            Some(sender_id) => {
+                
+                let result = self.workers_idle.insert(id, sender_id);
+                
+                match result {
+                    Some(_) => panic!("Niespodziewane odgałężienie"),
+                    None => {
+                        return;
+                    }
+                }
+            },
+            None => panic!("Niespodziewane odgałężienie"),
+        }
     }
 }

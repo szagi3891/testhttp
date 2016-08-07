@@ -14,6 +14,7 @@ impl<Param> ReceiverId<Param> where Param: ParamTrait {
             receiver: receiver
         }
     }
+    
     pub fn recv(&self) -> Option<Param> {
         match self.receiver.recv() {
             Ok(param) => Some(param),
@@ -21,5 +22,9 @@ impl<Param> ReceiverId<Param> where Param: ParamTrait {
                 panic!("TODO");                 //TODO - dodać lepszą obsługę błędów
             }
         }
-    }        
+    }
+    
+    pub fn id(&self) -> CounterType {
+        self.id.clone()
+    }
 }

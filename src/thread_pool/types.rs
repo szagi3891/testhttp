@@ -1,7 +1,9 @@
 use std::hash::Hash;
 
-pub trait RespTrait : Send + Sync + 'static {}
-pub trait ParamTrait : Eq + Hash + RespTrait {}
+//trait RespTrait : Send + Sync + 'static {}
+//pub trait ParamTrait : Eq + Hash + RespTrait {}
+
+pub trait ParamTrait : Eq + Hash + Send + Sync + 'static {}
 
 pub type CounterType = u16;
 

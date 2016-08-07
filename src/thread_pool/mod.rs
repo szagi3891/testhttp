@@ -6,18 +6,16 @@ mod types;
 mod inner;
 mod autoid;
 
-use thread_pool::types::{ParamTrait, RespTrait, CounterType, WorkerBuilderType};
+use thread_pool::types::{ParamTrait, CounterType, WorkerBuilderType};
 use thread_pool::inner::{Inner};
 
-pub struct ThreadPool<Param: ParamTrait, Resp: RespTrait> {
-    inner: Arc<Mutex<Inner<Param, Resp>>>,
+pub struct ThreadPool<Param: ParamTrait> {
+    inner: Arc<Mutex<Inner<Param>>>,
 }
 
-impl<Param, Resp> ThreadPool<Param, Resp> where 
-    Param: ParamTrait ,
-    Resp : RespTrait {
+impl<Param> ThreadPool<Param> where Param: ParamTrait {
         
-    pub fn new(count: CounterType, workerBuilder: WorkerBuilderType<Param>) -> ThreadPool<Param, Resp> {
+    pub fn new(count: CounterType, workerBuilder: WorkerBuilderType<Param>) -> ThreadPool<Param> {
 
         let inner = Inner::new();
 
@@ -37,35 +35,33 @@ impl<Param, Resp> ThreadPool<Param, Resp> where
         
         for i in 0..count {
             let workerFunction = (workerBuilder)();
-            guard.create_worker(self_clone.clone(), workerFunction);
+            guard.create_worker(self_clone.inner.clone(), workerFunction);
         }
     }
-        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        //chociaż chyba lepiej, żeby pula wątków przyjmowała zwykłego callbacka
+
+    /* pub fn run(param: Param) {
+        //...
+    } */
+}
+
+    //chociaż chyba lepiej, żeby pula wątków przyjmowała zwykłego callbacka
         
     //stworzyć typ Tast który będzie trait
-        //ten obiekt będzie miał jedną wymaganą metodę .response(RespTrait)
+    //ten obiekt będzie miał jedną wymaganą metodę .response(RespTrait)
 
     //właściwy moduł Task-ów, będzie dla swojego taska, implementował trait tego wyżej
-/*
-    pub fn run(param: Param, task: Task) {    
-    }
-*/
-}
 
 //TODO - zastąpić #[derive]
 
-impl<Param, Resp> Clone for ThreadPool<Param, Resp> where 
-    Param: ParamTrait ,
-    Resp : RespTrait {
+impl<Param> Clone for ThreadPool<Param> where Param: ParamTrait  {
     
-    fn clone(&self) -> ThreadPool<Param, Resp> {
+    fn clone(&self) -> ThreadPool<Param> {
         ThreadPool {
             inner : self.inner.clone(),
         }
     }
 
-    fn clone_from(&mut self, source: &ThreadPool<Param, Resp>) {
+    fn clone_from(&mut self, source: &ThreadPool<Param>) {
         self.inner = source.inner.clone();
     }
 }
