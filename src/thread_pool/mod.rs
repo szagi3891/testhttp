@@ -40,6 +40,9 @@ impl<Param, Resp> ThreadPool<Param, Resp> where
             guard.create_worker(self_clone.clone(), workerFunction);
         }
     }
+        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        //chociaż chyba lepiej, żeby pula wątków przyjmowała zwykłego callbacka
+        
     //stworzyć typ Tast który będzie trait
         //ten obiekt będzie miał jedną wymaganą metodę .response(RespTrait)
 
