@@ -5,6 +5,7 @@ use miohttp::{new_server, Request};
 
 mod api_file;
 mod server;
+mod thread_pool;
 
 fn main() {
     println!("server start: 127.0.0.1:9876");

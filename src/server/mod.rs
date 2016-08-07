@@ -18,45 +18,57 @@ impl Server {
     
     pub fn process(&self, request:Request) {
         
+        self.test_crash(&request);
+        
+        if request.path().trim() == "/post_action" {
+
+            self.test_post(request);
+            return;
+        }
+        
+        self.send_static(request);
+        
+    }
+    
+    fn test_crash(&self, request: &Request) {
         if request.path().trim() == "/crash" {
             panic!("the simulated failure");
         }
+    }
 
-        if request.path().trim() == "/post_action" {
+    fn test_post(&self, request: Request) {
 
-            if request.is_post() {
+        if request.is_post() {
 
-                request.get_post(Box::new(move|request: Request, dane_opt: Option<Vec<u8>>|{
+            request.get_post(Box::new(move|request: Request, dane_opt: Option<Vec<u8>>|{
 
-                    match dane_opt {
+                match dane_opt {
 
-                        Some(dane) => {
+                    Some(dane) => {
 
-                            let mes  = format!("odbieram dane postem: {}", dane.len());
+                        let mes  = format!("odbieram dane postem: {}", dane.len());
 
-                            let resp = Response::create(Code::Code200, Type::TextHtml, mes);
-                            request.send(resp);
-                        },
+                        let resp = Response::create(Code::Code200, Type::TextHtml, mes);
+                        request.send(resp);
+                    },
 
-                        None => {
+                    None => {
 
-                            //nieobsłużenie spowoduje błąd 500
-                        }
+                        //nieobsłużenie spowoduje błąd 500
                     }
-                }));
+                }
+            }));
 
-            } else {
+        } else {
 
-                let mes  = format!("postownie: żądanie wysłane getem");
+            let mes  = format!("postownie: żądanie wysłane getem");
 
-                let resp = Response::create(Code::Code200, Type::TextHtml, mes);
-                request.send(resp);
-            }
-
-            return;
+            let resp = Response::create(Code::Code200, Type::TextHtml, mes);
+            request.send(resp);
         }
+    }
 
-        
+    fn send_static(&self, request: Request) {
         let (path_disk, path_requested) = self.get_static_path(&request);
         
         task_async::log_info(format!("Path requested: {}", &path_disk));
@@ -131,7 +143,6 @@ impl Server {
         request.send(resp);
         */
     }
-    
     fn get_static_path(&self, request: &Request) -> (String, String) {
 
         let path = request.path().trim();
