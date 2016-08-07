@@ -14,4 +14,8 @@ impl<Param> SenderId<Param> where Param: ParamTrait {
             sender: sender
         }
     }
+    
+    pub fn id(&self) -> CounterType {
+        self.id.clone()
+    }
 }

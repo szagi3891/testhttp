@@ -1,5 +1,3 @@
-#![feature(fnbox)]
-
 extern crate miohttp;
 extern crate task_async;
 
