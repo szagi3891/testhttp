@@ -130,5 +130,10 @@ impl<Param> Inner<Param> where Param: ParamTrait {
                 }
             }
         }
+        
+        //TODO - sprawdź czy siedzi coś na kolejce do wysłania
+        //jeśli coś siedzi na kolejce oczekujących
+        //oraz coś siedzi na hashmapie z wolnymi
+        //do dobieraj w parę
     }
 }

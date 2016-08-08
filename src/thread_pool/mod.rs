@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 mod sender_id;
 mod receiver_id;
-mod types;
+pub mod types;
 mod inner;
 mod autoid;
 
