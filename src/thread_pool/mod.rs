@@ -9,6 +9,7 @@ mod autoid;
 use thread_pool::types::{ParamTrait, CounterType, WorkerBuilderType};
 use thread_pool::inner::{Inner};
 
+#[derive(Clone)]
 pub struct ThreadPool<Param: ParamTrait> {
     inner: Arc<Mutex<Inner<Param>>>,
 }
@@ -39,29 +40,8 @@ impl<Param> ThreadPool<Param> where Param: ParamTrait {
         }
     }
 
-    /* pub fn run(param: Param) {
-        //...
-    } */
-}
-
-    //chociaż chyba lepiej, żeby pula wątków przyjmowała zwykłego callbacka
-        
-    //stworzyć typ Tast który będzie trait
-    //ten obiekt będzie miał jedną wymaganą metodę .response(RespTrait)
-
-    //właściwy moduł Task-ów, będzie dla swojego taska, implementował trait tego wyżej
-
-//TODO - zastąpić #[derive]
-
-impl<Param> Clone for ThreadPool<Param> where Param: ParamTrait  {
-    
-    fn clone(&self) -> ThreadPool<Param> {
-        ThreadPool {
-            inner : self.inner.clone(),
-        }
-    }
-
-    fn clone_from(&mut self, source: &ThreadPool<Param>) {
-        self.inner = source.inner.clone();
+    pub fn run(&self, param: Param) {
+        let mut guard = self.inner.lock().unwrap();
+        guard.run(param);
     }
 }

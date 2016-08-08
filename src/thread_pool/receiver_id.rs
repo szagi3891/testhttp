@@ -15,16 +15,17 @@ impl<Param> ReceiverId<Param> where Param: ParamTrait {
         }
     }
     
+    pub fn id(&self) -> CounterType {
+        self.id.clone()
+    }
+
     pub fn recv(&self) -> Option<Param> {
         match self.receiver.recv() {
             Ok(param) => Some(param),
             Err(err) => {
-                panic!("TODO");                 //TODO - dodać lepszą obsługę błędów
+                panic!("TODO");                 //TODO - dodać lepszą obsługę błędów pod kątem timeoutu oraz zakończenia nadawania
+                                            //recv_timeout - https://github.com/rust-lang/rfcs/issues/962
             }
         }
-    }
-    
-    pub fn id(&self) -> CounterType {
-        self.id.clone()
     }
 }

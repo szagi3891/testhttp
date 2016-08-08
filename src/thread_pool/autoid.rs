@@ -13,8 +13,8 @@ impl AutoId {
     
     pub fn get(&mut self) -> CounterType {
 
-        let idClone = self.id.clone();
+        let id_clone = self.id.clone();
         self.id += 1;
-        idClone
+        id_clone
     }
 }
