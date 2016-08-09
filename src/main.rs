@@ -5,7 +5,8 @@ use miohttp::{new_server, Request};
 
 mod api_file;
 mod server;
-mod thread_pool;
+mod thread_pool;        //wynieść do zewnętrznego create
+mod cache_get;
 
 fn main() {
     println!("server start: 127.0.0.1:9876");

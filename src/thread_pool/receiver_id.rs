@@ -1,13 +1,13 @@
 use std::sync::mpsc::Receiver;
 
-use thread_pool::types::{ParamTrait, CounterType};
+use thread_pool::types::{CounterType};
 
 pub struct ReceiverId<Param> {
     id: CounterType,
     receiver: Receiver<Param>
 }
 
-impl<Param> ReceiverId<Param> where Param: ParamTrait {
+impl<Param> ReceiverId<Param> where Param: Send + Sync + 'static {
     pub fn new(id: CounterType, receiver: Receiver<Param>) -> ReceiverId<Param> {
         ReceiverId {
             id: id,

@@ -1,24 +1,22 @@
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::{channel};
 use std::collections::HashMap;
-use task_async::{Task};
 use std::thread;
 use std::collections::VecDeque;
 
-use thread_pool::{ThreadPool};
-use thread_pool::types::{ParamTrait, CounterType, WorkerFunctionType};
+use thread_pool::types::{CounterType, WorkerFunctionType};
 use thread_pool::sender_id::{SenderId};
 use thread_pool::receiver_id::{ReceiverId};
 use thread_pool::autoid::{AutoId};
 
-pub struct Inner<Param: ParamTrait> {
+pub struct Inner<Param: Send + Sync + 'static> {
     autoid       : AutoId,
     task         : VecDeque<Param>,
     workers_idle : VecDeque<SenderId<Param>>,
     workers_busy : HashMap<CounterType, SenderId<Param>>,
 }
 
-impl<Param> Inner<Param> where Param: ParamTrait {
+impl<Param> Inner<Param> where Param: Send + Sync + 'static {
         
     pub fn new() -> Inner<Param> {
         Inner {
@@ -31,7 +29,7 @@ impl<Param> Inner<Param> where Param: ParamTrait {
 
     pub fn create_worker(&mut self,
         inner: Arc<Mutex<Inner<Param>>>,
-        workerFunction: WorkerFunctionType<Param>) {
+        worker_function: WorkerFunctionType<Param>) {
 
         let (sender, receiver) = channel();
 
@@ -48,7 +46,7 @@ impl<Param> Inner<Param> where Param: ParamTrait {
                 match receiver_id.recv() {
                     Some(param) => {
 
-                        (workerFunction)(param);
+                        (worker_function)(param);
 
                         let mut guard = inner.lock().unwrap();
                         guard.set_as_idle(receiver_id.id());
@@ -130,10 +128,5 @@ impl<Param> Inner<Param> where Param: ParamTrait {
                 }
             }
         }
-        
-        //TODO - sprawdź czy siedzi coś na kolejce do wysłania
-        //jeśli coś siedzi na kolejce oczekujących
-        //oraz coś siedzi na hashmapie z wolnymi
-        //do dobieraj w parę
     }
 }

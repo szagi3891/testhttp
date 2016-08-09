@@ -4,9 +4,7 @@ use std::path::Path;
 use std::io;
 
 use thread_pool::{ThreadPool};
-use thread_pool::types::{ParamTrait};           //TODO - przenieść w główne miejsce thread_pool modułu
 use task_async::{self, Task};
-
 
 pub type FilesData = Result<Vec<u8>, io::Error>;
 
@@ -16,17 +14,14 @@ struct ParamFile {
 }
 
 pub struct ApiFile {
-    pool: ThreadPool<ParamFile>
-}
-
-impl ParamTrait for ParamFile {
+    thread_pool: ThreadPool<ParamFile>
 }
 
 impl ApiFile {
 
     pub fn new() -> ApiFile {
         
-        let pool = ThreadPool::new(5, Box::new(move||{
+        let thread_pool = ThreadPool::new(5, Box::new(move||{
             
             Box::new(move|param: ParamFile|{
 
@@ -35,7 +30,7 @@ impl ApiFile {
         }));
     
         ApiFile{
-            pool: pool
+            thread_pool: thread_pool
         }
     }
     
@@ -46,12 +41,9 @@ impl ApiFile {
             task: task,
         };
 
-        self.pool.run(param);
+        self.thread_pool.run(param);
     }
 }
-
-//pub fn new(count: CounterType, workerBuilder: WorkerBuilderType<Param>) -> ThreadPool<Param> {
-//pub fn run(&self, param: Param) {
 
 fn get_inner_file(path_src: String, task: Task<FilesData>) {
 
