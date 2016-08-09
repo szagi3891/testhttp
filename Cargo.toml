@@ -11,8 +11,8 @@ time = "0.1"
 git = "https://github.com/Detegr/rust-ctrlc"
 
 [dependencies.task_async]
-git = "https://github.com/szagi3891/task_async-rs"
-#path = "../task_async-rs"
+#git = "https://github.com/szagi3891/task_async-rs"
+path = "../task_async-rs"
 
 [dependencies.miohttp]
 git = "https://github.com/szagi3891/miohttp-rs"

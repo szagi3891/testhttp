@@ -2,17 +2,19 @@ use std::io;
 use std::path::Path;
 use api_file::{ApiFile, FilesData};
 use miohttp::{Request, Response, Code, Type};
-use task_async::{self, Task};
+use task_async::{self, Task, TaskPool};
 
 pub struct Server {
-    api_file: ApiFile
+    task_pool: TaskPool,
+    api_file: ApiFile,
 }
 
 impl Server {
 
-    pub fn new(api_file: ApiFile) -> Server {
+    pub fn new(task_pool: TaskPool, api_file: ApiFile) -> Server {
         Server{
-            api_file: api_file
+            task_pool: task_pool,
+            api_file: api_file,
         }
     }
     
@@ -73,7 +75,7 @@ impl Server {
         
         task_async::log_info(format!("Path requested: {}", &path_disk));
         
-        let task = Task::new(Box::new(move|resonse : Option<Response>|{
+        let task = self.task_pool.task(Box::new(move|resonse : Option<Response>|{
 
             match resonse {
                 Some(resp) => {

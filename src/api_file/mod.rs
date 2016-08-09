@@ -3,14 +3,12 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::io;
 
-use thread_pool::{ThreadPool};
-use task_async::{self, Task};
+use task_async::{self, Task, ThreadPool};
 
 pub type FilesData = Result<Vec<u8>, io::Error>;
 
-struct ParamFile {
-    path: String,
-    task: Task<FilesData>
+enum ParamFile {
+    Get(String, Task<FilesData>),
 }
 
 pub struct ApiFile {
@@ -19,13 +17,13 @@ pub struct ApiFile {
 
 impl ApiFile {
 
-    pub fn new() -> ApiFile {
+    pub fn new(workers_count: u16) -> ApiFile {
         
-        let thread_pool = ThreadPool::new(5, Box::new(move||{
+        let thread_pool = ThreadPool::new(workers_count, Box::new(move||{
             
             Box::new(move|param: ParamFile|{
 
-                get_inner_file(param.path, param.task);
+                exec(param);
             })
         }));
     
@@ -35,13 +33,18 @@ impl ApiFile {
     }
     
     pub fn get_file(&self, path_src: String, task: Task<FilesData>) {
-        
-        let param = ParamFile {
-            path: path_src,
-            task: task,
-        };
 
+        let param = ParamFile::Get(path_src, task);
         self.thread_pool.run(param);
+    }
+}
+
+fn exec(param_file: ParamFile) {
+    
+    match param_file {
+        ParamFile::Get(path, task) => {
+            get_inner_file(path, task);
+        }
     }
 }
 
