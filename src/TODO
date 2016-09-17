@@ -8,3 +8,13 @@ można dodać informację o czasie wykonywania poszczególnych asonchrynic<nych
 to powinno wystarczyć do analizowania i wychwytywania wąskich gardeł ...
 
 
+https://doc.rust-lang.org/std/borrow/enum.Cow.html
+https://chrismorgan.info/blog/rust-fizzbuzz.html
+https://github.com/serde-rs/serde/blob/master/examples/serde-syntex-example/src/main.rs.in
+http://piotrkowalczuk.github.io/2016/07/10/kolejka-priorytetowa/
+
+
+https://github.com/redox-os/ralloc
+
+https://github.com/carllerche/pool
+

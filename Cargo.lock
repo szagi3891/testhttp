@@ -139,7 +139,7 @@ source = "git+https://github.com/carllerche/slab?rev=5476efcafb#5476efcafbc5ef4d
 [[package]]
 name = "task_async"
 version = "0.1.0"
-source = "git+https://github.com/szagi3891/task_async-rs#0d4a0b6eb26c8bb549233d272bf4e46fd8bfa31a"
+source = "git+https://github.com/szagi3891/task_async-rs#c2123b7e69db1081f83ca067215ba3b64748f60e"
 
 [[package]]
 name = "time"
